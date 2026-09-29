@@ -221,7 +221,7 @@ describe("pi models", () => {
   test("configures a CLIProxyAPI-style custom provider", () => {
     const inputs = {
       ...baseInputs,
-      model: "gpt-5.6-luna",
+      model: "gpt-6-luna",
       baseUrl: "http://localhost:8317/v1",
       apiKey: "secret",
       thinking: "high",
@@ -233,11 +233,11 @@ describe("pi models", () => {
           baseUrl: "http://localhost:8317/v1",
           api: "openai-completions",
           apiKey: `$${PI_API_KEY_ENV}`,
-          models: [{ id: "gpt-5.6-luna", reasoning: true }],
+          models: [{ id: "gpt-6-luna", reasoning: true }],
         },
       },
     });
-    expect(getPiModelSelection(inputs)).toEqual({ provider: "custom", model: "gpt-5.6-luna" });
+    expect(getPiModelSelection(inputs)).toEqual({ provider: "custom", model: "gpt-6-luna" });
     expect(JSON.stringify(buildPiModelsConfig(inputs))).not.toContain("secret");
   });
 
@@ -289,12 +289,12 @@ describe("pi models", () => {
 
     expect(
       buildPiModelsConfig(
-        { ...baseInputs, model: "gpt-5.6-luna", baseUrl: "http://localhost:8317/v1" },
+        { ...baseInputs, model: "gpt-6-luna", baseUrl: "http://localhost:8317/v1" },
         models,
       ).providers.custom?.models,
     ).toEqual([
       { id: "gpt-5.5", contextWindow: 400000 },
-      { id: "gpt-5.6-luna", reasoning: false },
+      { id: "gpt-6-luna", reasoning: false },
     ]);
   });
 
@@ -340,7 +340,7 @@ describe("pi runner", () => {
       buildPiArgs({
         extensionPath: "/tmp/ext.ts",
         provider: "custom",
-        model: "gpt-5.6-luna",
+        model: "gpt-6-luna",
         thinking: "high",
       }),
     ).toEqual([
@@ -354,7 +354,7 @@ describe("pi runner", () => {
       "--provider",
       "custom",
       "--model",
-      "gpt-5.6-luna",
+      "gpt-6-luna",
       "--thinking",
       "high",
     ]);
@@ -390,7 +390,7 @@ describe("pi runner", () => {
         message: {
           role: "assistant",
           provider: "custom",
-          model: "gpt-5.6-luna",
+          model: "gpt-6-luna",
           stopReason: "toolUse",
         },
       }),
@@ -400,7 +400,7 @@ describe("pi runner", () => {
     expect(getPiRunMetadata(state, 0)).toEqual({
       commitMessage: "Update docs",
       prComment: "Looks good",
-      model: "custom/gpt-5.6-luna",
+      model: "custom/gpt-6-luna",
     });
   });
 

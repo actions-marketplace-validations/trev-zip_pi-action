@@ -29,7 +29,7 @@ jobs:
           private-key: ${{ secrets.PRIVATE_KEY }}
           base-url: ${{ secrets.PI_ACTION_BASE_URL }}
           api-key: ${{ secrets.PI_ACTION_API_KEY }}
-          model: gpt-5.6-luna
+          model: gpt-6-luna
           dry-run: true
           prompt: |
             Create or update .pi-action-check.txt with a single line saying "pi-action dry-run check".
