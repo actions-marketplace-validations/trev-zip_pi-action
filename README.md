@@ -5,38 +5,255 @@
 [![nixpkgs](https://img.shields.io/endpoint?url=https%3A%2F%2Fnix-shield.trev.zip%2Fbadge%3Furl%3Dhttps%253A%252F%252Ftrev.zip%252Fllc%252Fpi-action%252Fraw%252Fbranch%252Fmain%252Fflake.lock%26input%3Dnixpkgs&logoColor=%23bac2de&labelColor=%23313244&color=%235277C3)](https://nixos.org/)
 [![node](https://img.shields.io/badge/dynamic/json?url=https://trev.zip/llc/pi-action/raw/branch/main/package.json&query=%24.engines.node&logo=nodedotjs&logoColor=%23bac2de&label=version&labelColor=%23313244&color=%23339933)](https://nodejs.org/en/about/previous-releases)
 
-github/gitea/forgejo action for running the pi harness
+Use the [pi](https://pi.dev) coding agent in a GitHub/Gitea/Forgejo action,
+with any provider pi supports or any OpenAI-, Anthropic-, or Google-compatible
+endpoint such as [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI).
 
-## using
+## Examples
 
-### npm
+### CLIProxyAPI
 
-```sh
-NPM_CONFIG_REGISTRY=https://trev.zip/api/packages/llc/npm/ \
-    npx pi-action
+Point `base-url` at any compatible endpoint. The action adds it to pi's
+`models.json` as a `custom` provider (rename it with `provider`) and selects
+`model` on it. `api` defaults to `openai-completions`; use `openai-responses`,
+`anthropic-messages`, or `google-generative-ai` when the endpoint speaks another
+API.
+
+```yaml
+name: pi
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: https://trev.zip/llc/pi-action@main
+        with:
+          base-url: https://cliproxy.example.com/v1
+          api-key: ${{ secrets.CLIPROXY_API_KEY }}
+          model: claude-sonnet-5
+          token: ${{ secrets.PI_ACTION_TOKEN }}
+          prompt: Update the documentation for the latest changes.
 ```
 
-### docker
+The API key only reaches pi through an environment variable; `models.json`
+references it as `$PI_ACTION_API_KEY` so the key is never written to disk.
 
-```sh
-docker run trev.zip/llc/pi-action:latest
-```
+### Built-in Providers
 
-### nix
-
-```sh
-nix run git+https://trev.zip/llc/pi-action.git
-```
-
-### action
+For providers pi already knows, set `provider` and either `api-key` or the
+provider's usual environment variable. Omit `model` to use pi's default model
+for the provider.
 
 ```yaml
 - uses: https://trev.zip/llc/pi-action@main
+  with:
+    provider: anthropic
+    api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    model: claude-opus-5-5
+    thinking: high
+    token: ${{ secrets.PI_ACTION_TOKEN }}
+    prompt: Fix the failing tests.
 ```
 
-### download
+```yaml
+- uses: https://trev.zip/llc/pi-action@main
+  env:
+    OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+  with:
+    provider: openrouter
+    model: moonshotai/kimi-k2
+    token: ${{ secrets.PI_ACTION_TOKEN }}
+    prompt: Fix the failing tests.
+```
 
-https://trev.zip/llc/pi-action/releases
+`thinking` accepts `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, or `max`;
+pi clamps it to what the selected model supports.
+
+### Multiple Providers
+
+`models` accepts pi [`models.json`](https://pi.dev/docs/models) content, or a
+path to a file in the workspace. Values can use `$NAME`, `${NAME}`, or
+`!command`, which are resolved from the step environment when pi makes a
+request. `base-url`, `api`, `api-key`, and `model` are merged on top of the
+provider named by `provider`.
+
+```yaml
+- uses: https://trev.zip/llc/pi-action@main
+  env:
+    LOCAL_API_KEY: ${{ secrets.LOCAL_API_KEY }}
+  with:
+    provider: local
+    model: qwen3-coder
+    models: |
+      {
+        "providers": {
+          "local": {
+            "baseUrl": "https://llm.example.com/v1",
+            "api": "openai-completions",
+            "apiKey": "$LOCAL_API_KEY",
+            "models": [{ "id": "qwen3-coder", "contextWindow": 262144 }]
+          }
+        }
+      }
+    token: ${{ secrets.PI_ACTION_TOKEN }}
+    prompt: .github/prompts/refactor.md
+```
+
+### Subscription Auth
+
+To use a subscription login, run `pi` locally, sign in with `/login`, and store
+`~/.pi/agent/auth.json` (as-is or base64 encoded) in the `PI_ACTION_AUTH`
+repository secret.
+
+```sh
+base64 -w0 ~/.pi/agent/auth.json | gh secret set PI_ACTION_AUTH
+```
+
+```yaml
+- uses: https://trev.zip/llc/pi-action@main
+  with:
+    auth: ${{ secrets.PI_ACTION_AUTH }}
+    provider: openai-codex
+    model: gpt-5.5
+    token: ${{ secrets.PI_ACTION_TOKEN }}
+    prompt: Make the requested repository update.
+```
+
+When pi refreshes OAuth tokens during a run, the action stores the new
+`auth.json` in the secret named by `auth-secret` (default `PI_ACTION_AUTH`), so
+the token needs permission to write Actions secrets. Credentials in `auth.json`
+take precedence over `api-key` for the same provider.
+
+### GitHub App
+
+Instead of `token`, pass a GitHub App client ID and private key. The action
+creates a repository-scoped installation token with the permissions it needs and
+commits as `<app-slug>[bot]`.
+
+```yaml
+- uses: spotdemo4/pi-action@main
+  with:
+    base-url: ${{ secrets.CLIPROXY_URL }}
+    api-key: ${{ secrets.CLIPROXY_API_KEY }}
+    model: claude-sonnet-5
+    client-id: ${{ vars.CLIENT_ID }}
+    private-key: ${{ secrets.PRIVATE_KEY }}
+    prompt: Update the documentation for the latest changes.
+```
+
+The GitHub App installation must grant these repository permissions:
+
+- Actions: read
+- Contents: read and write
+- Issues: read and write
+- Pull requests: read and write
+- Secrets: read and write
+
+### Gitea or Forgejo
+
+On Gitea and Forgejo, pass a token with repository contents, pull request, issue
+comment, workflow, and Actions secret access.
+
+### MCP Context
+
+The action gives pi read-only access to the matching platform MCP server with
+the same API token used by the action, so pi can inspect pull request comments,
+issues, repository data, and workflow context:
+
+- `github-mcp-server` from `github/github-mcp-server` on GitHub, with the
+  `repos`, `issues`, `pull_requests`, and `actions` toolsets.
+- `gitea-mcp` from `gitea/gitea-mcp` on Gitea.
+- `forgejo-mcp` from `goern/forgejo-mcp` on Forgejo.
+
+No container runtime is required. The pi and MCP release binaries are downloaded
+and cached in both the runner tool cache and, when available, the Actions cache
+service. The action's pi extension starts the MCP server over stdio and exposes
+its tools to pi, so this works with released pi versions that have no built-in
+MCP support. The API token is forwarded through environment variables and is not
+written to the MCP configuration.
+
+Set `PI_PATH` to a preinstalled pi executable to skip the pi download.
+
+### Prompts
+
+If `prompt` points to a file in the workspace, the action reads that file.
+Otherwise, the input value is used as the prompt text.
+
+Prompts should describe the task clearly enough for pi to complete it without
+follow-up questions: the goal, relevant files, what is out of scope, and which
+formatting, build, or test commands to run.
+
+Do not ask pi to commit, push, or post comments. When pi finishes, it submits a
+commit message and optional pull request comment, and the action handles
+commits, pushes, pull request comments, and automerge.
+
+pi runs with project trust declined, so `.pi` settings, extensions, skills, and
+MCP servers from the repository are ignored. `AGENTS.md` and `CLAUDE.md` context
+files are still loaded.
+
+Set `dry-run: true` to let pi run and create a local commit while skipping
+pushes, pull request comments, and automerge updates. Refreshed auth is still
+saved to the configured repository secret.
+
+### Pull Requests
+
+On pull request events, pi can leave a PR comment and optionally toggle
+automerge. Non-empty comments include a footer identifying pi and the model used
+for the run.
+
+```yaml
+name: pi-pr
+
+on:
+  pull_request:
+
+jobs:
+  pi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: https://trev.zip/llc/pi-action@main
+        with:
+          base-url: ${{ secrets.CLIPROXY_URL }}
+          api-key: ${{ secrets.CLIPROXY_API_KEY }}
+          model: gpt-5.5
+          token: ${{ secrets.PI_ACTION_TOKEN }}
+          automerge: true
+          prompt: Review this pull request and fix straightforward issues.
+```
+
+## Inputs
+
+| Input         | Description                                                                     |
+| ------------- | ------------------------------------------------------------------------------- |
+| `prompt`      | Prompt text, or a path to a prompt file (required)                              |
+| `provider`    | pi provider name, or the name for the `base-url` provider (default `custom`)    |
+| `model`       | Model ID; required with `base-url`                                              |
+| `base-url`    | OpenAI-, Anthropic-, or Google-compatible endpoint, such as a CLIProxyAPI `/v1` |
+| `api`         | API type for `base-url` (default `openai-completions`)                          |
+| `api-key`     | API key for `base-url` or `provider`                                            |
+| `models`      | pi `models.json` content, or a path to one                                      |
+| `thinking`    | Thinking level                                                                  |
+| `auth`        | pi `auth.json` content, or its base64 encoding                                  |
+| `auth-secret` | Secret to update with refreshed auth (default `PI_ACTION_AUTH`)                 |
+| `token`       | GitHub, Gitea, or Forgejo token                                                 |
+| `client-id`   | GitHub App client ID, used with `private-key` instead of `token`                |
+| `private-key` | GitHub App private key                                                          |
+| `automerge`   | `true` to enable automerge, `false` to disable it, or omit for no change        |
+| `dry-run`     | Commit locally but skip pushes, comments, and automerge (default `false`)       |
 
 ## contributing
 

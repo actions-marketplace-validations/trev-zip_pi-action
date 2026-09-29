@@ -122,12 +122,6 @@
                 runHook postCheck
               '';
 
-              installCheckPhase = ''
-                runHook preInstallCheck
-                test "$("$out/bin/pi-action")" = "Hello, world!"
-                runHook postInstallCheck
-              '';
-
               meta = {
                 mainProgram = "pi-action";
                 description = "github/gitea/forgejo action for running the pi harness";

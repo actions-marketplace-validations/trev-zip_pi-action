@@ -35,3 +35,6 @@ pnpm-lock.yaml linguist-generated=true
 # Do not normalize patch/diff files
 *.diff -text
 *.patch -text
+
+# Bundled action output is generated
+/build/**/* linguist-generated

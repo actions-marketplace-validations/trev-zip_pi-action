@@ -1,7 +1,56 @@
-name: "pi-action"
-description: "github/gitea/forgejo action for running the pi harness"
-author: "trev"
+name: pi-action
+description: github/gitea/forgejo action for running the pi harness
+author: trev
+
+inputs:
+  prompt:
+    description: Prompt text, or a path to a file containing the prompt
+    required: true
+  provider:
+    description: pi provider name, such as anthropic or openai, or the name for a custom base-url provider (default custom)
+    required: false
+  model:
+    description: Model ID to use; required with base-url
+    required: false
+  base-url:
+    description: OpenAI- or Anthropic-compatible endpoint, such as a CLIProxyAPI server's /v1 URL
+    required: false
+  api:
+    description: API type for base-url, such as openai-completions, openai-responses, or anthropic-messages (default openai-completions)
+    required: false
+  api-key:
+    description: API key for base-url or provider
+    required: false
+  models:
+    description: pi models.json content, or a path to a models.json file, for additional providers and models
+    required: false
+  thinking:
+    description: Thinking level (off, minimal, low, medium, high, xhigh, max)
+    required: false
+  auth:
+    description: pi auth.json content, or its base64 encoding, from a repository secret
+    required: false
+  auth-secret:
+    description: Repository secret name to update with refreshed pi auth
+    required: false
+    default: PI_ACTION_AUTH
+  token:
+    description: GitHub, Gitea, or Forgejo token used for git and pull request APIs
+    required: false
+  client-id:
+    description: GitHub App client ID used to create an installation token when token is omitted
+    required: false
+  private-key:
+    description: GitHub App private key used to create an installation token when token is omitted
+    required: false
+  automerge:
+    description: Set true to enable automerge, false to disable automerge, or omit for no-op
+    required: false
+  dry-run:
+    description: Commit local changes but skip pushing, pull request comments, and automerge
+    required: false
+    default: "false"
 
 runs:
   using: node24
-  main: src/index.ts
+  main: build/index.js

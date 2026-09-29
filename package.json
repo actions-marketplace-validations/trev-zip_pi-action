@@ -16,6 +16,14 @@
     "prepare": "vite build && chmod +x build/index.js",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@actions/cache": "^6.3.0",
+    "@actions/core": "^3.0.1",
+    "@actions/exec": "^3.0.0",
+    "@actions/github": "^9.1.1",
+    "@actions/tool-cache": "^4.0.0",
+    "libsodium-wrappers": "^0.8.4"
+  },
   "devDependencies": {
     "@tsconfig/node-ts": "^23.6.4",
     "@tsconfig/node24": "^24.0.5",
