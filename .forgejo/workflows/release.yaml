@@ -33,7 +33,4 @@ jobs:
           PACKAGE_REGISTRY_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           CONTAINER_REGISTRY_PASSWORD: ${{ secrets.PACKAGE_TOKEN }}
           DELETE_OLD_RELEASE_ARTIFACTS: 2
-          PACKAGES: |
-            packages.x86_64-linux.default
-            appimages.x86_64-linux.default.x86_64-unknown-linux-gnu
-            images.x86_64-linux.default.x86_64-unknown-linux-gnu
+          PACKAGES: packages.x86_64-linux.default
