@@ -1,6 +1,9 @@
-name: pi-action
+name: pi-harness-action
 description: github/gitea/forgejo action for running the pi harness
 author: trev
+branding:
+  icon: terminal
+  color: purple
 
 inputs:
   prompt:
