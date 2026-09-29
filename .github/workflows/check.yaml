@@ -1,0 +1,60 @@
+name: check
+
+on:
+  pull_request:
+    branches: ["main"]
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+
+permissions:
+  contents: read
+
+jobs:
+  action:
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run action
+        uses: ./. # zizmor: ignore[unpinned-uses,self-repository]
+        with:
+          client-id: ${{ vars.CLIENT_ID }}
+          private-key: ${{ secrets.PRIVATE_KEY }}
+          base-url: ${{ secrets.PI_ACTION_BASE_URL }}
+          api-key: ${{ secrets.PI_ACTION_API_KEY }}
+          model: gpt-5.6-luna
+          dry-run: true
+          prompt: |
+            Create or update .pi-action-check.txt with a single line saying "pi-action dry-run check".
+
+      - name: Verify dry-run change
+        run: |
+          test -f .pi-action-check.txt
+          grep -qxF "pi-action dry-run check" .pi-action-check.txt
+          if git diff --quiet HEAD^ HEAD -- .pi-action-check.txt; then
+            echo ".pi-action-check.txt was not changed by the local dry-run commit"
+            exit 1
+          else
+            status=$?
+            if [ "$status" -ne 1 ]; then
+              exit "$status"
+            fi
+          fi
+
+  check:
+    runs-on: ubuntu-26.04
+    permissions:
+      id-token: write
+    steps:
+      - name: Initialize
+        uses: spotdemo4/nix-init@c7537bc73ce11ca01e53bd9d119d6e46363f9888 # v1.65.0
+
+      - name: Check
+        run: nix flake check

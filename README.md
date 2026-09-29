@@ -36,7 +36,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: https://trev.zip/llc/pi-action@main
+      - uses: trev-zip/pi-action@main
         with:
           base-url: https://cliproxy.example.com/v1
           api-key: ${{ secrets.CLIPROXY_API_KEY }}
@@ -55,7 +55,7 @@ provider's usual environment variable. Omit `model` to use pi's default model
 for the provider.
 
 ```yaml
-- uses: https://trev.zip/llc/pi-action@main
+- uses: trev-zip/pi-action@main
   with:
     provider: anthropic
     api-key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -66,7 +66,7 @@ for the provider.
 ```
 
 ```yaml
-- uses: https://trev.zip/llc/pi-action@main
+- uses: trev-zip/pi-action@main
   env:
     OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
   with:
@@ -88,7 +88,7 @@ request. `base-url`, `api`, `api-key`, and `model` are merged on top of the
 provider named by `provider`.
 
 ```yaml
-- uses: https://trev.zip/llc/pi-action@main
+- uses: trev-zip/pi-action@main
   env:
     LOCAL_API_KEY: ${{ secrets.LOCAL_API_KEY }}
   with:
@@ -120,7 +120,7 @@ base64 -w0 ~/.pi/agent/auth.json | gh secret set PI_ACTION_AUTH
 ```
 
 ```yaml
-- uses: https://trev.zip/llc/pi-action@main
+- uses: trev-zip/pi-action@main
   with:
     auth: ${{ secrets.PI_ACTION_AUTH }}
     provider: openai-codex
@@ -141,7 +141,7 @@ creates a repository-scoped installation token with the permissions it needs and
 commits as `<app-slug>[bot]`.
 
 ```yaml
-- uses: spotdemo4/pi-action@main
+- uses: trev-zip/pi-action@main
   with:
     base-url: ${{ secrets.CLIPROXY_URL }}
     api-key: ${{ secrets.CLIPROXY_API_KEY }}
@@ -230,7 +230,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: https://trev.zip/llc/pi-action@main
+      - uses: trev-zip/pi-action@main
         with:
           base-url: ${{ secrets.CLIPROXY_URL }}
           api-key: ${{ secrets.CLIPROXY_API_KEY }}
