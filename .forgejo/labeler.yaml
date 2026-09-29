@@ -1,0 +1,20 @@
+# https://github.com/actions/labeler
+
+actions:
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/workflows/**
+          - .forgejo/workflows/**
+
+nix:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.nix"
+          - "**/flake.lock"
+
+node:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"
+          - "**/package.json"
+          - "**/package-lock.json"

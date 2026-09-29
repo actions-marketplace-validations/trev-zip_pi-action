@@ -1,0 +1,7 @@
+name: "pi-action"
+description: "github/gitea/forgejo action for running the pi harness"
+author: "trev"
+
+runs:
+  using: node24
+  main: src/index.ts

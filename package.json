@@ -1,0 +1,30 @@
+{
+  "name": "pi-action",
+  "version": "0.0.1",
+  "description": "github/gitea/forgejo action for running the pi harness",
+  "license": "MIT",
+  "repository": {
+    "url": "https://trev.zip/llc/pi-action"
+  },
+  "bin": {
+    "pi-action": "build/index.js"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build && node build/index.js",
+    "prepare": "vite build && chmod +x build/index.js",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@tsconfig/node-ts": "^23.6.4",
+    "@tsconfig/node24": "^24.0.5",
+    "@types/node": "^24.19.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

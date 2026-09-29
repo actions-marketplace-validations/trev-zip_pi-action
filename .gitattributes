@@ -1,0 +1,37 @@
+# Node.js template - Git attributes
+# https://git-scm.com/docs/gitattributes
+
+# Linguist: exclude template initializer from language stats
+/init.sh -linguist-detectable
+
+# Linguist: Node lock files are generated
+flake.lock linguist-generated=true
+package-lock.json linguist-generated=true
+yarn.lock linguist-generated=true
+pnpm-lock.yaml linguist-generated=true
+
+# Node / TypeScript source files
+*.js text diff=javascript linguist-language=JavaScript
+*.mjs text diff=javascript
+*.cjs text diff=javascript
+*.jsx text diff=javascript
+*.ts text diff=typescript linguist-language=TypeScript
+*.tsx text diff=typescript
+*.mts text diff=typescript
+*.cts text diff=typescript
+
+# Normalize line endings to LF and auto-detect text files
+* text=auto eol=lf
+
+# Shell scripts must use LF
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Windows batch files require CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Do not normalize patch/diff files
+*.diff -text
+*.patch -text
