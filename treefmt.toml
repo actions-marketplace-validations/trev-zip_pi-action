@@ -1,6 +1,6 @@
 #:schema https://www.schemastore.org/treefmt.json
 
-excludes = ["build"]
+excludes = ["build/**", "node_modules/**"]
 
 [formatter.oxfmt]
 command = "oxfmt"
