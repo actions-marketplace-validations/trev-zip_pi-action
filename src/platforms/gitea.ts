@@ -13,6 +13,27 @@ import { getPullRequestNumber, getServerUrl } from "./context.ts";
 
 const GITEA_MCP_VERSION = "1.7.0";
 
+// Read-only mode already drops write tools; the allowlist also drops unrelated
+// read tools (packages, notifications, users, wikis) to keep requests small.
+const GITEA_MCP_TOOLS = [
+  "get_file_contents",
+  "get_dir_contents",
+  "get_repository_tree",
+  "get_commit",
+  "list_commits",
+  "list_branches",
+  "list_releases",
+  "get_latest_release",
+  "issue_read",
+  "list_issues",
+  "search_issues",
+  "label_read",
+  "milestone_read",
+  "pull_request_read",
+  "list_pull_requests",
+  "actions_run_read",
+];
+
 class HttpError extends Error {
   status: number;
 
@@ -30,7 +51,10 @@ export const giteaMcp: PlatformMcp = {
       command: executable,
       tokenEnvVar: "GITEA_ACCESS_TOKEN",
       args: ["-t", "stdio", "--host", serverUrl],
-      env: {},
+      env: {
+        GITEA_READONLY: "true",
+        GITEA_TOOLS: GITEA_MCP_TOOLS.join(","),
+      },
     };
   },
 

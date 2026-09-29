@@ -19014,7 +19014,10 @@ export default function (pi) {
 
     try {
       await client.initialize();
-      const tools = await client.listTools();
+      const listedTools = await client.listTools();
+      const tools = config.tools
+        ? listedTools.filter((tool) => config.tools.includes(tool.name))
+        : listedTools;
 
       for (const tool of tools) {
         pi.registerTool(createMcpTool(client, config.name, tool));
@@ -19277,13 +19280,37 @@ function ts(e) {
   return e instanceof Error ? e.message : String(e);
 }
 var ns = `2.30.2`,
-  rs = class extends Error {
+  rs = [
+    `get_file_content`,
+    `get_repo_tree`,
+    `list_repo_contents`,
+    `list_repo_commits`,
+    `list_branches`,
+    `list_releases`,
+    `get_latest_release`,
+    `get_issue_by_index`,
+    `get_issue_comment`,
+    `list_repo_issues`,
+    `list_issue_comments`,
+    `list_repo_labels`,
+    `list_repo_milestones`,
+    `get_pull_request_by_index`,
+    `get_pull_request_diff`,
+    `list_pull_request_files`,
+    `list_repo_pull_requests`,
+    `list_pull_reviews`,
+    `get_pull_review`,
+    `list_pull_review_comments`,
+    `list_workflow_runs`,
+    `get_workflow_run`,
+  ],
+  is = class extends Error {
     status;
     constructor(e, t) {
       (super(t), (this.name = `HttpError`), (this.status = e));
     }
   },
-  is = {
+  as = {
     createServerConfig(e, t) {
       return {
         name: `forgejo`,
@@ -19291,26 +19318,27 @@ var ns = `2.30.2`,
         tokenEnvVar: `FORGEJO_ACCESS_TOKEN`,
         args: [`--transport`, `stdio`, `--url`, t],
         env: { FORGEJO_USER_AGENT: `pi-action` },
+        tools: rs,
       };
     },
-    getReleaseAsset: os,
+    getReleaseAsset: ss,
     getReleaseAssetUrl(e = process.platform, t = process.arch) {
-      let n = os(e, t);
+      let n = ss(e, t);
       return `https://codeberg.org/goern/forgejo-mcp/releases/download/v${n.version}/${n.assetName}`;
     },
     getExecutableOverride() {
       return process.env.FORGEJO_MCP_PATH;
     },
   },
-  as = class {
+  os = class {
     type = `forgejo`;
-    mcp = is;
+    mcp = as;
     token;
     constructor(e) {
       this.token = e;
     }
     async getActionUser() {
-      let e = await ls(`GET`, `/user`, this.token),
+      let e = await us(`GET`, `/user`, this.token),
         t = e.login ?? e.username ?? e.name;
       if (!t) throw Error(`forgejo user response did not include a login`);
       let n = e.id ?? t,
@@ -19319,7 +19347,7 @@ var ns = `2.30.2`,
     }
     async postPullRequestComment(e) {
       let { owner: t, repo: n } = So.repo;
-      (await ls(
+      (await us(
         `POST`,
         `/repos/${encodeURIComponent(t)}/${encodeURIComponent(n)}/issues/${Qo()}/comments`,
         this.token,
@@ -19332,19 +19360,19 @@ var ns = `2.30.2`,
         r = `/repos/${encodeURIComponent(t)}/${encodeURIComponent(n)}/pulls/${Qo()}/merge`;
       try {
         if (e) {
-          (await ls(`POST`, r, this.token, { Do: `merge`, merge_when_checks_succeed: !0 }),
+          (await us(`POST`, r, this.token, { Do: `merge`, merge_when_checks_succeed: !0 }),
             F(`Enabled forgejo pull request automerge`));
           return;
         }
-        (await ls(`DELETE`, r, this.token), F(`Disabled forgejo pull request automerge`));
+        (await us(`DELETE`, r, this.token), F(`Disabled forgejo pull request automerge`));
       } catch (t) {
-        let n = t instanceof rs ? `HTTP ${t.status}` : ts(t);
+        let n = t instanceof is ? `HTTP ${t.status}` : ts(t);
         Gr(`Could not ${e ? `enable` : `disable`} forgejo pull request automerge: ${n}`);
       }
     }
     async updateRepositoryAuthSecret(e, t) {
       let { owner: n, repo: r } = So.repo;
-      await ls(
+      await us(
         `PUT`,
         `/repos/${encodeURIComponent(n)}/${encodeURIComponent(r)}/actions/secrets/${encodeURIComponent(e)}`,
         this.token,
@@ -19352,9 +19380,9 @@ var ns = `2.30.2`,
       );
     }
   };
-function os(e = process.platform, t = process.arch) {
-  let n = ss(e),
-    r = cs(t);
+function ss(e = process.platform, t = process.arch) {
+  let n = cs(e),
+    r = ls(t);
   if (!n || !r) throw Error(`Unsupported Forgejo MCP platform: ${e} (${t})`);
   return {
     cacheName: `forgejo-mcp`,
@@ -19365,14 +19393,14 @@ function os(e = process.platform, t = process.arch) {
     executableNames: [`forgejo-mcp`],
   };
 }
-function ss(e) {
+function cs(e) {
   return e === `linux` ? `linux` : e === `darwin` ? `darwin` : null;
 }
-function cs(e) {
+function ls(e) {
   return e === `x64` ? `amd64` : e === `arm64` ? `arm64` : null;
 }
-async function ls(e, t, n, r) {
-  let i = new URL(`api/v1${t}`, us($o())),
+async function us(e, t, n, r) {
+  let i = new URL(`api/v1${t}`, ds($o())),
     a = await fetch(i, {
       method: e,
       headers: {
@@ -19383,47 +19411,65 @@ async function ls(e, t, n, r) {
       body: r === void 0 ? void 0 : JSON.stringify(r),
     }),
     o = await a.text();
-  if (!a.ok) throw new rs(a.status, o || a.statusText);
+  if (!a.ok) throw new is(a.status, o || a.statusText);
   if (o) return JSON.parse(o);
 }
-function us(e) {
+function ds(e) {
   return e.endsWith(`/`) ? e : `${e}/`;
 }
-var ds = `1.7.0`,
-  fs = class extends Error {
+var fs = `1.7.0`,
+  ps = [
+    `get_file_contents`,
+    `get_dir_contents`,
+    `get_repository_tree`,
+    `get_commit`,
+    `list_commits`,
+    `list_branches`,
+    `list_releases`,
+    `get_latest_release`,
+    `issue_read`,
+    `list_issues`,
+    `search_issues`,
+    `label_read`,
+    `milestone_read`,
+    `pull_request_read`,
+    `list_pull_requests`,
+    `actions_run_read`,
+  ],
+  ms = class extends Error {
     status;
     constructor(e, t) {
       (super(t), (this.name = `HttpError`), (this.status = e));
     }
   },
-  ps = {
+  hs = {
     createServerConfig(e, t) {
       return {
         name: `gitea`,
         command: e,
         tokenEnvVar: `GITEA_ACCESS_TOKEN`,
         args: [`-t`, `stdio`, `--host`, t],
-        env: {},
+        env: { GITEA_READONLY: `true`, GITEA_TOOLS: ps.join(`,`) },
       };
     },
-    getReleaseAsset: hs,
+    getReleaseAsset: _s,
     getReleaseAssetUrl(e = process.platform, t = process.arch) {
-      let n = hs(e, t);
+      let n = _s(e, t);
       return `https://gitea.com/gitea/gitea-mcp/releases/download/v${n.version}/${n.assetName}`;
     },
     getExecutableOverride() {
       return process.env.GITEA_MCP_PATH;
     },
   },
-  ms = class {
+  gs = class {
     type = `gitea`;
-    mcp = ps;
+    mcp = hs;
     token;
     constructor(e) {
       this.token = e;
     }
     async getActionUser() {
-      let e = await vs(`GET`, `/user`, this.token),
+      let e = await bs(`GET`, `/user`, this.token),
         t = e.login ?? e.username ?? e.name;
       if (!t) throw Error(`gitea user response did not include a login`);
       let n = e.id ?? t,
@@ -19432,7 +19478,7 @@ var ds = `1.7.0`,
     }
     async postPullRequestComment(e) {
       let { owner: t, repo: n } = So.repo;
-      (await vs(
+      (await bs(
         `POST`,
         `/repos/${encodeURIComponent(t)}/${encodeURIComponent(n)}/issues/${Qo()}/comments`,
         this.token,
@@ -19445,19 +19491,19 @@ var ds = `1.7.0`,
         r = `/repos/${encodeURIComponent(t)}/${encodeURIComponent(n)}/pulls/${Qo()}/merge`;
       try {
         if (e) {
-          (await vs(`POST`, r, this.token, { Do: `merge`, merge_when_checks_succeed: !0 }),
+          (await bs(`POST`, r, this.token, { Do: `merge`, merge_when_checks_succeed: !0 }),
             F(`Enabled gitea pull request automerge`));
           return;
         }
-        (await vs(`DELETE`, r, this.token), F(`Disabled gitea pull request automerge`));
+        (await bs(`DELETE`, r, this.token), F(`Disabled gitea pull request automerge`));
       } catch (t) {
-        let n = t instanceof fs ? `HTTP ${t.status}` : ts(t);
+        let n = t instanceof ms ? `HTTP ${t.status}` : ts(t);
         Gr(`Could not ${e ? `enable` : `disable`} gitea pull request automerge: ${n}`);
       }
     }
     async updateRepositoryAuthSecret(e, t) {
       let { owner: n, repo: r } = So.repo;
-      await vs(
+      await bs(
         `PUT`,
         `/repos/${encodeURIComponent(n)}/${encodeURIComponent(r)}/actions/secrets/${encodeURIComponent(e)}`,
         this.token,
@@ -19465,29 +19511,29 @@ var ds = `1.7.0`,
       );
     }
   };
-function hs(e = process.platform, t = process.arch) {
-  let n = gs(e),
-    r = _s(t);
+function _s(e = process.platform, t = process.arch) {
+  let n = vs(e),
+    r = ys(t);
   if (!n || !r) throw Error(`Unsupported Gitea MCP platform: ${e} (${t})`);
   let i = e === `win32` ? `zip` : `tar`,
     a = i === `zip` ? `zip` : `tar.gz`;
   return {
     cacheName: `gitea-mcp`,
-    version: ds,
+    version: fs,
     target: `${n}-${r}`,
     assetName: `gitea-mcp_${n}_${r}.${a}`,
     format: i,
     executableNames: e === `win32` ? [`gitea-mcp.exe`] : [`gitea-mcp`],
   };
 }
-function gs(e) {
+function vs(e) {
   return e === `linux` ? `Linux` : e === `darwin` ? `Darwin` : e === `win32` ? `Windows` : null;
 }
-function _s(e) {
+function ys(e) {
   return e === `x64` ? `x86_64` : e === `arm64` ? `arm64` : null;
 }
-async function vs(e, t, n, r) {
-  let i = new URL(`api/v1${t}`, ys($o())),
+async function bs(e, t, n, r) {
+  let i = new URL(`api/v1${t}`, xs($o())),
     a = await fetch(i, {
       method: e,
       headers: {
@@ -19498,13 +19544,13 @@ async function vs(e, t, n, r) {
       body: r === void 0 ? void 0 : JSON.stringify(r),
     }),
     o = await a.text();
-  if (!a.ok) throw new fs(a.status, o || a.statusText);
+  if (!a.ok) throw new ms(a.status, o || a.statusText);
   if (o) return JSON.parse(o);
 }
-function ys(e) {
+function xs(e) {
   return e.endsWith(`/`) ? e : `${e}/`;
 }
-async function bs(e = {}) {
+async function Ss(e = {}) {
   var t,
     n = e,
     r = !!globalThis.window,
@@ -20137,33 +20183,33 @@ async function bs(e = {}) {
   );
 }
 var I,
-  xs = {};
+  Cs = {};
 if (globalThis.crypto === void 0 || typeof globalThis.crypto.getRandomValues != `function`)
   throw Error(
     `globalThis.crypto.getRandomValues is not available. The ESM build of libsodium requires a secure random source (available in all browsers and Node.js 19+).`,
   );
-var Ss =
-    typeof (Cs = bs) == `function`
-      ? Cs
-      : Cs != null && typeof Cs.default == `function`
-        ? Cs.default
+var ws =
+    typeof (Ts = Ss) == `function`
+      ? Ts
+      : Ts != null && typeof Ts.default == `function`
+        ? Ts.default
         : null,
-  Cs,
-  ws = (function (e) {
+  Ts,
+  Es = (function (e) {
     return e != null && e.ready !== void 0
       ? e
       : e != null && e.default != null && e.default.ready !== void 0
         ? e.default
         : null;
-  })(bs),
-  Ts = (
-    Ss == null
-      ? ws == null
+  })(Ss),
+  Ds = (
+    ws == null
+      ? Es == null
         ? Promise.reject(Error(`Unsupported libsodium ESM export shape`))
-        : ws.ready.then(function () {
-            return ws;
+        : Es.ready.then(function () {
+            return Es;
           })
-      : Ss({
+      : ws({
           getRandomValue: function () {
             var e = new Uint32Array(1);
             return (globalThis.crypto.getRandomValues(e), e[0] >>> 0);
@@ -20171,7 +20217,7 @@ var Ss =
         })
   ).then(function (e) {
     ((I = e),
-      (xs.libsodium = I),
+      (Cs.libsodium = I),
       (function () {
         if (I._sodium_init() < 0) throw Error(`libsodium was not correctly initialized.`);
         for (
@@ -20180,8 +20226,6 @@ var Ss =
                 `.`,
               ),
             t = [
-              qs,
-              Js,
               Ys,
               Xs,
               Zs,
@@ -20425,18 +20469,20 @@ var Ss =
               bf,
               xf,
               Sf,
+              Cf,
+              wf,
             ],
             n = 0;
           n < t.length;
           n++
         )
-          typeof I[`_` + e[n]] == `function` && (xs[e[n]] = t[n]);
+          typeof I[`_` + e[n]] == `function` && (Cs[e[n]] = t[n]);
         var r =
           `SODIUM_LIBRARY_VERSION_MAJOR.SODIUM_LIBRARY_VERSION_MINOR.crypto_aead_aegis128l_ABYTES.crypto_aead_aegis128l_KEYBYTES.crypto_aead_aegis128l_MESSAGEBYTES_MAX.crypto_aead_aegis128l_NPUBBYTES.crypto_aead_aegis128l_NSECBYTES.crypto_aead_aegis256_ABYTES.crypto_aead_aegis256_KEYBYTES.crypto_aead_aegis256_MESSAGEBYTES_MAX.crypto_aead_aegis256_NPUBBYTES.crypto_aead_aegis256_NSECBYTES.crypto_aead_aes256gcm_ABYTES.crypto_aead_aes256gcm_KEYBYTES.crypto_aead_aes256gcm_MESSAGEBYTES_MAX.crypto_aead_aes256gcm_NPUBBYTES.crypto_aead_aes256gcm_NSECBYTES.crypto_aead_chacha20poly1305_ABYTES.crypto_aead_chacha20poly1305_IETF_ABYTES.crypto_aead_chacha20poly1305_IETF_KEYBYTES.crypto_aead_chacha20poly1305_IETF_MESSAGEBYTES_MAX.crypto_aead_chacha20poly1305_IETF_NPUBBYTES.crypto_aead_chacha20poly1305_IETF_NSECBYTES.crypto_aead_chacha20poly1305_KEYBYTES.crypto_aead_chacha20poly1305_MESSAGEBYTES_MAX.crypto_aead_chacha20poly1305_NPUBBYTES.crypto_aead_chacha20poly1305_NSECBYTES.crypto_aead_chacha20poly1305_ietf_ABYTES.crypto_aead_chacha20poly1305_ietf_KEYBYTES.crypto_aead_chacha20poly1305_ietf_MESSAGEBYTES_MAX.crypto_aead_chacha20poly1305_ietf_NPUBBYTES.crypto_aead_chacha20poly1305_ietf_NSECBYTES.crypto_aead_xchacha20poly1305_IETF_ABYTES.crypto_aead_xchacha20poly1305_IETF_KEYBYTES.crypto_aead_xchacha20poly1305_IETF_MESSAGEBYTES_MAX.crypto_aead_xchacha20poly1305_IETF_NPUBBYTES.crypto_aead_xchacha20poly1305_IETF_NSECBYTES.crypto_aead_xchacha20poly1305_ietf_ABYTES.crypto_aead_xchacha20poly1305_ietf_KEYBYTES.crypto_aead_xchacha20poly1305_ietf_MESSAGEBYTES_MAX.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES.crypto_aead_xchacha20poly1305_ietf_NSECBYTES.crypto_auth_BYTES.crypto_auth_KEYBYTES.crypto_auth_hmacsha256_BYTES.crypto_auth_hmacsha256_KEYBYTES.crypto_auth_hmacsha512256_BYTES.crypto_auth_hmacsha512256_KEYBYTES.crypto_auth_hmacsha512_BYTES.crypto_auth_hmacsha512_KEYBYTES.crypto_box_BEFORENMBYTES.crypto_box_MACBYTES.crypto_box_MESSAGEBYTES_MAX.crypto_box_NONCEBYTES.crypto_box_PUBLICKEYBYTES.crypto_box_SEALBYTES.crypto_box_SECRETKEYBYTES.crypto_box_SEEDBYTES.crypto_box_curve25519xchacha20poly1305_BEFORENMBYTES.crypto_box_curve25519xchacha20poly1305_MACBYTES.crypto_box_curve25519xchacha20poly1305_MESSAGEBYTES_MAX.crypto_box_curve25519xchacha20poly1305_NONCEBYTES.crypto_box_curve25519xchacha20poly1305_PUBLICKEYBYTES.crypto_box_curve25519xchacha20poly1305_SEALBYTES.crypto_box_curve25519xchacha20poly1305_SECRETKEYBYTES.crypto_box_curve25519xchacha20poly1305_SEEDBYTES.crypto_box_curve25519xsalsa20poly1305_BEFORENMBYTES.crypto_box_curve25519xsalsa20poly1305_MACBYTES.crypto_box_curve25519xsalsa20poly1305_MESSAGEBYTES_MAX.crypto_box_curve25519xsalsa20poly1305_NONCEBYTES.crypto_box_curve25519xsalsa20poly1305_PUBLICKEYBYTES.crypto_box_curve25519xsalsa20poly1305_SECRETKEYBYTES.crypto_box_curve25519xsalsa20poly1305_SEEDBYTES.crypto_core_ed25519_BYTES.crypto_core_ed25519_HASHBYTES.crypto_core_ed25519_NONREDUCEDSCALARBYTES.crypto_core_ed25519_SCALARBYTES.crypto_core_ed25519_UNIFORMBYTES.crypto_core_hchacha20_CONSTBYTES.crypto_core_hchacha20_INPUTBYTES.crypto_core_hchacha20_KEYBYTES.crypto_core_hchacha20_OUTPUTBYTES.crypto_core_hsalsa20_CONSTBYTES.crypto_core_hsalsa20_INPUTBYTES.crypto_core_hsalsa20_KEYBYTES.crypto_core_hsalsa20_OUTPUTBYTES.crypto_core_ristretto255_BYTES.crypto_core_ristretto255_HASHBYTES.crypto_core_ristretto255_NONREDUCEDSCALARBYTES.crypto_core_ristretto255_SCALARBYTES.crypto_core_salsa2012_CONSTBYTES.crypto_core_salsa2012_INPUTBYTES.crypto_core_salsa2012_KEYBYTES.crypto_core_salsa2012_OUTPUTBYTES.crypto_core_salsa208_CONSTBYTES.crypto_core_salsa208_INPUTBYTES.crypto_core_salsa208_KEYBYTES.crypto_core_salsa208_OUTPUTBYTES.crypto_core_salsa20_CONSTBYTES.crypto_core_salsa20_INPUTBYTES.crypto_core_salsa20_KEYBYTES.crypto_core_salsa20_OUTPUTBYTES.crypto_generichash_BYTES.crypto_generichash_BYTES_MAX.crypto_generichash_BYTES_MIN.crypto_generichash_KEYBYTES.crypto_generichash_KEYBYTES_MAX.crypto_generichash_KEYBYTES_MIN.crypto_generichash_blake2b_BYTES.crypto_generichash_blake2b_BYTES_MAX.crypto_generichash_blake2b_BYTES_MIN.crypto_generichash_blake2b_KEYBYTES.crypto_generichash_blake2b_KEYBYTES_MAX.crypto_generichash_blake2b_KEYBYTES_MIN.crypto_generichash_blake2b_PERSONALBYTES.crypto_generichash_blake2b_SALTBYTES.crypto_hash_BYTES.crypto_hash_sha256_BYTES.crypto_hash_sha3256_BYTES.crypto_hash_sha3512_BYTES.crypto_hash_sha512_BYTES.crypto_ipcrypt_BYTES.crypto_ipcrypt_KEYBYTES.crypto_ipcrypt_NDX_INPUTBYTES.crypto_ipcrypt_NDX_KEYBYTES.crypto_ipcrypt_NDX_OUTPUTBYTES.crypto_ipcrypt_NDX_TWEAKBYTES.crypto_ipcrypt_ND_INPUTBYTES.crypto_ipcrypt_ND_KEYBYTES.crypto_ipcrypt_ND_OUTPUTBYTES.crypto_ipcrypt_ND_TWEAKBYTES.crypto_ipcrypt_PFX_BYTES.crypto_ipcrypt_PFX_KEYBYTES.crypto_kdf_BYTES_MAX.crypto_kdf_BYTES_MIN.crypto_kdf_CONTEXTBYTES.crypto_kdf_KEYBYTES.crypto_kdf_blake2b_BYTES_MAX.crypto_kdf_blake2b_BYTES_MIN.crypto_kdf_blake2b_CONTEXTBYTES.crypto_kdf_blake2b_KEYBYTES.crypto_kdf_hkdf_sha256_BYTES_MAX.crypto_kdf_hkdf_sha256_BYTES_MIN.crypto_kdf_hkdf_sha256_KEYBYTES.crypto_kdf_hkdf_sha512_BYTES_MAX.crypto_kdf_hkdf_sha512_BYTES_MIN.crypto_kdf_hkdf_sha512_KEYBYTES.crypto_kem_CIPHERTEXTBYTES.crypto_kem_PUBLICKEYBYTES.crypto_kem_SECRETKEYBYTES.crypto_kem_SEEDBYTES.crypto_kem_SHAREDSECRETBYTES.crypto_kem_mlkem768_CIPHERTEXTBYTES.crypto_kem_mlkem768_PUBLICKEYBYTES.crypto_kem_mlkem768_SECRETKEYBYTES.crypto_kem_mlkem768_SEEDBYTES.crypto_kem_mlkem768_SHAREDSECRETBYTES.crypto_kem_xwing_CIPHERTEXTBYTES.crypto_kem_xwing_PUBLICKEYBYTES.crypto_kem_xwing_SECRETKEYBYTES.crypto_kem_xwing_SEEDBYTES.crypto_kem_xwing_SHAREDSECRETBYTES.crypto_kx_PUBLICKEYBYTES.crypto_kx_SECRETKEYBYTES.crypto_kx_SEEDBYTES.crypto_kx_SESSIONKEYBYTES.crypto_onetimeauth_BYTES.crypto_onetimeauth_KEYBYTES.crypto_onetimeauth_poly1305_BYTES.crypto_onetimeauth_poly1305_KEYBYTES.crypto_pwhash_ALG_ARGON2I13.crypto_pwhash_ALG_ARGON2ID13.crypto_pwhash_ALG_DEFAULT.crypto_pwhash_BYTES_MAX.crypto_pwhash_BYTES_MIN.crypto_pwhash_MEMLIMIT_INTERACTIVE.crypto_pwhash_MEMLIMIT_MAX.crypto_pwhash_MEMLIMIT_MIN.crypto_pwhash_MEMLIMIT_MODERATE.crypto_pwhash_MEMLIMIT_SENSITIVE.crypto_pwhash_OPSLIMIT_INTERACTIVE.crypto_pwhash_OPSLIMIT_MAX.crypto_pwhash_OPSLIMIT_MIN.crypto_pwhash_OPSLIMIT_MODERATE.crypto_pwhash_OPSLIMIT_SENSITIVE.crypto_pwhash_PASSWD_MAX.crypto_pwhash_PASSWD_MIN.crypto_pwhash_SALTBYTES.crypto_pwhash_STRBYTES.crypto_pwhash_argon2i_BYTES_MAX.crypto_pwhash_argon2i_BYTES_MIN.crypto_pwhash_argon2i_MEMLIMIT_INTERACTIVE.crypto_pwhash_argon2i_MEMLIMIT_MAX.crypto_pwhash_argon2i_MEMLIMIT_MIN.crypto_pwhash_argon2i_MEMLIMIT_MODERATE.crypto_pwhash_argon2i_MEMLIMIT_SENSITIVE.crypto_pwhash_argon2i_OPSLIMIT_INTERACTIVE.crypto_pwhash_argon2i_OPSLIMIT_MAX.crypto_pwhash_argon2i_OPSLIMIT_MIN.crypto_pwhash_argon2i_OPSLIMIT_MODERATE.crypto_pwhash_argon2i_OPSLIMIT_SENSITIVE.crypto_pwhash_argon2i_PASSWD_MAX.crypto_pwhash_argon2i_PASSWD_MIN.crypto_pwhash_argon2i_SALTBYTES.crypto_pwhash_argon2i_STRBYTES.crypto_pwhash_argon2id_BYTES_MAX.crypto_pwhash_argon2id_BYTES_MIN.crypto_pwhash_argon2id_MEMLIMIT_INTERACTIVE.crypto_pwhash_argon2id_MEMLIMIT_MAX.crypto_pwhash_argon2id_MEMLIMIT_MIN.crypto_pwhash_argon2id_MEMLIMIT_MODERATE.crypto_pwhash_argon2id_MEMLIMIT_SENSITIVE.crypto_pwhash_argon2id_OPSLIMIT_INTERACTIVE.crypto_pwhash_argon2id_OPSLIMIT_MAX.crypto_pwhash_argon2id_OPSLIMIT_MIN.crypto_pwhash_argon2id_OPSLIMIT_MODERATE.crypto_pwhash_argon2id_OPSLIMIT_SENSITIVE.crypto_pwhash_argon2id_PASSWD_MAX.crypto_pwhash_argon2id_PASSWD_MIN.crypto_pwhash_argon2id_SALTBYTES.crypto_pwhash_argon2id_STRBYTES.crypto_pwhash_scryptsalsa208sha256_BYTES_MAX.crypto_pwhash_scryptsalsa208sha256_BYTES_MIN.crypto_pwhash_scryptsalsa208sha256_MEMLIMIT_INTERACTIVE.crypto_pwhash_scryptsalsa208sha256_MEMLIMIT_MAX.crypto_pwhash_scryptsalsa208sha256_MEMLIMIT_MIN.crypto_pwhash_scryptsalsa208sha256_MEMLIMIT_SENSITIVE.crypto_pwhash_scryptsalsa208sha256_OPSLIMIT_INTERACTIVE.crypto_pwhash_scryptsalsa208sha256_OPSLIMIT_MAX.crypto_pwhash_scryptsalsa208sha256_OPSLIMIT_MIN.crypto_pwhash_scryptsalsa208sha256_OPSLIMIT_SENSITIVE.crypto_pwhash_scryptsalsa208sha256_PASSWD_MAX.crypto_pwhash_scryptsalsa208sha256_PASSWD_MIN.crypto_pwhash_scryptsalsa208sha256_SALTBYTES.crypto_pwhash_scryptsalsa208sha256_STRBYTES.crypto_scalarmult_BYTES.crypto_scalarmult_SCALARBYTES.crypto_scalarmult_curve25519_BYTES.crypto_scalarmult_curve25519_SCALARBYTES.crypto_scalarmult_ed25519_BYTES.crypto_scalarmult_ed25519_SCALARBYTES.crypto_scalarmult_ristretto255_BYTES.crypto_scalarmult_ristretto255_SCALARBYTES.crypto_secretbox_KEYBYTES.crypto_secretbox_MACBYTES.crypto_secretbox_MESSAGEBYTES_MAX.crypto_secretbox_NONCEBYTES.crypto_secretbox_xchacha20poly1305_KEYBYTES.crypto_secretbox_xchacha20poly1305_MACBYTES.crypto_secretbox_xchacha20poly1305_MESSAGEBYTES_MAX.crypto_secretbox_xchacha20poly1305_NONCEBYTES.crypto_secretbox_xsalsa20poly1305_KEYBYTES.crypto_secretbox_xsalsa20poly1305_MACBYTES.crypto_secretbox_xsalsa20poly1305_MESSAGEBYTES_MAX.crypto_secretbox_xsalsa20poly1305_NONCEBYTES.crypto_secretstream_xchacha20poly1305_ABYTES.crypto_secretstream_xchacha20poly1305_HEADERBYTES.crypto_secretstream_xchacha20poly1305_KEYBYTES.crypto_secretstream_xchacha20poly1305_MESSAGEBYTES_MAX.crypto_secretstream_xchacha20poly1305_TAG_FINAL.crypto_secretstream_xchacha20poly1305_TAG_MESSAGE.crypto_secretstream_xchacha20poly1305_TAG_PUSH.crypto_secretstream_xchacha20poly1305_TAG_REKEY.crypto_shorthash_BYTES.crypto_shorthash_KEYBYTES.crypto_shorthash_siphash24_BYTES.crypto_shorthash_siphash24_KEYBYTES.crypto_shorthash_siphashx24_BYTES.crypto_shorthash_siphashx24_KEYBYTES.crypto_sign_BYTES.crypto_sign_MESSAGEBYTES_MAX.crypto_sign_PUBLICKEYBYTES.crypto_sign_SECRETKEYBYTES.crypto_sign_SEEDBYTES.crypto_sign_ed25519_BYTES.crypto_sign_ed25519_MESSAGEBYTES_MAX.crypto_sign_ed25519_PUBLICKEYBYTES.crypto_sign_ed25519_SECRETKEYBYTES.crypto_sign_ed25519_SEEDBYTES.crypto_stream_KEYBYTES.crypto_stream_MESSAGEBYTES_MAX.crypto_stream_NONCEBYTES.crypto_stream_chacha20_IETF_KEYBYTES.crypto_stream_chacha20_IETF_MESSAGEBYTES_MAX.crypto_stream_chacha20_IETF_NONCEBYTES.crypto_stream_chacha20_KEYBYTES.crypto_stream_chacha20_MESSAGEBYTES_MAX.crypto_stream_chacha20_NONCEBYTES.crypto_stream_chacha20_ietf_KEYBYTES.crypto_stream_chacha20_ietf_MESSAGEBYTES_MAX.crypto_stream_chacha20_ietf_NONCEBYTES.crypto_stream_salsa2012_KEYBYTES.crypto_stream_salsa2012_MESSAGEBYTES_MAX.crypto_stream_salsa2012_NONCEBYTES.crypto_stream_salsa208_KEYBYTES.crypto_stream_salsa208_MESSAGEBYTES_MAX.crypto_stream_salsa208_NONCEBYTES.crypto_stream_salsa20_KEYBYTES.crypto_stream_salsa20_MESSAGEBYTES_MAX.crypto_stream_salsa20_NONCEBYTES.crypto_stream_xchacha20_KEYBYTES.crypto_stream_xchacha20_MESSAGEBYTES_MAX.crypto_stream_xchacha20_NONCEBYTES.crypto_stream_xsalsa20_KEYBYTES.crypto_stream_xsalsa20_MESSAGEBYTES_MAX.crypto_stream_xsalsa20_NONCEBYTES.crypto_verify_16_BYTES.crypto_verify_32_BYTES.crypto_verify_64_BYTES.crypto_xof_shake128_BLOCKBYTES.crypto_xof_shake128_STATEBYTES.crypto_xof_shake256_BLOCKBYTES.crypto_xof_shake256_STATEBYTES.crypto_xof_turboshake128_BLOCKBYTES.crypto_xof_turboshake128_STATEBYTES.crypto_xof_turboshake256_BLOCKBYTES.crypto_xof_turboshake256_STATEBYTES`.split(
             `.`,
           );
         for (n = 0; n < r.length; n++)
-          typeof (a = I[`_` + r[n].toLowerCase()]) == `function` && (xs[r[n]] = a());
+          typeof (a = I[`_` + r[n].toLowerCase()]) == `function` && (Cs[r[n]] = a());
         var i = [
           `SODIUM_VERSION_STRING`,
           `crypto_kem_PRIMITIVE`,
@@ -20448,24 +20494,24 @@ var Ss =
         for (n = 0; n < i.length; n++) {
           var a;
           typeof (a = I[`_` + i[n].toLowerCase()]) == `function` &&
-            (xs[i[n]] = I.UTF8ToString(a()));
+            (Cs[i[n]] = I.UTF8ToString(a()));
         }
       })());
     var t = new Uint8Array([98, 97, 108, 108, 115]),
-      n = xs.randombytes_buf(xs.crypto_secretbox_NONCEBYTES),
-      r = xs.randombytes_buf(xs.crypto_secretbox_KEYBYTES),
-      i = xs.crypto_secretbox_easy(t, n, r),
-      a = xs.crypto_secretbox_open_easy(i, n, r);
-    if (!xs.memcmp(t, a)) throw Error(`Initialization self-test failed`);
+      n = Cs.randombytes_buf(Cs.crypto_secretbox_NONCEBYTES),
+      r = Cs.randombytes_buf(Cs.crypto_secretbox_KEYBYTES),
+      i = Cs.crypto_secretbox_easy(t, n, r),
+      a = Cs.crypto_secretbox_open_easy(i, n, r);
+    if (!Cs.memcmp(t, a)) throw Error(`Initialization self-test failed`);
   });
-function Es() {
-  return Object.keys(xs).sort();
+function Os() {
+  return Object.keys(Cs).sort();
 }
-function Ds(e) {
+function ks(e) {
   if (!(e instanceof Uint8Array)) throw TypeError(`Only Uint8Array instances can be incremented`);
   for (var t = 256, n = 0, r = e.length; n < r; n++) ((t >>= 8), (t += e[n]), (e[n] = 255 & t));
 }
-function Os(e, t) {
+function As(e, t) {
   if (!(e instanceof Uint8Array && t instanceof Uint8Array))
     throw TypeError(`Only Uint8Array instances can be added`);
   var n = e.length,
@@ -20474,23 +20520,23 @@ function Os(e, t) {
   if (t.length !== e.length) throw TypeError(`Arguments must have the same length`);
   for (i = 0; i < n; i++) ((r >>= 8), (r += e[i] + t[i]), (e[i] = 255 & r));
 }
-function ks(e) {
+function js(e) {
   if (!(e instanceof Uint8Array)) throw TypeError(`Only Uint8Array instances can be checked`);
   for (var t = 0, n = 0, r = e.length; n < r; n++) t |= e[n];
   return t === 0;
 }
-function As(e) {
+function Ms(e) {
   if (!(e instanceof Uint8Array)) throw TypeError(`Only Uint8Array instances can be wiped`);
   for (var t = 0, n = e.length; t < n; t++) e[t] = 0;
 }
-function js(e, t) {
+function Ns(e, t) {
   if (!(e instanceof Uint8Array && t instanceof Uint8Array))
     throw TypeError(`Only Uint8Array instances can be compared`);
   if (e.length !== t.length) throw TypeError(`Only instances of identical length can be compared`);
   for (var n = 0, r = 0, i = e.length; r < i; r++) n |= e[r] ^ t[r];
   return n === 0;
 }
-function Ms(e, t) {
+function Ps(e, t) {
   if (!(e instanceof Uint8Array && t instanceof Uint8Array))
     throw TypeError(`Only Uint8Array instances can be compared`);
   if (e.length !== t.length) throw TypeError(`Only instances of identical length can be compared`);
@@ -20498,12 +20544,12 @@ function Ms(e, t) {
     ((n |= ((t[i] - e[i]) >> 8) & r), (r &= ((t[i] ^ e[i]) - 1) >> 8));
   return n + n + r - 1;
 }
-function Ns(e, t) {
+function Fs(e, t) {
   if (!(e instanceof Uint8Array)) throw TypeError(`buffer must be a Uint8Array`);
   if ((t |= 0) <= 0) throw Error(`block size must be > 0`);
   var n,
     r = [],
-    i = Gs(4),
+    i = qs(4),
     a = 1,
     o = 0,
     s = 0 | e.length,
@@ -20520,12 +20566,12 @@ function Ns(e, t) {
     n
   );
 }
-function Ps(e, t) {
+function Is(e, t) {
   if (!(e instanceof Uint8Array)) throw TypeError(`buffer must be a Uint8Array`);
   if ((t |= 0) <= 0) throw Error(`block size must be > 0`);
   var n = [],
     r = B(e),
-    i = Gs(4);
+    i = qs(4);
   return (
     n.push(r),
     n.push(i),
@@ -20535,13 +20581,13 @@ function Ps(e, t) {
     e
   );
 }
-function Fs(e) {
+function Ls(e) {
   if (typeof TextEncoder == `function`) return new TextEncoder().encode(e);
   e = unescape(encodeURIComponent(e));
   for (var t = new Uint8Array(e.length), n = 0, r = e.length; n < r; n++) t[n] = e.charCodeAt(n);
   return t;
 }
-function Is(e) {
+function Rs(e) {
   if (typeof TextDecoder == `function`) return new TextDecoder(`utf-8`, { fatal: !0 }).decode(e);
   var t = 8192,
     n = Math.ceil(e.length / t);
@@ -20568,17 +20614,17 @@ function Is(e) {
               : u < 128 && ((l = 1), (s = !0));
       } while (!s);
       for (var d = l - (o.length - c), f = 0; f < d; f++) (i--, o.pop());
-      r += Is(o);
+      r += Rs(o);
     }
   }
   return r;
 }
-function Ls(e) {
+function zs(e) {
   var t,
     n = [],
     r = new z((e = G(n, e, `input`)).length / 2),
     i = B(e),
-    a = Gs(4);
+    a = qs(4);
   return (
     n.push(i),
     n.push(r.address),
@@ -20590,7 +20636,7 @@ function Ls(e) {
     t
   );
 }
-function Rs(e) {
+function Bs(e) {
   e = G(null, e, `input`);
   for (var t, n, r, i = ``, a = 0; a < e.length; a++)
     ((r =
@@ -20599,26 +20645,26 @@ function Rs(e) {
       (i += String.fromCharCode(255 & r) + String.fromCharCode(r >>> 8)));
   return i;
 }
-var zs = { ORIGINAL: 1, ORIGINAL_NO_PADDING: 3, URLSAFE: 5, URLSAFE_NO_PADDING: 7 };
-function Bs(e) {
-  if (e === void 0) return zs.URLSAFE_NO_PADDING;
+var Vs = { ORIGINAL: 1, ORIGINAL_NO_PADDING: 3, URLSAFE: 5, URLSAFE_NO_PADDING: 7 };
+function Hs(e) {
+  if (e === void 0) return Vs.URLSAFE_NO_PADDING;
   if (
-    e !== zs.ORIGINAL &&
-    e !== zs.ORIGINAL_NO_PADDING &&
-    e !== zs.URLSAFE &&
-    e !== zs.URLSAFE_NO_PADDING
+    e !== Vs.ORIGINAL &&
+    e !== Vs.ORIGINAL_NO_PADDING &&
+    e !== Vs.URLSAFE &&
+    e !== Vs.URLSAFE_NO_PADDING
   )
     throw Error(`unsupported base64 variant`);
   return e;
 }
-function Vs(e, t) {
-  t = Bs(t);
+function Us(e, t) {
+  t = Hs(t);
   var n,
     r = [],
     i = new z((3 * (e = G(r, e, `input`)).length) / 4),
     a = B(e),
-    o = Gs(4),
-    s = Gs(4);
+    o = qs(4),
+    s = qs(4);
   return (
     r.push(a),
     r.push(i.address),
@@ -20633,8 +20679,8 @@ function Vs(e, t) {
     n
   );
 }
-function Hs(e, t) {
-  t = Bs(t);
+function Ws(e, t) {
+  t = Hs(t);
   var n = [];
   e = G(n, e, `input`);
   var r,
@@ -20648,22 +20694,22 @@ function Hs(e, t) {
     n.push(s.address),
     I._sodium_bin2base64(s.address, s.length, c, e.length, t) === 0 && H(n, `conversion failed`),
     (s.length = o),
-    (r = Is(s.to_Uint8Array())),
+    (r = Rs(s.to_Uint8Array())),
     V(n),
     r
   );
 }
-function Us() {
+function Gs() {
   return [`uint8array`, `text`, `hex`, `base64`];
 }
 function L(e, t) {
   var n = t || `uint8array`;
-  if (!Ws(n)) throw Error(n + ` output format is not available`);
+  if (!Ks(n)) throw Error(n + ` output format is not available`);
   if (e instanceof z) {
     if (n === `uint8array`) return e.to_Uint8Array();
-    if (n === `text`) return Is(e.to_Uint8Array());
-    if (n === `hex`) return Rs(e.to_Uint8Array());
-    if (n === `base64`) return Hs(e.to_Uint8Array(), zs.URLSAFE_NO_PADDING);
+    if (n === `text`) return Rs(e.to_Uint8Array());
+    if (n === `hex`) return Bs(e.to_Uint8Array());
+    if (n === `base64`) return Ws(e.to_Uint8Array(), Vs.URLSAFE_NO_PADDING);
     throw Error(`What is output format "` + n + `"?`);
   }
   if (typeof e == `object`) {
@@ -20673,7 +20719,7 @@ function L(e, t) {
   if (typeof e == `string`) return e;
   throw TypeError(`Cannot format output`);
 }
-function Ws(e) {
+function Ks(e) {
   for (var t = [`uint8array`, `text`, `hex`, `base64`], n = 0; n < t.length; n++)
     if (t[n] === e) return !0;
   return !1;
@@ -20681,26 +20727,26 @@ function Ws(e) {
 function R(e) {
   if (e) {
     if (typeof e != `string`) throw TypeError(`When defined, the output format must be a string`);
-    if (!Ws(e)) throw Error(e + ` is not a supported output format`);
+    if (!Ks(e)) throw Error(e + ` is not a supported output format`);
   }
 }
 function z(e) {
-  ((this.length = e), (this.address = Gs(e)));
+  ((this.length = e), (this.address = qs(e)));
 }
 function B(e) {
-  var t = Gs(e.length);
+  var t = qs(e.length);
   return (I.HEAPU8.set(e, t), t);
 }
-function Gs(e) {
+function qs(e) {
   var t = I._malloc(e);
   if (t === 0) throw { message: `_malloc() failed`, length: e };
   return t;
 }
-function Ks(e) {
+function Js(e) {
   I._free(e);
 }
 function V(e) {
-  if (e) for (var t = 0; t < e.length; t++) Ks(e[t]);
+  if (e) for (var t = 0; t < e.length; t++) Js(e[t]);
 }
 function H(e, t) {
   throw (V(e), Error(t));
@@ -20717,11 +20763,11 @@ function G(e, t, n) {
     t instanceof Uint8Array
       ? t
       : typeof t == `string`
-        ? Fs(t)
+        ? Ls(t)
         : void U(e, `unsupported input type for ` + n)
   );
 }
-function qs(e, t, n, r, i, a) {
+function Ys(e, t, n, r, i, a) {
   var o = [];
   R(a);
   var s = null;
@@ -20752,7 +20798,7 @@ function qs(e, t, n, r, i, a) {
   }
   H(o, `ciphertext cannot be decrypted using that key`);
 }
-function Js(e, t, n, r, i, a, o) {
+function Xs(e, t, n, r, i, a, o) {
   var s = [];
   R(o);
   var c = null;
@@ -20786,7 +20832,7 @@ function Js(e, t, n, r, i, a, o) {
   }
   H(s, `ciphertext cannot be decrypted using that key`);
 }
-function Ys(e, t, n, r, i, a) {
+function Zs(e, t, n, r, i, a) {
   var o = [];
   R(a);
   var s = B((e = G(o, e, `message`))),
@@ -20815,7 +20861,7 @@ function Ys(e, t, n, r, i, a) {
   }
   H(o, `invalid usage`);
 }
-function Xs(e, t, n, r, i, a) {
+function Qs(e, t, n, r, i, a) {
   var o = [];
   R(a);
   var s = B((e = G(o, e, `message`))),
@@ -20850,7 +20896,7 @@ function Xs(e, t, n, r, i, a) {
   }
   H(o, `invalid usage`);
 }
-function Zs(e) {
+function $s(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_aead_aegis128l_keybytes()),
@@ -20859,7 +20905,7 @@ function Zs(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function Qs(e, t, n, r, i, a) {
+function ec(e, t, n, r, i, a) {
   var o = [];
   R(a);
   var s = null;
@@ -20890,7 +20936,7 @@ function Qs(e, t, n, r, i, a) {
   }
   H(o, `ciphertext cannot be decrypted using that key`);
 }
-function $s(e, t, n, r, i, a, o) {
+function tc(e, t, n, r, i, a, o) {
   var s = [];
   R(o);
   var c = null;
@@ -20924,7 +20970,7 @@ function $s(e, t, n, r, i, a, o) {
   }
   H(s, `ciphertext cannot be decrypted using that key`);
 }
-function ec(e, t, n, r, i, a) {
+function nc(e, t, n, r, i, a) {
   var o = [];
   R(a);
   var s = B((e = G(o, e, `message`))),
@@ -20953,7 +20999,7 @@ function ec(e, t, n, r, i, a) {
   }
   H(o, `invalid usage`);
 }
-function tc(e, t, n, r, i, a) {
+function rc(e, t, n, r, i, a) {
   var o = [];
   R(a);
   var s = B((e = G(o, e, `message`))),
@@ -20988,7 +21034,7 @@ function tc(e, t, n, r, i, a) {
   }
   H(o, `invalid usage`);
 }
-function nc(e) {
+function ic(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_aead_aegis256_keybytes()),
@@ -20997,7 +21043,7 @@ function nc(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function rc(e, t, n, r, i, a) {
+function ac(e, t, n, r, i, a) {
   var o = [];
   R(a);
   var s = null;
@@ -21030,7 +21076,7 @@ function rc(e, t, n, r, i, a) {
   }
   H(o, `ciphertext cannot be decrypted using that key`);
 }
-function ic(e, t, n, r, i, a, o) {
+function oc(e, t, n, r, i, a, o) {
   var s = [];
   R(o);
   var c = null;
@@ -21065,7 +21111,7 @@ function ic(e, t, n, r, i, a, o) {
   }
   H(s, `ciphertext cannot be decrypted using that key`);
 }
-function ac(e, t, n, r, i, a) {
+function sc(e, t, n, r, i, a) {
   var o = [];
   R(a);
   var s = B((e = G(o, e, `message`))),
@@ -21096,7 +21142,7 @@ function ac(e, t, n, r, i, a) {
   }
   H(o, `invalid usage`);
 }
-function oc(e, t, n, r, i, a) {
+function cc(e, t, n, r, i, a) {
   var o = [];
   R(a);
   var s = B((e = G(o, e, `message`))),
@@ -21131,7 +21177,7 @@ function oc(e, t, n, r, i, a) {
   }
   H(o, `invalid usage`);
 }
-function sc(e, t, n, r, i, a) {
+function lc(e, t, n, r, i, a) {
   var o = [];
   R(a);
   var s = null;
@@ -21165,7 +21211,7 @@ function sc(e, t, n, r, i, a) {
   }
   H(o, `ciphertext cannot be decrypted using that key`);
 }
-function cc(e, t, n, r, i, a, o) {
+function uc(e, t, n, r, i, a, o) {
   var s = [];
   R(o);
   var c = null;
@@ -21200,7 +21246,7 @@ function cc(e, t, n, r, i, a, o) {
   }
   H(s, `ciphertext cannot be decrypted using that key`);
 }
-function lc(e, t, n, r, i, a) {
+function dc(e, t, n, r, i, a) {
   var o = [];
   R(a);
   var s = B((e = G(o, e, `message`))),
@@ -21232,7 +21278,7 @@ function lc(e, t, n, r, i, a) {
   }
   H(o, `invalid usage`);
 }
-function uc(e, t, n, r, i, a) {
+function fc(e, t, n, r, i, a) {
   var o = [];
   R(a);
   var s = B((e = G(o, e, `message`))),
@@ -21268,7 +21314,7 @@ function uc(e, t, n, r, i, a) {
   }
   H(o, `invalid usage`);
 }
-function dc(e) {
+function pc(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_aead_chacha20poly1305_ietf_keybytes()),
@@ -21277,7 +21323,7 @@ function dc(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function fc(e) {
+function mc(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_aead_chacha20poly1305_keybytes()),
@@ -21286,7 +21332,7 @@ function fc(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function pc(e, t, n, r, i, a) {
+function hc(e, t, n, r, i, a) {
   var o = [];
   R(a);
   var s = null;
@@ -21320,7 +21366,7 @@ function pc(e, t, n, r, i, a) {
   }
   H(o, `ciphertext cannot be decrypted using that key`);
 }
-function mc(e, t, n, r, i, a, o) {
+function gc(e, t, n, r, i, a, o) {
   var s = [];
   R(o);
   var c = null;
@@ -21355,7 +21401,7 @@ function mc(e, t, n, r, i, a, o) {
   }
   H(s, `ciphertext cannot be decrypted using that key`);
 }
-function hc(e, t, n, r, i, a) {
+function _c(e, t, n, r, i, a) {
   var o = [];
   R(a);
   var s = B((e = G(o, e, `message`))),
@@ -21387,7 +21433,7 @@ function hc(e, t, n, r, i, a) {
   }
   H(o, `invalid usage`);
 }
-function gc(e, t, n, r, i, a) {
+function vc(e, t, n, r, i, a) {
   var o = [];
   R(a);
   var s = B((e = G(o, e, `message`))),
@@ -21435,7 +21481,7 @@ function gc(e, t, n, r, i, a) {
   }
   H(o, `invalid usage`);
 }
-function _c(e) {
+function yc(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_aead_xchacha20poly1305_ietf_keybytes()),
@@ -21444,7 +21490,7 @@ function _c(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function vc(e, t, n) {
+function bc(e, t, n) {
   var r = [];
   R(n);
   var i = B((e = G(r, e, `message`))),
@@ -21461,7 +21507,7 @@ function vc(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function yc(e, t, n) {
+function xc(e, t, n) {
   var r = [];
   R(n);
   var i = B((e = G(r, e, `message`))),
@@ -21478,7 +21524,7 @@ function yc(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function bc(e, t) {
+function Sc(e, t) {
   var n = [];
   (R(t), W(n, e, `state_address`));
   var r = new z(0 | I._crypto_auth_hmacsha256_bytes()),
@@ -21489,7 +21535,7 @@ function bc(e, t) {
   }
   H(n, `invalid usage`);
 }
-function xc(e, t) {
+function Cc(e, t) {
   var n = [];
   R(t);
   var r = null,
@@ -21502,7 +21548,7 @@ function xc(e, t) {
   }
   H(n, `invalid usage`);
 }
-function Sc(e) {
+function wc(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_auth_hmacsha256_keybytes()),
@@ -21511,14 +21557,14 @@ function Sc(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function Cc(e, t, n) {
+function Tc(e, t, n) {
   var r = [];
   (R(n), W(r, e, `state_address`));
   var i = B((t = G(r, t, `message_chunk`))),
     a = t.length;
   (r.push(i), 0 | I._crypto_auth_hmacsha256_update(e, i, a) && H(r, `invalid usage`), V(r));
 }
-function wc(e, t, n) {
+function Ec(e, t, n) {
   var r = [];
   e = G(r, e, `tag`);
   var i,
@@ -21533,7 +21579,7 @@ function wc(e, t, n) {
   var u = !(0 | I._crypto_auth_hmacsha256_verify(i, o, s, 0, c));
   return (V(r), u);
 }
-function Tc(e, t, n) {
+function Dc(e, t, n) {
   var r = [];
   R(n);
   var i = B((e = G(r, e, `message`))),
@@ -21550,7 +21596,7 @@ function Tc(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function Ec(e, t, n) {
+function Oc(e, t, n) {
   var r = [];
   R(n);
   var i = B((e = G(r, e, `message`))),
@@ -21567,7 +21613,7 @@ function Ec(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function Dc(e, t) {
+function kc(e, t) {
   var n = [];
   (R(t), W(n, e, `state_address`));
   var r = new z(0 | I._crypto_auth_hmacsha512256_bytes()),
@@ -21578,7 +21624,7 @@ function Dc(e, t) {
   }
   H(n, `invalid usage`);
 }
-function Oc(e, t) {
+function Ac(e, t) {
   var n = [];
   R(t);
   var r = null,
@@ -21591,7 +21637,7 @@ function Oc(e, t) {
   }
   H(n, `invalid usage`);
 }
-function kc(e) {
+function jc(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_auth_hmacsha512256_keybytes()),
@@ -21600,14 +21646,14 @@ function kc(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function Ac(e, t, n) {
+function Mc(e, t, n) {
   var r = [];
   (R(n), W(r, e, `state_address`));
   var i = B((t = G(r, t, `message_chunk`))),
     a = t.length;
   (r.push(i), 0 | I._crypto_auth_hmacsha512256_update(e, i, a) && H(r, `invalid usage`), V(r));
 }
-function jc(e, t, n) {
+function Nc(e, t, n) {
   var r = [];
   e = G(r, e, `tag`);
   var i,
@@ -21622,7 +21668,7 @@ function jc(e, t, n) {
   var u = !(0 | I._crypto_auth_hmacsha512256_verify(i, o, s, 0, c));
   return (V(r), u);
 }
-function Mc(e, t) {
+function Pc(e, t) {
   var n = [];
   (R(t), W(n, e, `state_address`));
   var r = new z(0 | I._crypto_auth_hmacsha512_bytes()),
@@ -21633,7 +21679,7 @@ function Mc(e, t) {
   }
   H(n, `invalid usage`);
 }
-function Nc(e, t) {
+function Fc(e, t) {
   var n = [];
   R(t);
   var r = null,
@@ -21646,7 +21692,7 @@ function Nc(e, t) {
   }
   H(n, `invalid usage`);
 }
-function Pc(e) {
+function Ic(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_auth_hmacsha512_keybytes()),
@@ -21655,14 +21701,14 @@ function Pc(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function Fc(e, t, n) {
+function Lc(e, t, n) {
   var r = [];
   (R(n), W(r, e, `state_address`));
   var i = B((t = G(r, t, `message_chunk`))),
     a = t.length;
   (r.push(i), 0 | I._crypto_auth_hmacsha512_update(e, i, a) && H(r, `invalid usage`), V(r));
 }
-function Ic(e, t, n) {
+function Rc(e, t, n) {
   var r = [];
   e = G(r, e, `tag`);
   var i,
@@ -21677,7 +21723,7 @@ function Ic(e, t, n) {
   var u = !(0 | I._crypto_auth_hmacsha512_verify(i, o, s, 0, c));
   return (V(r), u);
 }
-function Lc(e) {
+function zc(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_auth_keybytes()),
@@ -21686,7 +21732,7 @@ function Lc(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function Rc(e, t, n) {
+function Bc(e, t, n) {
   var r = [];
   e = G(r, e, `tag`);
   var i,
@@ -21701,7 +21747,7 @@ function Rc(e, t, n) {
   var u = !(0 | I._crypto_auth_verify(i, o, s, 0, c));
   return (V(r), u);
 }
-function zc(e, t, n) {
+function Vc(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `publicKey`)));
   var i,
@@ -21721,7 +21767,7 @@ function zc(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function Bc(e, t, n) {
+function Hc(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `publicKey`)));
   var i,
@@ -21741,7 +21787,7 @@ function Bc(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function Vc(e, t, n, r, i) {
+function Uc(e, t, n, r, i) {
   var a = [];
   R(i);
   var o = B((e = G(a, e, `message`))),
@@ -21775,7 +21821,7 @@ function Vc(e, t, n, r, i) {
   }
   H(a, `invalid usage`);
 }
-function Hc(e, t, n, r) {
+function Wc(e, t, n, r) {
   var i = [];
   R(r);
   var a = B((e = G(i, e, `message`))),
@@ -21804,7 +21850,7 @@ function Hc(e, t, n, r) {
   }
   H(i, `invalid usage`);
 }
-function Uc(e, t, n, r, i) {
+function Gc(e, t, n, r, i) {
   var a = [];
   R(i);
   var o = B((e = G(a, e, `message`))),
@@ -21833,7 +21879,7 @@ function Uc(e, t, n, r, i) {
   }
   H(a, `invalid usage`);
 }
-function Wc(e, t, n, r) {
+function Kc(e, t, n, r) {
   var i = [];
   R(r);
   var a = B((e = G(i, e, `message`))),
@@ -21858,7 +21904,7 @@ function Wc(e, t, n, r) {
   }
   H(i, `invalid usage`);
 }
-function Gc(e) {
+function qc(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_box_curve25519xchacha20poly1305_publickeybytes()),
@@ -21870,7 +21916,7 @@ function Gc(e) {
   var o = L({ publicKey: n, privateKey: i, keyType: `curve25519` }, e);
   return (V(t), o);
 }
-function Kc(e, t, n, r, i, a) {
+function Jc(e, t, n, r, i, a) {
   var o = [];
   R(a);
   var s = B((e = G(o, e, `ciphertext`))),
@@ -21905,7 +21951,7 @@ function Kc(e, t, n, r, i, a) {
   }
   H(o, `incorrect key pair for the given ciphertext`);
 }
-function qc(e, t, n, r, i) {
+function Yc(e, t, n, r, i) {
   var a = [];
   R(i);
   var o = B((e = G(a, e, `ciphertext`))),
@@ -21934,7 +21980,7 @@ function qc(e, t, n, r, i) {
   }
   H(a, `incorrect secret key for the given ciphertext`);
 }
-function Jc(e, t, n, r, i) {
+function Xc(e, t, n, r, i) {
   var a = [];
   (R(i), (e = G(a, e, `ciphertext`)));
   var o,
@@ -21966,7 +22012,7 @@ function Jc(e, t, n, r, i) {
   }
   H(a, `incorrect key pair for the given ciphertext`);
 }
-function Yc(e, t, n, r) {
+function Zc(e, t, n, r) {
   var i = [];
   R(r);
   var a = B((e = G(i, e, `ciphertext`))),
@@ -21992,7 +22038,7 @@ function Yc(e, t, n, r) {
   }
   H(i, `incorrect secret key for the given ciphertext`);
 }
-function Xc(e, t, n) {
+function Qc(e, t, n) {
   var r = [];
   R(n);
   var i = B((e = G(r, e, `message`))),
@@ -22007,7 +22053,7 @@ function Xc(e, t, n) {
   var u = L(c, n);
   return (V(r), u);
 }
-function Zc(e, t, n, r) {
+function $c(e, t, n, r) {
   var i = [];
   (R(r), (e = G(i, e, `ciphertext`)));
   var a,
@@ -22029,7 +22075,7 @@ function Zc(e, t, n, r) {
   var m = L(f, r);
   return (V(i), m);
 }
-function Qc(e, t) {
+function el(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `seed`)));
   var r,
@@ -22046,7 +22092,7 @@ function Qc(e, t) {
   }
   H(n, `invalid usage`);
 }
-function $c(e, t, n, r, i) {
+function tl(e, t, n, r, i) {
   var a = [];
   R(i);
   var o = B((e = G(a, e, `message`))),
@@ -22078,7 +22124,7 @@ function $c(e, t, n, r, i) {
   }
   H(a, `invalid usage`);
 }
-function el(e, t, n, r, i) {
+function nl(e, t, n, r, i) {
   var a = [];
   R(i);
   var o = B((e = G(a, e, `message`))),
@@ -22107,7 +22153,7 @@ function el(e, t, n, r, i) {
   }
   H(a, `invalid usage`);
 }
-function tl(e, t, n, r) {
+function rl(e, t, n, r) {
   var i = [];
   R(r);
   var a = B((e = G(i, e, `message`))),
@@ -22130,7 +22176,7 @@ function tl(e, t, n, r) {
   }
   H(i, `invalid usage`);
 }
-function nl(e) {
+function il(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_box_publickeybytes()),
@@ -22144,7 +22190,7 @@ function nl(e) {
   }
   H(t, `internal error`);
 }
-function rl(e, t, n, r, i, a) {
+function al(e, t, n, r, i, a) {
   var o = [];
   R(a);
   var s = B((e = G(o, e, `ciphertext`))),
@@ -22176,7 +22222,7 @@ function rl(e, t, n, r, i, a) {
   }
   H(o, `incorrect key pair for the given ciphertext`);
 }
-function il(e, t, n, r, i) {
+function ol(e, t, n, r, i) {
   var a = [];
   (R(i), (e = G(a, e, `ciphertext`)));
   var o,
@@ -22206,7 +22252,7 @@ function il(e, t, n, r, i) {
   }
   H(a, `incorrect key pair for the given ciphertext`);
 }
-function al(e, t, n, r) {
+function sl(e, t, n, r) {
   var i = [];
   R(r);
   var a = B((e = G(i, e, `ciphertext`))),
@@ -22229,7 +22275,7 @@ function al(e, t, n, r) {
   }
   H(i, `incorrect secret key for the given ciphertext`);
 }
-function ol(e, t, n) {
+function cl(e, t, n) {
   var r = [];
   R(n);
   var i = B((e = G(r, e, `message`))),
@@ -22246,7 +22292,7 @@ function ol(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function sl(e, t, n, r) {
+function ll(e, t, n, r) {
   var i = [];
   (R(r), (e = G(i, e, `ciphertext`)));
   var a,
@@ -22270,7 +22316,7 @@ function sl(e, t, n, r) {
   }
   H(i, `incorrect key pair for the given ciphertext`);
 }
-function cl(e, t) {
+function ul(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `seed`)));
   var r,
@@ -22287,7 +22333,7 @@ function cl(e, t) {
   }
   H(n, `invalid usage`);
 }
-function ll(e, t, n) {
+function dl(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `p`)));
   var i,
@@ -22304,7 +22350,7 @@ function ll(e, t, n) {
   }
   H(r, `input is an invalid element`);
 }
-function ul(e, t) {
+function fl(e, t) {
   var n = [];
   R(t);
   var r = B((e = G(n, e, `r`)));
@@ -22317,7 +22363,7 @@ function ul(e, t) {
   }
   H(n, `invalid usage`);
 }
-function dl(e, t) {
+function pl(e, t) {
   var n = [];
   R(t);
   var r = B((e = G(n, e, `r`)));
@@ -22330,7 +22376,7 @@ function dl(e, t) {
   }
   H(n, `invalid usage`);
 }
-function fl(e, t) {
+function ml(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `repr`)));
   var r,
@@ -22339,7 +22385,7 @@ function fl(e, t) {
   var a = (0 | I._crypto_core_ed25519_is_valid_point(r)) == 1;
   return (V(n), a);
 }
-function pl(e) {
+function hl(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_core_ed25519_bytes()),
@@ -22348,7 +22394,7 @@ function pl(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function ml(e, t, n) {
+function gl(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `x`)));
   var i,
@@ -22363,7 +22409,7 @@ function ml(e, t, n) {
   var u = L(c, n);
   return (V(r), u);
 }
-function hl(e, t) {
+function _l(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `s`)));
   var r,
@@ -22375,7 +22421,7 @@ function hl(e, t) {
   var s = L(a, t);
   return (V(n), s);
 }
-function gl(e, t) {
+function vl(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `s`)));
   var r,
@@ -22389,7 +22435,7 @@ function gl(e, t) {
   }
   H(n, `invalid reciprocate`);
 }
-function _l(e, t, n) {
+function yl(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `x`)));
   var i,
@@ -22404,7 +22450,7 @@ function _l(e, t, n) {
   var u = L(c, n);
   return (V(r), u);
 }
-function vl(e, t) {
+function bl(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `s`)));
   var r,
@@ -22416,7 +22462,7 @@ function vl(e, t) {
   var s = L(a, t);
   return (V(n), s);
 }
-function yl(e) {
+function xl(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_core_ed25519_scalarbytes()),
@@ -22425,7 +22471,7 @@ function yl(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function bl(e, t) {
+function Sl(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `sample`)));
   var r,
@@ -22437,7 +22483,7 @@ function bl(e, t) {
   var s = L(a, t);
   return (V(n), s);
 }
-function xl(e, t, n) {
+function Cl(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `x`)));
   var i,
@@ -22452,7 +22498,7 @@ function xl(e, t, n) {
   var u = L(c, n);
   return (V(r), u);
 }
-function Sl(e, t, n) {
+function wl(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `p`)));
   var i,
@@ -22469,7 +22515,7 @@ function Sl(e, t, n) {
   }
   H(r, `input is an invalid element`);
 }
-function Cl(e, t, n, r) {
+function Tl(e, t, n, r) {
   var i = [];
   (R(r), (e = G(i, e, `input`)));
   var a,
@@ -22491,7 +22537,7 @@ function Cl(e, t, n, r) {
   }
   H(i, `invalid usage`);
 }
-function wl(e, t, n, r) {
+function El(e, t, n, r) {
   var i = [];
   (R(r), (e = G(i, e, `input`)));
   var a,
@@ -22513,7 +22559,7 @@ function wl(e, t, n, r) {
   }
   H(i, `invalid usage`);
 }
-function Tl(e, t, n) {
+function Dl(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `p`)));
   var i,
@@ -22530,7 +22576,7 @@ function Tl(e, t, n) {
   }
   H(r, `input is an invalid element`);
 }
-function El(e, t) {
+function Ol(e, t) {
   var n = [];
   R(t);
   var r = B((e = G(n, e, `r`)));
@@ -22543,7 +22589,7 @@ function El(e, t) {
   }
   H(n, `invalid usage`);
 }
-function Dl(e, t) {
+function kl(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `repr`)));
   var r,
@@ -22552,7 +22598,7 @@ function Dl(e, t) {
   var a = (0 | I._crypto_core_ristretto255_is_valid_point(r)) == 1;
   return (V(n), a);
 }
-function Ol(e) {
+function Al(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_core_ristretto255_bytes()),
@@ -22561,7 +22607,7 @@ function Ol(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function kl(e, t, n) {
+function jl(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `x`)));
   var i,
@@ -22576,7 +22622,7 @@ function kl(e, t, n) {
   var u = L(c, n);
   return (V(r), u);
 }
-function Al(e, t) {
+function Ml(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `s`)));
   var r,
@@ -22588,7 +22634,7 @@ function Al(e, t) {
   var s = L(a, t);
   return (V(n), s);
 }
-function jl(e, t) {
+function Nl(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `s`)));
   var r,
@@ -22602,7 +22648,7 @@ function jl(e, t) {
   }
   H(n, `invalid reciprocate`);
 }
-function Ml(e, t, n) {
+function Pl(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `x`)));
   var i,
@@ -22617,7 +22663,7 @@ function Ml(e, t, n) {
   var u = L(c, n);
   return (V(r), u);
 }
-function Nl(e, t) {
+function Fl(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `s`)));
   var r,
@@ -22629,7 +22675,7 @@ function Nl(e, t) {
   var s = L(a, t);
   return (V(n), s);
 }
-function Pl(e) {
+function Il(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_core_ristretto255_scalarbytes()),
@@ -22638,7 +22684,7 @@ function Pl(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function Fl(e, t) {
+function Ll(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `sample`)));
   var r,
@@ -22650,7 +22696,7 @@ function Fl(e, t) {
   var s = L(a, t);
   return (V(n), s);
 }
-function Il(e, t, n) {
+function Rl(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `x`)));
   var i,
@@ -22665,7 +22711,7 @@ function Il(e, t, n) {
   var u = L(c, n);
   return (V(r), u);
 }
-function Ll(e, t, n) {
+function zl(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `p`)));
   var i,
@@ -22682,7 +22728,7 @@ function Ll(e, t, n) {
   }
   H(r, `input is an invalid element`);
 }
-function Rl(e, t, n, r) {
+function Bl(e, t, n, r) {
   var i = [];
   (R(r),
     W(i, e, `hash_length`),
@@ -22702,7 +22748,7 @@ function Rl(e, t, n, r) {
   }
   H(i, `invalid usage`);
 }
-function zl(e, t, n, r, i) {
+function Vl(e, t, n, r, i) {
   var a = [];
   (R(i),
     W(a, e, `subkey_len`),
@@ -22737,7 +22783,7 @@ function zl(e, t, n, r, i) {
   }
   H(a, `invalid usage`);
 }
-function Bl(e, t, n) {
+function Hl(e, t, n) {
   var r = [];
   (R(n),
     W(r, e, `state_address`),
@@ -22752,7 +22798,7 @@ function Bl(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function Vl(e, t, n) {
+function Ul(e, t, n) {
   var r = [];
   R(n);
   var i = null,
@@ -22768,7 +22814,7 @@ function Vl(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function Hl(e) {
+function Wl(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_generichash_keybytes()),
@@ -22777,14 +22823,14 @@ function Hl(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function Ul(e, t, n) {
+function Gl(e, t, n) {
   var r = [];
   (R(n), W(r, e, `state_address`));
   var i = B((t = G(r, t, `message_chunk`))),
     a = t.length;
   (r.push(i), 0 | I._crypto_generichash_update(e, i, a) && H(r, `invalid usage`), V(r));
 }
-function Wl(e, t) {
+function Kl(e, t) {
   var n = [];
   R(t);
   var r = B((e = G(n, e, `message`))),
@@ -22798,7 +22844,7 @@ function Wl(e, t) {
   }
   H(n, `invalid usage`);
 }
-function Gl(e, t) {
+function ql(e, t) {
   var n = [];
   R(t);
   var r = B((e = G(n, e, `message`))),
@@ -22812,7 +22858,7 @@ function Gl(e, t) {
   }
   H(n, `invalid usage`);
 }
-function Kl(e, t) {
+function Jl(e, t) {
   var n = [];
   (R(t), W(n, e, `state_address`));
   var r = new z(0 | I._crypto_hash_sha256_bytes()),
@@ -22823,7 +22869,7 @@ function Kl(e, t) {
   }
   H(n, `invalid usage`);
 }
-function ql(e) {
+function Yl(e) {
   var t = [];
   R(e);
   var n = new z(104).address;
@@ -22833,14 +22879,14 @@ function ql(e) {
   }
   H(t, `invalid usage`);
 }
-function Jl(e, t, n) {
+function Xl(e, t, n) {
   var r = [];
   (R(n), W(r, e, `state_address`));
   var i = B((t = G(r, t, `message_chunk`))),
     a = t.length;
   (r.push(i), 0 | I._crypto_hash_sha256_update(e, i, a) && H(r, `invalid usage`), V(r));
 }
-function Yl(e, t) {
+function Zl(e, t) {
   var n = [];
   R(t);
   var r = B((e = G(n, e, `message`))),
@@ -22854,7 +22900,7 @@ function Yl(e, t) {
   }
   H(n, `invalid usage`);
 }
-function Xl(e, t) {
+function Ql(e, t) {
   var n = [];
   (R(t), W(n, e, `state_address`));
   var r = new z(0 | I._crypto_hash_sha3256_bytes()),
@@ -22865,7 +22911,7 @@ function Xl(e, t) {
   }
   H(n, `invalid usage`);
 }
-function Zl(e) {
+function $l(e) {
   var t = [];
   R(e);
   var n = new z(256).address;
@@ -22875,14 +22921,14 @@ function Zl(e) {
   }
   H(t, `invalid usage`);
 }
-function Ql(e, t, n) {
+function eu(e, t, n) {
   var r = [];
   (R(n), W(r, e, `state_address`));
   var i = B((t = G(r, t, `message_chunk`))),
     a = t.length;
   (r.push(i), 0 | I._crypto_hash_sha3256_update(e, i, a) && H(r, `invalid usage`), V(r));
 }
-function $l(e, t) {
+function tu(e, t) {
   var n = [];
   R(t);
   var r = B((e = G(n, e, `message`))),
@@ -22896,7 +22942,7 @@ function $l(e, t) {
   }
   H(n, `invalid usage`);
 }
-function eu(e, t) {
+function nu(e, t) {
   var n = [];
   (R(t), W(n, e, `state_address`));
   var r = new z(0 | I._crypto_hash_sha3512_bytes()),
@@ -22907,7 +22953,7 @@ function eu(e, t) {
   }
   H(n, `invalid usage`);
 }
-function tu(e) {
+function ru(e) {
   var t = [];
   R(e);
   var n = new z(256).address;
@@ -22917,14 +22963,14 @@ function tu(e) {
   }
   H(t, `invalid usage`);
 }
-function nu(e, t, n) {
+function iu(e, t, n) {
   var r = [];
   (R(n), W(r, e, `state_address`));
   var i = B((t = G(r, t, `message_chunk`))),
     a = t.length;
   (r.push(i), 0 | I._crypto_hash_sha3512_update(e, i, a) && H(r, `invalid usage`), V(r));
 }
-function ru(e, t) {
+function au(e, t) {
   var n = [];
   R(t);
   var r = B((e = G(n, e, `message`))),
@@ -22938,7 +22984,7 @@ function ru(e, t) {
   }
   H(n, `invalid usage`);
 }
-function iu(e, t) {
+function ou(e, t) {
   var n = [];
   (R(t), W(n, e, `state_address`));
   var r = new z(0 | I._crypto_hash_sha512_bytes()),
@@ -22949,7 +22995,7 @@ function iu(e, t) {
   }
   H(n, `invalid usage`);
 }
-function au(e) {
+function su(e) {
   var t = [];
   R(e);
   var n = new z(208).address;
@@ -22959,14 +23005,14 @@ function au(e) {
   }
   H(t, `invalid usage`);
 }
-function ou(e, t, n) {
+function cu(e, t, n) {
   var r = [];
   (R(n), W(r, e, `state_address`));
   var i = B((t = G(r, t, `message_chunk`))),
     a = t.length;
   (r.push(i), 0 | I._crypto_hash_sha512_update(e, i, a) && H(r, `invalid usage`), V(r));
 }
-function su(e, t, n) {
+function lu(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `input`)));
   var i,
@@ -22981,7 +23027,7 @@ function su(e, t, n) {
   var u = L(c, n);
   return (V(r), u);
 }
-function cu(e, t, n) {
+function uu(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `input`)));
   var i,
@@ -22996,7 +23042,7 @@ function cu(e, t, n) {
   var u = L(c, n);
   return (V(r), u);
 }
-function lu(e) {
+function du(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_ipcrypt_keybytes()),
@@ -23005,7 +23051,7 @@ function lu(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function uu(e, t, n) {
+function fu(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `input`)));
   var i,
@@ -23020,7 +23066,7 @@ function uu(e, t, n) {
   var u = L(c, n);
   return (V(r), u);
 }
-function du(e, t, n, r) {
+function pu(e, t, n, r) {
   var i = [];
   (R(r), (e = G(i, e, `input`)));
   var a,
@@ -23038,7 +23084,7 @@ function du(e, t, n, r) {
   var p = L(d, r);
   return (V(i), p);
 }
-function fu(e) {
+function mu(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_ipcrypt_nd_keybytes()),
@@ -23047,7 +23093,7 @@ function fu(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function pu(e, t, n) {
+function hu(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `input`)));
   var i,
@@ -23062,7 +23108,7 @@ function pu(e, t, n) {
   var u = L(c, n);
   return (V(r), u);
 }
-function mu(e, t, n, r) {
+function gu(e, t, n, r) {
   var i = [];
   (R(r), (e = G(i, e, `input`)));
   var a,
@@ -23080,7 +23126,7 @@ function mu(e, t, n, r) {
   var p = L(d, r);
   return (V(i), p);
 }
-function hu(e) {
+function _u(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_ipcrypt_ndx_keybytes()),
@@ -23089,7 +23135,7 @@ function hu(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function gu(e, t, n) {
+function vu(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `input`)));
   var i,
@@ -23104,7 +23150,7 @@ function gu(e, t, n) {
   var u = L(c, n);
   return (V(r), u);
 }
-function _u(e, t, n) {
+function yu(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `input`)));
   var i,
@@ -23119,7 +23165,7 @@ function _u(e, t, n) {
   var u = L(c, n);
   return (V(r), u);
 }
-function vu(e) {
+function bu(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_ipcrypt_pfx_keybytes()),
@@ -23128,7 +23174,7 @@ function vu(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function yu(e, t, n, r, i) {
+function xu(e, t, n, r, i) {
   var a = [];
   (R(i),
     W(a, e, `subkey_len`),
@@ -23147,7 +23193,7 @@ function yu(e, t, n, r, i) {
       ? (o = t)
       : U(a, `subkey_id must be an unsigned integer or bigint`);
   (typeof n != `string` && U(a, `ctx must be a string`),
-    (n = Fs(n + `\0`)).length - 1 !== I._crypto_kdf_contextbytes() && U(a, `invalid ctx length`));
+    (n = Ls(n + `\0`)).length - 1 !== I._crypto_kdf_contextbytes() && U(a, `invalid ctx length`));
   var c = B(n);
   (n.length, a.push(c), (r = G(a, r, `key`)));
   var l,
@@ -23159,7 +23205,7 @@ function yu(e, t, n, r, i) {
   var p = L(d, i);
   return (V(a), p);
 }
-function bu(e) {
+function Su(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_kdf_keybytes()),
@@ -23168,7 +23214,7 @@ function bu(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function xu(e, t, n) {
+function Cu(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `ciphertext`)));
   var i,
@@ -23188,7 +23234,7 @@ function xu(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function Su(e, t) {
+function wu(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `publicKey`)));
   var r,
@@ -23205,7 +23251,7 @@ function Su(e, t) {
   }
   H(n, `invalid usage`);
 }
-function Cu(e) {
+function Tu(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_kem_publickeybytes()),
@@ -23219,7 +23265,7 @@ function Cu(e) {
   }
   H(t, `internal error`);
 }
-function wu(e, t, n) {
+function Eu(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `ciphertext`)));
   var i,
@@ -23239,7 +23285,7 @@ function wu(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function Tu(e, t) {
+function Du(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `publicKey`)));
   var r,
@@ -23256,7 +23302,7 @@ function Tu(e, t) {
   }
   H(n, `invalid usage`);
 }
-function Eu(e, t, n) {
+function Ou(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `publicKey`)));
   var i,
@@ -23279,7 +23325,7 @@ function Eu(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function Du(e) {
+function ku(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_kem_mlkem768_publickeybytes()),
@@ -23293,7 +23339,7 @@ function Du(e) {
   }
   H(t, `internal error`);
 }
-function Ou(e, t) {
+function Au(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `seed`)));
   var r,
@@ -23310,12 +23356,12 @@ function Ou(e, t) {
   }
   H(n, `invalid usage`);
 }
-function ku() {
+function ju() {
   var e = I._crypto_kem_primitive(),
     t = I.UTF8ToString(e);
   return (V([]), t);
 }
-function Au(e, t) {
+function Mu(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `seed`)));
   var r,
@@ -23332,7 +23378,7 @@ function Au(e, t) {
   }
   H(n, `invalid usage`);
 }
-function ju(e, t, n) {
+function Nu(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `ciphertext`)));
   var i,
@@ -23352,7 +23398,7 @@ function ju(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function Mu(e, t) {
+function Pu(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `publicKey`)));
   var r,
@@ -23369,7 +23415,7 @@ function Mu(e, t) {
   }
   H(n, `invalid usage`);
 }
-function Nu(e, t, n) {
+function Fu(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `publicKey`)));
   var i,
@@ -23392,7 +23438,7 @@ function Nu(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function Pu(e) {
+function Iu(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_kem_xwing_publickeybytes()),
@@ -23406,7 +23452,7 @@ function Pu(e) {
   }
   H(t, `internal error`);
 }
-function Fu(e, t) {
+function Lu(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `seed`)));
   var r,
@@ -23423,7 +23469,7 @@ function Fu(e, t) {
   }
   H(n, `invalid usage`);
 }
-function Iu(e, t, n, r) {
+function Ru(e, t, n, r) {
   var i = [];
   (R(r), (e = G(i, e, `clientPublicKey`)));
   var a,
@@ -23452,7 +23498,7 @@ function Iu(e, t, n, r) {
   }
   H(i, `invalid usage`);
 }
-function Lu(e) {
+function zu(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_kx_publickeybytes()),
@@ -23466,7 +23512,7 @@ function Lu(e) {
   }
   H(t, `internal error`);
 }
-function Ru(e, t) {
+function Bu(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `seed`)));
   var r,
@@ -23483,7 +23529,7 @@ function Ru(e, t) {
   }
   H(n, `internal error`);
 }
-function zu(e, t, n, r) {
+function Vu(e, t, n, r) {
   var i = [];
   (R(r), (e = G(i, e, `serverPublicKey`)));
   var a,
@@ -23512,7 +23558,7 @@ function zu(e, t, n, r) {
   }
   H(i, `invalid usage`);
 }
-function Bu(e, t, n) {
+function Hu(e, t, n) {
   var r = [];
   R(n);
   var i = B((e = G(r, e, `message`))),
@@ -23529,7 +23575,7 @@ function Bu(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function Vu(e, t) {
+function Uu(e, t) {
   var n = [];
   (R(t), W(n, e, `state_address`));
   var r = new z(0 | I._crypto_onetimeauth_bytes()),
@@ -23540,7 +23586,7 @@ function Vu(e, t) {
   }
   H(n, `invalid usage`);
 }
-function Hu(e, t) {
+function Wu(e, t) {
   var n = [];
   R(t);
   var r = null;
@@ -23552,7 +23598,7 @@ function Hu(e, t) {
   }
   H(n, `invalid usage`);
 }
-function Uu(e) {
+function Gu(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_onetimeauth_keybytes()),
@@ -23561,14 +23607,14 @@ function Uu(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function Wu(e, t, n) {
+function Ku(e, t, n) {
   var r = [];
   (R(n), W(r, e, `state_address`));
   var i = B((t = G(r, t, `message_chunk`))),
     a = t.length;
   (r.push(i), 0 | I._crypto_onetimeauth_update(e, i, a) && H(r, `invalid usage`), V(r));
 }
-function Gu(e, t, n) {
+function qu(e, t, n) {
   var r = [];
   e = G(r, e, `hash`);
   var i,
@@ -23583,7 +23629,7 @@ function Gu(e, t, n) {
   var u = !(0 | I._crypto_onetimeauth_verify(i, o, s, 0, c));
   return (V(r), u);
 }
-function Ku(e, t, n, r, i, a, o) {
+function Ju(e, t, n, r, i, a, o) {
   var s = [];
   (R(o),
     W(s, e, `keyLength`),
@@ -23614,7 +23660,7 @@ function Ku(e, t, n, r, i, a, o) {
   }
   H(s, `invalid usage`);
 }
-function qu(e, t, n, r, i, a) {
+function Yu(e, t, n, r, i, a) {
   var o = [];
   (R(a),
     W(o, e, `keyLength`),
@@ -23642,7 +23688,7 @@ function qu(e, t, n, r, i, a) {
   }
   H(o, `invalid usage`);
 }
-function Ju(e, t, n, r, i, a, o) {
+function Xu(e, t, n, r, i, a, o) {
   var s = [];
   R(o);
   var c = B((e = G(s, e, `password`))),
@@ -23669,7 +23715,7 @@ function Ju(e, t, n, r, i, a, o) {
   }
   H(s, `invalid usage`);
 }
-function Yu(e, t, n, r) {
+function Zu(e, t, n, r) {
   var i = [];
   R(r);
   var a = B((e = G(i, e, `password`))),
@@ -23688,10 +23734,10 @@ function Yu(e, t, n, r) {
   }
   H(i, `invalid usage`);
 }
-function Xu(e, t, n) {
+function Qu(e, t, n) {
   var r = [];
   (R(n), typeof e != `string` && U(r, `hashed_password must be a string`));
-  var i = B((e = Fs(e + `\0`)));
+  var i = B((e = Ls(e + `\0`)));
   (e.length, r.push(i));
   var a = B((t = G(r, t, `password`))),
     o = t.length;
@@ -23699,7 +23745,7 @@ function Xu(e, t, n) {
   var s = !(0 | I._crypto_pwhash_scryptsalsa208sha256_str_verify(i, a, o, 0));
   return (V(r), s);
 }
-function Zu(e, t, n, r) {
+function $u(e, t, n, r) {
   var i = [];
   R(r);
   var a = B((e = G(i, e, `password`))),
@@ -23718,10 +23764,10 @@ function Zu(e, t, n, r) {
   }
   H(i, `invalid usage`);
 }
-function Qu(e, t, n, r) {
+function ed(e, t, n, r) {
   var i = [];
   (R(r), typeof e != `string` && U(i, `hashed_password must be a string`));
-  var a = B((e = Fs(e + `\0`)));
+  var a = B((e = Ls(e + `\0`)));
   (e.length,
     i.push(a),
     W(i, t, `opsLimit`),
@@ -23733,10 +23779,10 @@ function Qu(e, t, n, r) {
   var o = !!(0 | I._crypto_pwhash_str_needs_rehash(a, t, 0, n));
   return (V(i), o);
 }
-function $u(e, t, n) {
+function td(e, t, n) {
   var r = [];
   (R(n), typeof e != `string` && U(r, `hashed_password must be a string`));
-  var i = B((e = Fs(e + `\0`)));
+  var i = B((e = Ls(e + `\0`)));
   (e.length, r.push(i));
   var a = B((t = G(r, t, `password`))),
     o = t.length;
@@ -23744,7 +23790,7 @@ function $u(e, t, n) {
   var s = !(0 | I._crypto_pwhash_str_verify(i, a, o, 0));
   return (V(r), s);
 }
-function ed(e, t, n) {
+function nd(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `privateKey`)));
   var i,
@@ -23764,7 +23810,7 @@ function ed(e, t, n) {
   }
   H(r, `weak public key`);
 }
-function td(e, t) {
+function rd(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `privateKey`)));
   var r,
@@ -23778,7 +23824,7 @@ function td(e, t) {
   }
   H(n, `unknown error`);
 }
-function nd(e, t, n) {
+function id(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `n`)));
   var i,
@@ -23795,7 +23841,7 @@ function nd(e, t, n) {
   }
   H(r, `invalid point or scalar is 0`);
 }
-function rd(e, t) {
+function ad(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `scalar`)));
   var r,
@@ -23809,7 +23855,7 @@ function rd(e, t) {
   }
   H(n, `scalar is 0`);
 }
-function id(e, t) {
+function od(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `scalar`)));
   var r,
@@ -23823,7 +23869,7 @@ function id(e, t) {
   }
   H(n, `scalar is 0`);
 }
-function ad(e, t, n) {
+function sd(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `n`)));
   var i,
@@ -23840,7 +23886,7 @@ function ad(e, t, n) {
   }
   H(r, `invalid point or scalar is 0`);
 }
-function od(e, t, n) {
+function cd(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `scalar`)));
   var i,
@@ -23860,7 +23906,7 @@ function od(e, t, n) {
   }
   H(r, `result is identity element`);
 }
-function sd(e, t) {
+function ld(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `scalar`)));
   var r,
@@ -23874,7 +23920,7 @@ function sd(e, t) {
   }
   H(n, `scalar is 0`);
 }
-function cd(e, t, n, r) {
+function ud(e, t, n, r) {
   var i = [];
   R(r);
   var a = B((e = G(i, e, `message`))),
@@ -23897,7 +23943,7 @@ function cd(e, t, n, r) {
   }
   H(i, `invalid usage`);
 }
-function ld(e, t, n, r) {
+function dd(e, t, n, r) {
   var i = [];
   R(r);
   var a = B((e = G(i, e, `message`))),
@@ -23917,7 +23963,7 @@ function ld(e, t, n, r) {
   }
   H(i, `invalid usage`);
 }
-function ud(e) {
+function fd(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_secretbox_keybytes()),
@@ -23926,7 +23972,7 @@ function ud(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function dd(e, t, n, r, i) {
+function pd(e, t, n, r, i) {
   var a = [];
   R(i);
   var o = B((e = G(a, e, `ciphertext`))),
@@ -23949,7 +23995,7 @@ function dd(e, t, n, r, i) {
   }
   H(a, `wrong secret key for the given ciphertext`);
 }
-function fd(e, t, n, r) {
+function md(e, t, n, r) {
   var i = [];
   (R(r), (e = G(i, e, `ciphertext`)));
   var a,
@@ -23970,7 +24016,7 @@ function fd(e, t, n, r) {
   }
   H(i, `wrong secret key for the given ciphertext`);
 }
-function pd(e, t, n) {
+function hd(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `header`)));
   var i,
@@ -23986,7 +24032,7 @@ function pd(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function md(e, t) {
+function gd(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `key`)));
   var r,
@@ -24001,7 +24047,7 @@ function md(e, t) {
   }
   H(n, `invalid usage`);
 }
-function hd(e) {
+function _d(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_secretstream_xchacha20poly1305_keybytes()),
@@ -24010,7 +24056,7 @@ function hd(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function gd(e, t, n, r) {
+function vd(e, t, n, r) {
   var i = [];
   (R(r), W(i, e, `state_address`), (t = G(i, t, `cipher`)));
   var a,
@@ -24025,7 +24071,7 @@ function gd(e, t, n, r) {
   i.push(d);
   var f,
     p =
-      ((f = Gs(1)),
+      ((f = qs(1)),
       i.push(f),
       (p = I._crypto_secretstream_xchacha20poly1305_pull(e, d, 0, f, a, s, 0, c, l) === 0 && {
         tag: I.HEAPU8[f],
@@ -24033,7 +24079,7 @@ function gd(e, t, n, r) {
       }) && { message: L(p.message, r), tag: p.tag });
   return (V(i), p);
 }
-function _d(e, t, n, r, i) {
+function yd(e, t, n, r, i) {
   var a = [];
   (R(i), W(a, e, `state_address`));
   var o = B((t = G(a, t, `message_chunk`))),
@@ -24054,13 +24100,13 @@ function _d(e, t, n, r, i) {
   }
   H(a, `invalid usage`);
 }
-function vd(e, t) {
+function bd(e, t) {
   var n = [];
   return (
     R(t), W(n, e, `state_address`), I._crypto_secretstream_xchacha20poly1305_rekey(e), V(n), !0
   );
 }
-function yd(e, t, n) {
+function xd(e, t, n) {
   var r = [];
   R(n);
   var i = B((e = G(r, e, `message`))),
@@ -24077,7 +24123,7 @@ function yd(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function bd(e) {
+function Sd(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_shorthash_keybytes()),
@@ -24086,7 +24132,7 @@ function bd(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function xd(e, t, n) {
+function Cd(e, t, n) {
   var r = [];
   R(n);
   var i = B((e = G(r, e, `message`))),
@@ -24103,7 +24149,7 @@ function xd(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function Sd(e, t, n) {
+function wd(e, t, n) {
   var r = [];
   R(n);
   var i = B((e = G(r, e, `message`))),
@@ -24120,7 +24166,7 @@ function Sd(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function Cd(e, t, n) {
+function Td(e, t, n) {
   var r = [];
   R(n);
   var i = B((e = G(r, e, `message`))),
@@ -24137,7 +24183,7 @@ function Cd(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function wd(e, t) {
+function Ed(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `edPk`)));
   var r,
@@ -24151,7 +24197,7 @@ function wd(e, t) {
   }
   H(n, `invalid key`);
 }
-function Td(e, t) {
+function Dd(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `edSk`)));
   var r,
@@ -24165,7 +24211,7 @@ function Td(e, t) {
   }
   H(n, `invalid key`);
 }
-function Ed(e, t) {
+function Od(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `privateKey`)));
   var r,
@@ -24179,7 +24225,7 @@ function Ed(e, t) {
   }
   H(n, `invalid key`);
 }
-function Dd(e, t) {
+function kd(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `privateKey`)));
   var r,
@@ -24193,7 +24239,7 @@ function Dd(e, t) {
   }
   H(n, `invalid key`);
 }
-function Od(e, t, n) {
+function Ad(e, t, n) {
   var r = [];
   (R(n), W(r, e, `state_address`), (t = G(r, t, `privateKey`)));
   var i,
@@ -24207,7 +24253,7 @@ function Od(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function kd(e, t, n, r) {
+function jd(e, t, n, r) {
   var i = [];
   (R(r), W(i, e, `state_address`), (t = G(i, t, `signature`)));
   var a,
@@ -24222,7 +24268,7 @@ function kd(e, t, n, r) {
   var l = !(0 | I._crypto_sign_final_verify(e, a, s));
   return (V(i), l);
 }
-function Ad(e) {
+function Md(e) {
   var t = [];
   R(e);
   var n = new z(208).address;
@@ -24232,7 +24278,7 @@ function Ad(e) {
   }
   H(t, `internal error`);
 }
-function jd(e) {
+function Nd(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_sign_publickeybytes()),
@@ -24246,7 +24292,7 @@ function jd(e) {
   }
   H(t, `internal error`);
 }
-function Md(e, t, n) {
+function Pd(e, t, n) {
   var r = [];
   (R(n), (e = G(r, e, `signedMessage`)));
   var i,
@@ -24264,7 +24310,7 @@ function Md(e, t, n) {
   }
   H(r, `incorrect signature for the given public key`);
 }
-function Nd(e, t) {
+function Fd(e, t) {
   var n = [];
   (R(t), (e = G(n, e, `seed`)));
   var r,
@@ -24281,14 +24327,14 @@ function Nd(e, t) {
   }
   H(n, `invalid usage`);
 }
-function Pd(e, t, n) {
+function Id(e, t, n) {
   var r = [];
   (R(n), W(r, e, `state_address`));
   var i = B((t = G(r, t, `message_chunk`))),
     a = t.length;
   (r.push(i), 0 | I._crypto_sign_update(e, i, a, 0) && H(r, `invalid usage`), V(r));
 }
-function Fd(e, t, n) {
+function Ld(e, t, n) {
   var r = [];
   e = G(r, e, `signature`);
   var i,
@@ -24303,7 +24349,7 @@ function Fd(e, t, n) {
   var u = !(0 | I._crypto_sign_verify_detached(i, o, s, 0, c));
   return (V(r), u);
 }
-function Id(e, t, n, r) {
+function Rd(e, t, n, r) {
   var i = [];
   (R(r),
     W(i, e, `outLength`),
@@ -24322,7 +24368,7 @@ function Id(e, t, n, r) {
   var d = L(l, r);
   return (V(i), d);
 }
-function Ld(e, t, n, r) {
+function zd(e, t, n, r) {
   var i = [];
   R(r);
   var a = B((e = G(i, e, `input_message`))),
@@ -24342,7 +24388,7 @@ function Ld(e, t, n, r) {
   }
   H(i, `invalid usage`);
 }
-function Rd(e, t, n, r, i) {
+function Bd(e, t, n, r, i) {
   var a = [];
   R(i);
   var o = B((e = G(a, e, `input_message`))),
@@ -24368,7 +24414,7 @@ function Rd(e, t, n, r, i) {
   }
   H(a, `invalid usage`);
 }
-function zd(e) {
+function Vd(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_stream_chacha20_keybytes()),
@@ -24377,7 +24423,7 @@ function zd(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function Bd(e, t, n, r) {
+function Hd(e, t, n, r) {
   var i = [];
   R(r);
   var a = B((e = G(i, e, `input_message`))),
@@ -24397,7 +24443,7 @@ function Bd(e, t, n, r) {
   }
   H(i, `invalid usage`);
 }
-function Vd(e, t, n, r, i) {
+function Ud(e, t, n, r, i) {
   var a = [];
   R(i);
   var o = B((e = G(a, e, `input_message`))),
@@ -24423,7 +24469,7 @@ function Vd(e, t, n, r, i) {
   }
   H(a, `invalid usage`);
 }
-function Hd(e) {
+function Wd(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_stream_keybytes()),
@@ -24432,7 +24478,7 @@ function Hd(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function Ud(e) {
+function Gd(e) {
   var t = [];
   R(e);
   var n = new z(0 | I._crypto_stream_xchacha20_keybytes()),
@@ -24441,7 +24487,7 @@ function Ud(e) {
   var i = L(n, e);
   return (V(t), i);
 }
-function Wd(e, t, n, r) {
+function Kd(e, t, n, r) {
   var i = [];
   R(r);
   var a = B((e = G(i, e, `input_message`))),
@@ -24461,7 +24507,7 @@ function Wd(e, t, n, r) {
   }
   H(i, `invalid usage`);
 }
-function Gd(e, t, n, r, i) {
+function qd(e, t, n, r, i) {
   var a = [];
   R(i);
   var o = B((e = G(a, e, `input_message`))),
@@ -24487,7 +24533,7 @@ function Gd(e, t, n, r, i) {
   }
   H(a, `invalid usage`);
 }
-function Kd(e, t, n) {
+function Jd(e, t, n) {
   var r = [];
   (R(n),
     W(r, e, `out_length`),
@@ -24504,7 +24550,7 @@ function Kd(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function qd(e) {
+function Yd(e) {
   var t = [];
   R(e);
   var n = new z(256).address;
@@ -24514,7 +24560,7 @@ function qd(e) {
   }
   H(t, `invalid usage`);
 }
-function Jd(e, t) {
+function Xd(e, t) {
   var n = [];
   (R(t),
     W(n, e, `domain`),
@@ -24526,7 +24572,7 @@ function Jd(e, t) {
   }
   H(n, `invalid usage`);
 }
-function Yd(e, t, n) {
+function Zd(e, t, n) {
   var r = [];
   (R(n),
     W(r, e, `state_address`),
@@ -24541,14 +24587,14 @@ function Yd(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function Xd(e, t, n) {
+function Qd(e, t, n) {
   var r = [];
   (R(n), W(r, e, `state_address`));
   var i = B((t = G(r, t, `message_chunk`))),
     a = t.length;
   (r.push(i), 0 | I._crypto_xof_shake128_update(e, i, a, 0) && H(r, `invalid usage`), V(r));
 }
-function Zd(e, t, n) {
+function $d(e, t, n) {
   var r = [];
   (R(n),
     W(r, e, `out_length`),
@@ -24565,7 +24611,7 @@ function Zd(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function Qd(e) {
+function ef(e) {
   var t = [];
   R(e);
   var n = new z(256).address;
@@ -24575,7 +24621,7 @@ function Qd(e) {
   }
   H(t, `invalid usage`);
 }
-function $d(e, t) {
+function tf(e, t) {
   var n = [];
   (R(t),
     W(n, e, `domain`),
@@ -24587,7 +24633,7 @@ function $d(e, t) {
   }
   H(n, `invalid usage`);
 }
-function ef(e, t, n) {
+function nf(e, t, n) {
   var r = [];
   (R(n),
     W(r, e, `state_address`),
@@ -24602,14 +24648,14 @@ function ef(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function tf(e, t, n) {
+function rf(e, t, n) {
   var r = [];
   (R(n), W(r, e, `state_address`));
   var i = B((t = G(r, t, `message_chunk`))),
     a = t.length;
   (r.push(i), 0 | I._crypto_xof_shake256_update(e, i, a, 0) && H(r, `invalid usage`), V(r));
 }
-function nf(e, t, n) {
+function af(e, t, n) {
   var r = [];
   (R(n),
     W(r, e, `out_length`),
@@ -24626,7 +24672,7 @@ function nf(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function rf(e) {
+function of(e) {
   var t = [];
   R(e);
   var n = new z(256).address;
@@ -24636,7 +24682,7 @@ function rf(e) {
   }
   H(t, `invalid usage`);
 }
-function af(e, t) {
+function sf(e, t) {
   var n = [];
   (R(t),
     W(n, e, `domain`),
@@ -24648,7 +24694,7 @@ function af(e, t) {
   }
   H(n, `invalid usage`);
 }
-function of(e, t, n) {
+function cf(e, t, n) {
   var r = [];
   (R(n),
     W(r, e, `state_address`),
@@ -24663,14 +24709,14 @@ function of(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function sf(e, t, n) {
+function lf(e, t, n) {
   var r = [];
   (R(n), W(r, e, `state_address`));
   var i = B((t = G(r, t, `message_chunk`))),
     a = t.length;
   (r.push(i), 0 | I._crypto_xof_turboshake128_update(e, i, a, 0) && H(r, `invalid usage`), V(r));
 }
-function cf(e, t, n) {
+function uf(e, t, n) {
   var r = [];
   (R(n),
     W(r, e, `out_length`),
@@ -24687,7 +24733,7 @@ function cf(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function lf(e) {
+function df(e) {
   var t = [];
   R(e);
   var n = new z(256).address;
@@ -24697,7 +24743,7 @@ function lf(e) {
   }
   H(t, `invalid usage`);
 }
-function uf(e, t) {
+function ff(e, t) {
   var n = [];
   (R(t),
     W(n, e, `domain`),
@@ -24709,7 +24755,7 @@ function uf(e, t) {
   }
   H(n, `invalid usage`);
 }
-function df(e, t, n) {
+function pf(e, t, n) {
   var r = [];
   (R(n),
     W(r, e, `state_address`),
@@ -24724,14 +24770,14 @@ function df(e, t, n) {
   }
   H(r, `invalid usage`);
 }
-function ff(e, t, n) {
+function mf(e, t, n) {
   var r = [];
   (R(n), W(r, e, `state_address`));
   var i = B((t = G(r, t, `message_chunk`))),
     a = t.length;
   (r.push(i), 0 | I._crypto_xof_turboshake256_update(e, i, a, 0) && H(r, `invalid usage`), V(r));
 }
-function pf(e, t) {
+function hf(e, t) {
   var n = [];
   (R(t),
     W(n, e, `length`),
@@ -24742,7 +24788,7 @@ function pf(e, t) {
   var a = L(r, t);
   return (V(n), a);
 }
-function mf(e, t, n) {
+function gf(e, t, n) {
   var r = [];
   (R(n),
     W(r, e, `length`),
@@ -24757,15 +24803,15 @@ function mf(e, t, n) {
   var c = L(o, n);
   return (V(r), c);
 }
-function hf(e) {
+function _f(e) {
   (R(e), I._randombytes_close());
 }
-function gf(e) {
+function vf(e) {
   R(e);
   var t = I._randombytes_random() >>> 0;
   return (V([]), t);
 }
-function _f(e, t) {
+function yf(e, t) {
   var n = [];
   R(t);
   for (var r = I._malloc(24), i = 0; i < 6; i++)
@@ -24778,10 +24824,10 @@ function _f(e, t) {
     );
   (0 | I._randombytes_set_implementation(r) && H(n, `unsupported implementation`), V(n));
 }
-function vf(e) {
+function bf(e) {
   (R(e), I._randombytes_stir());
 }
-function yf(e, t) {
+function xf(e, t) {
   var n = [];
   (R(t),
     W(n, e, `upper_bound`),
@@ -24790,7 +24836,7 @@ function yf(e, t) {
   var r = I._randombytes_uniform(e) >>> 0;
   return (V(n), r);
 }
-function bf(e) {
+function Sf(e) {
   var t,
     n = [];
   ((e = G(n, e, `bin`)).length !== 16 && U(n, `invalid bin length`), (t = B(e)), n.push(t));
@@ -24801,10 +24847,10 @@ function bf(e) {
   }
   H(n, `conversion failed`);
 }
-function xf(e, t) {
+function Cf(e, t) {
   var n = [];
   (R(t), typeof e != `string` && U(n, `ip must be a string`));
-  var r = B((e = Fs(e + `\0`))),
+  var r = B((e = Ls(e + `\0`))),
     i = e.length - 1;
   n.push(r);
   var a = new z(16),
@@ -24815,7 +24861,7 @@ function xf(e, t) {
   }
   H(n, `invalid IP address`);
 }
-function Sf() {
+function wf() {
   var e = I._sodium_version_string(),
     t = I.UTF8ToString(e);
   return (V([]), t);
@@ -24824,55 +24870,55 @@ function Sf() {
   var e = new Uint8Array(this.length);
   return (e.set(I.HEAPU8.subarray(this.address, this.address + this.length)), e);
 }),
-  (xs.add = Os),
-  (xs.base64_variants = zs),
-  (xs.compare = Ms),
-  (xs.from_base64 = Vs),
-  (xs.from_hex = Ls),
-  (xs.from_string = Fs),
-  (xs.increment = Ds),
-  (xs.is_zero = ks),
-  (xs.memcmp = js),
-  (xs.memzero = As),
-  (xs.output_formats = Us),
-  (xs.pad = Ns),
-  (xs.unpad = Ps),
-  (xs.ready = Ts),
-  (xs.symbols = Es),
-  (xs.to_base64 = Hs),
-  (xs.to_hex = Rs),
-  (xs.to_string = Is));
-var Cf = {
+  (Cs.add = As),
+  (Cs.base64_variants = Vs),
+  (Cs.compare = Ps),
+  (Cs.from_base64 = Us),
+  (Cs.from_hex = zs),
+  (Cs.from_string = Ls),
+  (Cs.increment = ks),
+  (Cs.is_zero = js),
+  (Cs.memcmp = Ns),
+  (Cs.memzero = Ms),
+  (Cs.output_formats = Gs),
+  (Cs.pad = Fs),
+  (Cs.unpad = Is),
+  (Cs.ready = Ds),
+  (Cs.symbols = Os),
+  (Cs.to_base64 = Ws),
+  (Cs.to_hex = Bs),
+  (Cs.to_string = Rs));
+var Tf = {
     actions: `read`,
     contents: `write`,
     issues: `write`,
     pull_requests: `write`,
     secrets: `write`,
   },
-  wf = `1.12.2`,
-  Tf = `repos,issues,pull_requests,actions`,
-  Ef = {
+  Ef = `1.12.2`,
+  Df = `repos,issues,pull_requests,actions`,
+  Of = {
     createServerConfig(e, t) {
       return {
         name: `github`,
         command: e,
         tokenEnvVar: `GITHUB_PERSONAL_ACCESS_TOKEN`,
         args: [`stdio`],
-        env: { GITHUB_HOST: t, GITHUB_TOOLSETS: Tf, GITHUB_READ_ONLY: `1` },
+        env: { GITHUB_HOST: t, GITHUB_TOOLSETS: Df, GITHUB_READ_ONLY: `1` },
       };
     },
-    getReleaseAsset: Ff,
+    getReleaseAsset: Lf,
     getReleaseAssetUrl(e = process.platform, t = process.arch) {
-      let n = Ff(e, t);
+      let n = Lf(e, t);
       return `https://github.com/github/github-mcp-server/releases/download/v${n.version}/${n.assetName}`;
     },
     getExecutableOverride() {
       return process.env.GITHUB_MCP_SERVER_PATH;
     },
   },
-  Df = class {
+  kf = class {
     type = `github`;
-    mcp = Ef;
+    mcp = Of;
     token;
     appSlug;
     octokit;
@@ -24889,13 +24935,13 @@ var Cf = {
           email: e.email ?? `${e.id}+${e.login}@users.noreply.github.com`,
         };
       } catch (e) {
-        if (!Nf(e)) throw e;
-        return (F(`GitHub installation token cannot read /user; using github-actions[bot]`), Of());
+        if (!Ff(e)) throw e;
+        return (F(`GitHub installation token cannot read /user; using github-actions[bot]`), Af());
       }
     }
     async getGitHubAppBotUser(e) {
-      let { data: t } = await this.octokit.rest.users.getByUsername({ username: kf(e) });
-      return { login: t.login, id: t.id, email: Af(t.id, t.login) };
+      let { data: t } = await this.octokit.rest.users.getByUsername({ username: jf(e) });
+      return { login: t.login, id: t.id, email: Mf(t.id, t.login) };
     }
     async postPullRequestComment(e) {
       (await this.octokit.rest.issues.createComment({ ...So.repo, issue_number: Qo(), body: e }),
@@ -24931,7 +24977,7 @@ var Cf = {
     }
     async updateRepositoryAuthSecret(e, t) {
       let n = await this.octokit.rest.actions.getRepoPublicKey(So.repo),
-        r = await Rf(t, n.data.key);
+        r = await Bf(t, n.data.key);
       await this.octokit.rest.actions.createOrUpdateRepoSecret({
         ...So.repo,
         secret_name: e,
@@ -24946,38 +24992,38 @@ var Cf = {
       return t.node_id;
     }
   };
-function Of() {
+function Af() {
   let e = `github-actions[bot]`,
     t = 41898282;
-  return { login: e, id: t, email: Af(t, e) };
+  return { login: e, id: t, email: Mf(t, e) };
 }
-function kf(e) {
+function jf(e) {
   return `${e}[bot]`;
 }
-function Af(e, t) {
+function Mf(e, t) {
   return `${e}+${t}@users.noreply.github.com`;
 }
-function jf(e, t, n = Date.now()) {
+function Nf(e, t, n = Date.now()) {
   let r = Math.floor(n / 1e3),
-    i = `${zf({ alg: `RS256`, typ: `JWT` })}.${zf({ iat: r - 60, exp: r + 540, iss: e })}`;
-  return `${i}.${D(`RSA-SHA256`).update(i).end().sign(Mf(t), `base64url`)}`;
+    i = `${Vf({ alg: `RS256`, typ: `JWT` })}.${Vf({ iat: r - 60, exp: r + 540, iss: e })}`;
+  return `${i}.${D(`RSA-SHA256`).update(i).end().sign(Pf(t), `base64url`)}`;
 }
-function Mf(e) {
+function Pf(e) {
   return e.replace(
     /\\n/g,
     `
 `,
   );
 }
-function Nf(e) {
+function Ff(e) {
   if (typeof e != `object` || !e || Array.isArray(e)) return !1;
   let t = e.status,
     n = e.message;
   return t === 403 && typeof n == `string` && n.includes(`Resource not accessible by integration`);
 }
-async function Pf(e, t) {
-  Br(Mf(t));
-  let n = jf(e, t);
+async function If(e, t) {
+  Br(Pf(t));
+  let n = Nf(e, t);
   Br(n);
   let r = Co(n),
     [{ data: i }, { data: a }] = await Promise.all([
@@ -24989,62 +25035,62 @@ async function Pf(e, t) {
     { data: s } = await r.rest.apps.createInstallationAccessToken({
       installation_id: a.id,
       repositories: [So.repo.repo],
-      permissions: Cf,
+      permissions: Tf,
     });
   return (
     Br(s.token), F(`Created GitHub App installation token for ${o}`), { token: s.token, appSlug: o }
   );
 }
-function Ff(e = process.platform, t = process.arch) {
-  let n = If(e),
-    r = Lf(t);
+function Lf(e = process.platform, t = process.arch) {
+  let n = Rf(e),
+    r = zf(t);
   if (!n || !r) throw Error(`Unsupported GitHub MCP platform: ${e} (${t})`);
   let i = e === `win32` ? `zip` : `tar`,
     a = i === `zip` ? `zip` : `tar.gz`;
   return {
     cacheName: `github-mcp-server`,
-    version: wf,
+    version: Ef,
     target: `${n}-${r}`,
     assetName: `github-mcp-server_${n}_${r}.${a}`,
     format: i,
     executableNames: e === `win32` ? [`github-mcp-server.exe`] : [`github-mcp-server`],
   };
 }
-function If(e) {
+function Rf(e) {
   return e === `linux` ? `Linux` : e === `darwin` ? `Darwin` : e === `win32` ? `Windows` : null;
 }
-function Lf(e) {
+function zf(e) {
   return e === `x64` ? `x86_64` : e === `arm64` ? `arm64` : null;
 }
-async function Rf(e, t) {
-  await xs.ready;
-  let n = xs.from_base64(t, xs.base64_variants.ORIGINAL),
-    r = xs.crypto_box_seal(e, n);
-  return xs.to_base64(r, xs.base64_variants.ORIGINAL);
+async function Bf(e, t) {
+  await Cs.ready;
+  let n = Cs.from_base64(t, Cs.base64_variants.ORIGINAL),
+    r = Cs.crypto_box_seal(e, n);
+  return Cs.to_base64(r, Cs.base64_variants.ORIGINAL);
 }
-function zf(e) {
+function Vf(e) {
   return Buffer.from(JSON.stringify(e), `utf8`).toString(`base64url`);
 }
-function Bf(e = process.env) {
+function Hf(e = process.env) {
   return e.FORGEJO_ACTIONS ? `forgejo` : e.GITEA_ACTIONS ? `gitea` : `github`;
 }
-async function Vf(e) {
-  let t = Bf();
+async function Uf(e) {
+  let t = Hf();
   if (t === `github`) {
     if (e.githubAppClientId && e.githubAppPrivateKey) {
-      let t = await Pf(e.githubAppClientId, e.githubAppPrivateKey);
-      return new Df(t.token, t.appSlug);
+      let t = await If(e.githubAppClientId, e.githubAppPrivateKey);
+      return new kf(t.token, t.appSlug);
     }
     if (!e.token)
       throw Error(`token is required for GitHub unless client-id and private-key are provided`);
-    return new Df(e.token);
+    return new kf(e.token);
   }
   if (e.githubAppClientId || e.githubAppPrivateKey)
     throw Error(`client-id and private-key are only supported on GitHub`);
   if (!e.token) throw Error(`token is required for Gitea and Forgejo`);
-  return t === `gitea` ? new ms(e.token) : new as(e.token);
+  return t === `gitea` ? new gs(e.token) : new os(e.token);
 }
-function Hf(e) {
+function Wf(e) {
   let t = {
     followSymbolicLinks: !0,
     implicitDescendants: !0,
@@ -25071,20 +25117,20 @@ function Hf(e) {
     t
   );
 }
-var Uf = process.platform === `win32`;
-function Wf(e) {
-  if (((e = Yf(e)), Uf && /^\\\\[^\\]+(\\[^\\]+)?$/.test(e))) return e;
+var Gf = process.platform === `win32`;
+function Kf(e) {
+  if (((e = Zf(e)), Gf && /^\\\\[^\\]+(\\[^\\]+)?$/.test(e))) return e;
   let t = d.dirname(e);
-  return (Uf && /^\\\\[^\\]+\\[^\\]+\\$/.test(t) && (t = Yf(t)), t);
+  return (Gf && /^\\\\[^\\]+\\[^\\]+\\$/.test(t) && (t = Zf(t)), t);
 }
-function Gf(e, t) {
+function qf(e, t) {
   if (
     (g(e, `ensureAbsoluteRoot parameter 'root' must not be empty`),
     g(t, `ensureAbsoluteRoot parameter 'itemPath' must not be empty`),
-    Kf(t))
+    Jf(t))
   )
     return t;
-  if (Uf) {
+  if (Gf) {
     if (t.match(/^[A-Z]:[^\\/]|^[A-Z]:$/i)) {
       let e = process.cwd();
       return (
@@ -25099,7 +25145,7 @@ function Gf(e, t) {
           : `${t[0]}:\\${t.substr(2)}`
       );
     }
-    if (Jf(t).match(/^\\$|^\\[^\\]/)) {
+    if (Xf(t).match(/^\\$|^\\[^\\]/)) {
       let e = process.cwd();
       return (
         g(
@@ -25111,87 +25157,87 @@ function Gf(e, t) {
     }
   }
   return (
-    g(Kf(e), `ensureAbsoluteRoot parameter 'root' must have an absolute root`),
-    e.endsWith(`/`) || (Uf && e.endsWith(`\\`)) || (e += d.sep),
+    g(Jf(e), `ensureAbsoluteRoot parameter 'root' must have an absolute root`),
+    e.endsWith(`/`) || (Gf && e.endsWith(`\\`)) || (e += d.sep),
     e + t
-  );
-}
-function Kf(e) {
-  return (
-    g(e, `hasAbsoluteRoot parameter 'itemPath' must not be empty`),
-    (e = Jf(e)),
-    Uf ? e.startsWith(`\\\\`) || /^[A-Z]:\\/i.test(e) : e.startsWith(`/`)
-  );
-}
-function qf(e) {
-  return (
-    g(e, `isRooted parameter 'itemPath' must not be empty`),
-    (e = Jf(e)),
-    Uf ? e.startsWith(`\\`) || /^[A-Z]:/i.test(e) : e.startsWith(`/`)
   );
 }
 function Jf(e) {
   return (
+    g(e, `hasAbsoluteRoot parameter 'itemPath' must not be empty`),
+    (e = Xf(e)),
+    Gf ? e.startsWith(`\\\\`) || /^[A-Z]:\\/i.test(e) : e.startsWith(`/`)
+  );
+}
+function Yf(e) {
+  return (
+    g(e, `isRooted parameter 'itemPath' must not be empty`),
+    (e = Xf(e)),
+    Gf ? e.startsWith(`\\`) || /^[A-Z]:/i.test(e) : e.startsWith(`/`)
+  );
+}
+function Xf(e) {
+  return (
     (e ||= ``),
-    Uf
+    Gf
       ? ((e = e.replace(/\//g, `\\`)),
         (/^\\\\+[^\\]/.test(e) ? `\\` : ``) + e.replace(/\\\\+/g, `\\`))
       : e.replace(/\/\/+/g, `/`)
   );
 }
-function Yf(e) {
+function Zf(e) {
   return e
-    ? ((e = Jf(e)),
-      !e.endsWith(d.sep) || e === d.sep || (Uf && /^[A-Z]:\\$/i.test(e))
+    ? ((e = Xf(e)),
+      !e.endsWith(d.sep) || e === d.sep || (Gf && /^[A-Z]:\\$/i.test(e))
         ? e
         : e.substr(0, e.length - 1))
     : ``;
 }
-var Xf;
+var Qf;
 (function (e) {
   ((e[(e.None = 0)] = `None`),
     (e[(e.Directory = 1)] = `Directory`),
     (e[(e.File = 2)] = `File`),
     (e[(e.All = 3)] = `All`));
-})((Xf ||= {}));
-var Zf = process.platform === `win32`;
-function Qf(e) {
+})((Qf ||= {}));
+var $f = process.platform === `win32`;
+function ep(e) {
   e = e.filter((e) => !e.negate);
   let t = {};
   for (let n of e) {
-    let e = Zf ? n.searchPath.toUpperCase() : n.searchPath;
+    let e = $f ? n.searchPath.toUpperCase() : n.searchPath;
     t[e] = `candidate`;
   }
   let n = [];
   for (let r of e) {
-    let e = Zf ? r.searchPath.toUpperCase() : r.searchPath;
+    let e = $f ? r.searchPath.toUpperCase() : r.searchPath;
     if (t[e] === `included`) continue;
     let i = !1,
       a = e,
-      o = Wf(a);
+      o = Kf(a);
     for (; o !== a;) {
       if (t[o]) {
         i = !0;
         break;
       }
-      ((a = o), (o = Wf(a)));
+      ((a = o), (o = Kf(a)));
     }
     i || (n.push(r.searchPath), (t[e] = `included`));
   }
   return n;
 }
-function $f(e, t) {
-  let n = Xf.None;
+function tp(e, t) {
+  let n = Qf.None;
   for (let r of e) r.negate ? (n &= ~r.match(t)) : (n |= r.match(t));
   return n;
 }
-function ep(e, t) {
+function np(e, t) {
   return e.some((e) => !e.negate && e.partialMatch(t));
 }
-var tp = (e, t, n) => {
-    let r = e instanceof RegExp ? np(e, n) : e,
-      i = t instanceof RegExp ? np(t, n) : t,
-      a = r !== null && i != null && rp(r, i, n);
+var rp = (e, t, n) => {
+    let r = e instanceof RegExp ? ip(e, n) : e,
+      i = t instanceof RegExp ? ip(t, n) : t,
+      a = r !== null && i != null && ap(r, i, n);
     return (
       a && {
         start: a[0],
@@ -25202,11 +25248,11 @@ var tp = (e, t, n) => {
       }
     );
   },
-  np = (e, t) => {
+  ip = (e, t) => {
     let n = t.match(e);
     return n ? n[0] : null;
   },
-  rp = (e, t, n) => {
+  ap = (e, t, n) => {
     let r,
       i,
       a,
@@ -25230,72 +25276,72 @@ var tp = (e, t, n) => {
     }
     return s;
   },
-  ip = `\0SLASH` + Math.random() + `\0`,
-  ap = `\0OPEN` + Math.random() + `\0`,
-  op = `\0CLOSE` + Math.random() + `\0`,
-  sp = `\0COMMA` + Math.random() + `\0`,
-  cp = `\0PERIOD` + Math.random() + `\0`,
-  lp = new RegExp(ip, `g`),
-  up = new RegExp(ap, `g`),
+  op = `\0SLASH` + Math.random() + `\0`,
+  sp = `\0OPEN` + Math.random() + `\0`,
+  cp = `\0CLOSE` + Math.random() + `\0`,
+  lp = `\0COMMA` + Math.random() + `\0`,
+  up = `\0PERIOD` + Math.random() + `\0`,
   dp = new RegExp(op, `g`),
   fp = new RegExp(sp, `g`),
   pp = new RegExp(cp, `g`),
-  mp = /\\\\/g,
-  hp = /\\{/g,
-  gp = /\\}/g,
-  _p = /\\,/g,
-  vp = /\\\./g,
-  yp = 1e5,
-  bp = 4e6,
-  xp = 1e3,
-  Sp = 1e3;
-function Cp(e) {
+  mp = new RegExp(lp, `g`),
+  hp = new RegExp(up, `g`),
+  gp = /\\\\/g,
+  _p = /\\{/g,
+  vp = /\\}/g,
+  yp = /\\,/g,
+  bp = /\\\./g,
+  xp = 1e5,
+  Sp = 4e6,
+  Cp = 1e3,
+  wp = 1e3;
+function Tp(e) {
   return isNaN(e) ? e.charCodeAt(0) : parseInt(e, 10);
 }
-function wp(e) {
-  return e.replace(mp, ip).replace(hp, ap).replace(gp, op).replace(_p, sp).replace(vp, cp);
-}
-function Tp(e) {
-  return e.replace(lp, `\\`).replace(up, `{`).replace(dp, `}`).replace(fp, `,`).replace(pp, `.`);
-}
-function Ep(e, t) {
-  for (let n = 0; n < t.length; n++) e.push(t[n]);
+function Ep(e) {
+  return e.replace(gp, op).replace(_p, sp).replace(vp, cp).replace(yp, lp).replace(bp, up);
 }
 function Dp(e) {
+  return e.replace(dp, `\\`).replace(fp, `{`).replace(pp, `}`).replace(mp, `,`).replace(hp, `.`);
+}
+function Op(e, t) {
+  for (let n = 0; n < t.length; n++) e.push(t[n]);
+}
+function kp(e) {
   let t = [],
     n = ``;
   for (;;) {
-    let r = tp(`{`, `}`, e);
+    let r = rp(`{`, `}`, e);
     if (!r) {
       let r = e.split(`,`);
-      return ((r[0] = n + r[0]), Ep(t, r), t);
+      return ((r[0] = n + r[0]), Op(t, r), t);
     }
     let { pre: i, body: a, post: o } = r,
       s = i.split(`,`);
-    if (((s[0] = n + s[0]), (s[s.length - 1] += `{` + a + `}`), !o.length)) return (Ep(t, s), t);
-    ((n = s.pop()), Ep(t, s), (e = o));
+    if (((s[0] = n + s[0]), (s[s.length - 1] += `{` + a + `}`), !o.length)) return (Op(t, s), t);
+    ((n = s.pop()), Op(t, s), (e = o));
   }
 }
-function Op(e, t = {}) {
+function Ap(e, t = {}) {
   if (!e) return [];
-  let { max: n = yp, maxLength: r = bp, maxDepth: i = xp, maxRewrites: a = Sp } = t;
+  let { max: n = xp, maxLength: r = Sp, maxDepth: i = Cp, maxRewrites: a = wp } = t;
   return (
-    e.slice(0, 2) === `{}` && (e = `\\{\\}` + e.slice(2)), Fp(wp(e), n, r, i, 0, a, !0).map(Tp)
+    e.slice(0, 2) === `{}` && (e = `\\{\\}` + e.slice(2)), Lp(Ep(e), n, r, i, 0, a, !0).map(Dp)
   );
 }
-function kp(e) {
+function jp(e) {
   return `{` + e + `}`;
 }
-function Ap(e) {
+function Mp(e) {
   return /^-?0\d/.test(e);
 }
-function jp(e, t) {
+function Np(e, t) {
   return e <= t;
 }
-function Mp(e, t) {
+function Pp(e, t) {
   return e >= t;
 }
-function Np(e, t, n, r, i, a) {
+function Fp(e, t, n, r, i, a) {
   let o = [],
     s = 0;
   for (let c = 0; c < e.length; c++)
@@ -25309,17 +25355,17 @@ function Np(e, t, n, r, i, a) {
     }
   return o;
 }
-function Pp(e, t, n, r) {
+function Ip(e, t, n, r) {
   let i = e.split(/\.\./),
     a = [];
   if (i[0] === void 0 || i[1] === void 0) return a;
-  let o = Cp(i[0]),
-    s = Cp(i[1]),
+  let o = Tp(i[0]),
+    s = Tp(i[1]),
     c = Math.max(i[0].length, i[1].length),
-    l = i.length === 3 && i[2] !== void 0 ? Math.max(Math.abs(Cp(i[2])), 1) : 1,
-    u = jp;
-  s < o && ((l *= -1), (u = Mp));
-  let d = i.some(Ap),
+    l = i.length === 3 && i[2] !== void 0 ? Math.max(Math.abs(Tp(i[2])), 1) : 1,
+    u = Np;
+  s < o && ((l *= -1), (u = Pp));
+  let d = i.some(Mp),
     f = 0;
   for (let e = o; u(e, s) && a.length < n; e += l) {
     let n;
@@ -25336,19 +25382,19 @@ function Pp(e, t, n, r) {
   }
   return a;
 }
-function Fp(e, t, n, r, i, a, o) {
+function Lp(e, t, n, r, i, a, o) {
   if (i > r) return [e];
   let s = [``],
     c = 0,
     l = !1,
     u = !0;
   for (;;) {
-    let d = tp(`{`, `}`, e);
-    if (!d) return Np(s, e, [``], t, n, l);
+    let d = rp(`{`, `}`, e);
+    if (!d) return Fp(s, e, [``], t, n, l);
     let f = d.pre;
     if (/\$$/.test(f)) {
       if (
-        ((s = Np(s, f + `{` + d.body + `}`, [``], t, n, l && !d.post.length)),
+        ((s = Fp(s, f + `{` + d.body + `}`, [``], t, n, l && !d.post.length)),
         (u = !1),
         !d.post.length)
       )
@@ -25362,22 +25408,22 @@ function Fp(e, t, n, r, i, a, o) {
       g = d.body.indexOf(`,`) >= 0;
     if (!h && !g) {
       if (c < a && d.post.match(/,(?!,).*\}/)) {
-        (c++, (e = d.pre + `{` + d.body + op + d.post), (o = !0));
+        (c++, (e = d.pre + `{` + d.body + cp + d.post), (o = !0));
         continue;
       }
-      return Np(s, f + `{` + d.body + `}` + d.post, [``], t, n, l);
+      return Fp(s, f + `{` + d.body + `}` + d.post, [``], t, n, l);
     }
     u &&= ((l = o && !h), !1);
     let _;
-    if (h) _ = Pp(d.body, m, t, n);
+    if (h) _ = Ip(d.body, m, t, n);
     else {
-      let o = Dp(d.body);
+      let o = kp(d.body);
       if (
         o.length === 1 &&
         o[0] !== void 0 &&
-        ((o = Fp(o[0], t, n, r, i + 1, a, !1).map(kp)), o.length === 1)
+        ((o = Lp(o[0], t, n, r, i + 1, a, !1).map(jp)), o.length === 1)
       ) {
-        if (((s = Np(s, f + o[0], [``], t, n, l && !d.post.length)), !d.post.length)) break;
+        if (((s = Fp(s, f + o[0], [``], t, n, l && !d.post.length)), !d.post.length)) break;
         e = d.post;
         continue;
       }
@@ -25386,7 +25432,7 @@ function Fp(e, t, n, r, i, a, o) {
       _ = [];
       let u = 0;
       outer: for (let e = 0; e < o.length; e++) {
-        let s = Fp(o[e], t, n, r, i + 1, a, !1);
+        let s = Lp(o[e], t, n, r, i + 1, a, !1);
         for (let e = 0; e < s.length; e++) {
           let r = s[e];
           if (!c || r) {
@@ -25396,17 +25442,17 @@ function Fp(e, t, n, r, i, a, o) {
         }
       }
     }
-    if (((s = Np(s, f, _, t, n, l && !d.post.length)), !d.post.length)) break;
+    if (((s = Fp(s, f, _, t, n, l && !d.post.length)), !d.post.length)) break;
     e = d.post;
   }
   return s;
 }
-var Ip = 65536,
-  Lp = (e) => {
+var Rp = 65536,
+  zp = (e) => {
     if (typeof e != `string`) throw TypeError(`invalid pattern`);
-    if (e.length > Ip) throw TypeError(`pattern is too long`);
+    if (e.length > Rp) throw TypeError(`pattern is too long`);
   },
-  Rp = {
+  Bp = {
     "[:alnum:]": [`\\p{L}\\p{Nl}\\p{Nd}`, !0],
     "[:alpha:]": [`\\p{L}\\p{Nl}`, !0],
     "[:ascii:]": [`\\x00-\\x7f`, !1],
@@ -25422,10 +25468,10 @@ var Ip = 65536,
     "[:word:]": [`\\p{L}\\p{Nl}\\p{Nd}\\p{Pc}`, !0],
     "[:xdigit:]": [`A-Fa-f0-9`, !1],
   },
-  zp = (e) => e.replace(/[[\]\\-]/g, `\\$&`),
-  Bp = (e) => e.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, `\\$&`),
-  Vp = (e) => e.join(``),
-  Hp = (e, t) => {
+  Vp = (e) => e.replace(/[[\]\\-]/g, `\\$&`),
+  Hp = (e) => e.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, `\\$&`),
+  Up = (e) => e.join(``),
+  Wp = (e, t) => {
     let n = t;
     if (e.charAt(n) !== `[`) throw Error(`not in a brace expression`);
     let r = [],
@@ -25452,7 +25498,7 @@ var Ip = 65536,
         continue;
       }
       if (t === `[` && !c) {
-        for (let [t, [o, c, l]] of Object.entries(Rp))
+        for (let [t, [o, c, l]] of Object.entries(Bp))
           if (e.startsWith(t, a)) {
             if (d) return [`$.`, !1, e.length - n, !0];
             ((a += t.length), l ? i.push(o) : r.push(o), (s ||= c));
@@ -25460,28 +25506,28 @@ var Ip = 65536,
           }
       }
       if (((c = !1), d)) {
-        (t > d ? r.push(zp(d) + `-` + zp(t)) : t === d && r.push(zp(t)), (d = ``), a++);
+        (t > d ? r.push(Vp(d) + `-` + Vp(t)) : t === d && r.push(Vp(t)), (d = ``), a++);
         continue;
       }
       if (e.startsWith(`-]`, a + 1)) {
-        (r.push(zp(t + `-`)), (a += 2));
+        (r.push(Vp(t + `-`)), (a += 2));
         continue;
       }
       if (e.startsWith(`-`, a + 1)) {
         ((d = t), (a += 2));
         continue;
       }
-      (r.push(zp(t)), a++);
+      (r.push(Vp(t)), a++);
     }
     if (u < a) return [``, !1, 0, !1];
     if (!r.length && !i.length) return [`$.`, !1, e.length - n, !0];
     if (i.length === 0 && r.length === 1 && /^\\?.$/.test(r[0]) && !l)
-      return [Bp(r[0].length === 2 ? r[0].slice(-1) : r[0]), !1, u - n, !1];
-    let f = `[` + (l ? `^` : ``) + Vp(r) + `]`,
-      p = `[` + (l ? `` : `^`) + Vp(i) + `]`;
+      return [Hp(r[0].length === 2 ? r[0].slice(-1) : r[0]), !1, u - n, !1];
+    let f = `[` + (l ? `^` : ``) + Up(r) + `]`,
+      p = `[` + (l ? `` : `^`) + Up(i) + `]`;
     return [r.length && i.length ? `(` + f + `|` + p + `)` : r.length ? f : p, s, u - n, !0];
   },
-  Up = (e, { windowsPathsNoEscape: t = !1, magicalBraces: n = !0 } = {}) =>
+  Gp = (e, { windowsPathsNoEscape: t = !1, magicalBraces: n = !0 } = {}) =>
     n
       ? t
         ? e.replace(/\[([^/\\])\]/g, `$1`)
@@ -25489,30 +25535,30 @@ var Ip = 65536,
       : t
         ? e.replace(/\[([^/\\{}])\]/g, `$1`)
         : e.replace(/((?!\\).|^)\[([^/\\{}])\]/g, `$1$2`).replace(/\\([^/{}])/g, `$1`),
-  Wp,
-  Gp = new Set([`!`, `?`, `+`, `*`, `@`]),
-  Kp = (e) => Gp.has(e),
-  qp = (e) => Kp(e.type),
-  Jp = new Map([
+  Kp,
+  qp = new Set([`!`, `?`, `+`, `*`, `@`]),
+  Jp = (e) => qp.has(e),
+  Yp = (e) => Jp(e.type),
+  Xp = new Map([
     [`!`, [`@`]],
     [`?`, [`?`, `@`]],
     [`@`, [`@`]],
     [`*`, [`*`, `+`, `?`, `@`]],
     [`+`, [`+`, `@`]],
   ]),
-  Yp = new Map([
+  Zp = new Map([
     [`!`, [`?`]],
     [`@`, [`?`]],
     [`+`, [`?`, `*`]],
   ]),
-  Xp = new Map([
+  Qp = new Map([
     [`!`, [`?`, `@`]],
     [`?`, [`?`, `@`]],
     [`@`, [`?`, `@`]],
     [`*`, [`*`, `+`, `?`, `@`]],
     [`+`, [`+`, `@`, `?`, `*`]],
   ]),
-  Zp = new Map([
+  $p = new Map([
     [`!`, new Map([[`!`, `@`]])],
     [
       `?`,
@@ -25539,17 +25585,17 @@ var Ip = 65536,
       ]),
     ],
   ]),
-  Qp = `(?!(?:^|/)\\.\\.?(?:$|/))`,
-  $p = `(?!\\.)`,
-  em = new Set([`[`, `.`]),
-  tm = new Set([`..`, `.`]),
-  nm = new Set(`().*{}+?[]^$\\!`),
-  rm = (e) => e.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, `\\$&`),
-  im = `[^/]`,
-  am = `[^/]*?`,
-  om = `[^/]+?`,
-  sm = 0,
-  cm = class {
+  em = `(?!(?:^|/)\\.\\.?(?:$|/))`,
+  tm = `(?!\\.)`,
+  nm = new Set([`[`, `.`]),
+  rm = new Set([`..`, `.`]),
+  im = new Set(`().*{}+?[]^$\\!`),
+  am = (e) => e.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, `\\$&`),
+  om = `[^/]`,
+  sm = `[^/]*?`,
+  cm = `[^/]+?`,
+  lm = 0,
+  um = class {
     type;
     #e;
     #t;
@@ -25562,7 +25608,7 @@ var Ip = 65536,
     #c;
     #l;
     #u = !1;
-    id = ++sm;
+    id = ++lm;
     get depth() {
       return (this.#i?.depth ?? -1) + 1;
     }
@@ -25624,7 +25670,7 @@ var Ip = 65536,
     push(...e) {
       for (let t of e)
         if (t !== ``) {
-          if (typeof t != `string` && !(t instanceof Wp && t.#i === this))
+          if (typeof t != `string` && !(t instanceof Kp && t.#i === this))
             throw Error(`invalid part: ` + t);
           this.#r.push(t);
         }
@@ -25647,7 +25693,7 @@ var Ip = 65536,
       let e = this.#i;
       for (let t = 0; t < this.#a; t++) {
         let n = e.#r[t];
-        if (!(n instanceof Wp && n.type === `!`)) return !1;
+        if (!(n instanceof Kp && n.type === `!`)) return !1;
       }
       return !0;
     }
@@ -25662,7 +25708,7 @@ var Ip = 65536,
       typeof e == `string` ? this.push(e) : this.push(e.clone(this));
     }
     clone(e) {
-      let t = new Wp(this.type, e);
+      let t = new Kp(this.type, e);
       for (let e of this.#r) t.copyIn(e);
       return t;
     }
@@ -25692,10 +25738,10 @@ var Ip = 65536,
             ((s = !0), (c = u), (l = !1), (d += n));
             continue;
           }
-          if (!r.noext && Kp(n) && e.charAt(u) === `(` && i <= a) {
+          if (!r.noext && Jp(n) && e.charAt(u) === `(` && i <= a) {
             (t.push(d), (d = ``));
-            let a = new Wp(n, t);
-            ((u = Wp.#f(e, a, u, r, i + 1)), t.push(a));
+            let a = new Kp(n, t);
+            ((u = Kp.#f(e, a, u, r, i + 1)), t.push(a));
             continue;
           }
           d += n;
@@ -25703,7 +25749,7 @@ var Ip = 65536,
         return (t.push(d), u);
       }
       let u = n + 1,
-        d = new Wp(null, t),
+        d = new Kp(null, t),
         f = [],
         p = ``;
       for (; u < e.length;) {
@@ -25723,15 +25769,15 @@ var Ip = 65536,
           ((s = !0), (c = u), (l = !1), (p += n));
           continue;
         }
-        if (!r.noext && Kp(n) && e.charAt(u) === `(` && (i <= a || (t && t.#h(n)))) {
+        if (!r.noext && Jp(n) && e.charAt(u) === `(` && (i <= a || (t && t.#h(n)))) {
           let a = t && t.#h(n) ? 0 : 1;
           (d.push(p), (p = ``));
-          let o = new Wp(n, d);
-          (d.push(o), (u = Wp.#f(e, o, u, r, i + a)));
+          let o = new Kp(n, d);
+          (d.push(o), (u = Kp.#f(e, o, u, r, i + a)));
           continue;
         }
         if (n === `|`) {
-          (d.push(p), (p = ``), f.push(d), (d = new Wp(null, t)));
+          (d.push(p), (p = ``), f.push(d), (d = new Kp(null, t)));
           continue;
         }
         if (n === `)`)
@@ -25743,20 +25789,20 @@ var Ip = 65536,
       return ((t.type = null), (t.#t = void 0), (t.#r = [e.substring(n - 1)]), u);
     }
     #p(e) {
-      return this.#m(e, Yp);
+      return this.#m(e, Zp);
     }
-    #m(e, t = Jp) {
+    #m(e, t = Xp) {
       if (!e || typeof e != `object` || e.type !== null || e.#r.length !== 1 || this.type === null)
         return !1;
       let n = e.#r[0];
       return !n || typeof n != `object` || n.type === null ? !1 : this.#h(n.type, t);
     }
-    #h(e, t = Xp) {
+    #h(e, t = Qp) {
       return !!t.get(this.type)?.includes(e);
     }
     #g(e, t) {
       let n = e.#r[0],
-        r = new Wp(null, n, this.options);
+        r = new Kp(null, n, this.options);
       (r.#r.push(``), n.push(r), this.#_(e, t));
     }
     #_(e, t) {
@@ -25766,7 +25812,7 @@ var Ip = 65536,
       this.#l = void 0;
     }
     #v(e) {
-      return !!Zp.get(this.type)?.has(e);
+      return !!$p.get(this.type)?.has(e);
     }
     #y(e) {
       if (
@@ -25782,7 +25828,7 @@ var Ip = 65536,
       return !t || typeof t != `object` || t.type === null ? !1 : this.#v(t.type);
     }
     #b(e) {
-      let t = Zp.get(this.type),
+      let t = $p.get(this.type),
         n = e.#r[0],
         r = t?.get(n.type);
       if (!r) return !1;
@@ -25791,8 +25837,8 @@ var Ip = 65536,
       ((this.type = r), (this.#l = void 0), (this.#u = !1));
     }
     static fromGlob(e, t = {}) {
-      let n = new Wp(null, void 0, t);
-      return (Wp.#f(e, n, 0, t, 0), n);
+      let n = new Kp(null, void 0, t);
+      return (Kp.#f(e, n, 0, t, 0), n);
     }
     toMMPattern() {
       if (this !== this.#e) return this.#e.toMMPattern();
@@ -25814,11 +25860,11 @@ var Ip = 65536,
     }
     toRegExpSource(e) {
       let t = e ?? !!this.#c.dot;
-      if ((this.#e === this && (this.#x(), this.#d()), !qp(this))) {
+      if ((this.#e === this && (this.#x(), this.#d()), !Yp(this))) {
         let n = this.isStart() && this.isEnd() && !this.#r.some((e) => typeof e != `string`),
           r = this.#r
             .map((t) => {
-              let [r, i, a, o] = typeof t == `string` ? Wp.#C(t, this.#t, n) : t.toRegExpSource(e);
+              let [r, i, a, o] = typeof t == `string` ? Kp.#C(t, this.#t, n) : t.toRegExpSource(e);
               return ((this.#t = this.#t || a), (this.#n = this.#n || o), r);
             })
             .join(``),
@@ -25826,20 +25872,20 @@ var Ip = 65536,
         if (
           this.isStart() &&
           typeof this.#r[0] == `string` &&
-          !(this.#r.length === 1 && tm.has(this.#r[0]))
+          !(this.#r.length === 1 && rm.has(this.#r[0]))
         ) {
-          let n = em,
+          let n = nm,
             a =
               (t && n.has(r.charAt(0))) ||
               (r.startsWith(`\\.`) && n.has(r.charAt(2))) ||
               (r.startsWith(`\\.\\.`) && n.has(r.charAt(4))),
             o = !t && !e && n.has(r.charAt(0));
-          i = a ? Qp : o ? $p : ``;
+          i = a ? em : o ? tm : ``;
         }
         let a = ``;
         return (
           this.isEnd() && this.#e.#s && this.#i?.type === `!` && (a = `(?:$|\\/)`),
-          [i + r + a, Up(r), (this.#t = !!this.#t), this.#n]
+          [i + r + a, Gp(r), (this.#t = !!this.#t), this.#n]
         );
       }
       let n = this.type === `*` || this.type === `+`,
@@ -25848,16 +25894,16 @@ var Ip = 65536,
       if (this.isStart() && this.isEnd() && !i && this.type !== `!`) {
         let e = this.toString(),
           t = this;
-        return ((t.#r = [e]), (t.type = null), (t.#t = void 0), [e, Up(this.toString()), !1, !1]);
+        return ((t.#r = [e]), (t.type = null), (t.#t = void 0), [e, Gp(this.toString()), !1, !1]);
       }
       let a = !n || e || t ? `` : this.#S(!0);
       (a === i && (a = ``), a && (i = `(?:${i})(?:${a})*?`));
       let o = ``;
-      if (this.type === `!` && this.#u) o = (this.isStart() && !t ? $p : ``) + om;
+      if (this.type === `!` && this.#u) o = (this.isStart() && !t ? tm : ``) + cm;
       else {
         let n =
           this.type === `!`
-            ? `))` + (this.isStart() && !t && !e ? $p : ``) + `[^/]*?)`
+            ? `))` + (this.isStart() && !t && !e ? tm : ``) + `[^/]*?)`
             : this.type === `@`
               ? `)`
               : this.type === `?`
@@ -25869,10 +25915,10 @@ var Ip = 65536,
                     : `)${this.type}`;
         o = r + i + n;
       }
-      return [o, Up(i), (this.#t = !!this.#t), this.#n];
+      return [o, Gp(i), (this.#t = !!this.#t), this.#n];
     }
     #x() {
-      if (qp(this)) {
+      if (Yp(this)) {
         let e = 0,
           t = !1;
         do {
@@ -25909,12 +25955,12 @@ var Ip = 65536,
       for (let s = 0; s < e.length; s++) {
         let c = e.charAt(s);
         if (r) {
-          ((r = !1), (i += (nm.has(c) ? `\\` : ``) + c));
+          ((r = !1), (i += (im.has(c) ? `\\` : ``) + c));
           continue;
         }
         if (c === `*`) {
           if (o) continue;
-          ((o = !0), (i += n && /^[*]+$/.test(e) ? om : am), (t = !0));
+          ((o = !0), (i += n && /^[*]+$/.test(e) ? cm : sm), (t = !0));
           continue;
         }
         if (((o = !1), c === `\\`)) {
@@ -25922,23 +25968,23 @@ var Ip = 65536,
           continue;
         }
         if (c === `[`) {
-          let [n, r, o, c] = Hp(e, s);
+          let [n, r, o, c] = Wp(e, s);
           if (o) {
             ((i += n), (a ||= r), (s += o - 1), (t ||= c));
             continue;
           }
         }
         if (c === `?`) {
-          ((i += im), (t = !0));
+          ((i += om), (t = !0));
           continue;
         }
-        i += rm(c);
+        i += am(c);
       }
-      return [i, Up(e), !!t, a];
+      return [i, Gp(e), !!t, a];
     }
   };
-Wp = cm;
-var lm = (e, { windowsPathsNoEscape: t = !1, magicalBraces: n = !1 } = {}) =>
+Kp = um;
+var dm = (e, { windowsPathsNoEscape: t = !1, magicalBraces: n = !1 } = {}) =>
     n
       ? t
         ? e.replace(/[?*()[\]{}]/g, `[$&]`)
@@ -25946,108 +25992,108 @@ var lm = (e, { windowsPathsNoEscape: t = !1, magicalBraces: n = !1 } = {}) =>
       : t
         ? e.replace(/[?*()[\]]/g, `[$&]`)
         : e.replace(/[?*()[\]\\]/g, `\\$&`),
-  um = (e, t, n = {}) => (Lp(t), !n.nocomment && t.charAt(0) === `#` ? !1 : new Vm(t, n).match(e)),
-  dm = /^\*+([^+@!?*[(]*)$/,
-  fm = (e) => (t) => !t.startsWith(`.`) && t.endsWith(e),
-  pm = (e) => (t) => t.endsWith(e),
-  mm = (e) => ((e = e.toLowerCase()), (t) => !t.startsWith(`.`) && t.toLowerCase().endsWith(e)),
-  hm = (e) => ((e = e.toLowerCase()), (t) => t.toLowerCase().endsWith(e)),
-  gm = /^\*+\.\*+$/,
-  _m = (e) => !e.startsWith(`.`) && e.includes(`.`),
-  vm = (e) => e !== `.` && e !== `..` && e.includes(`.`),
-  ym = /^\.\*+$/,
-  bm = (e) => e !== `.` && e !== `..` && e.startsWith(`.`),
-  xm = /^\*+$/,
-  Sm = (e) => e.length !== 0 && !e.startsWith(`.`),
-  Cm = (e) => e.length !== 0 && e !== `.` && e !== `..`,
-  wm = /^\?+([^+@!?*[(]*)?$/,
-  Tm = ([e, t = ``]) => {
-    let n = km([e]);
-    return t ? ((t = t.toLowerCase()), (e) => n(e) && e.toLowerCase().endsWith(t)) : n;
-  },
-  Em = ([e, t = ``]) => {
-    let n = Am([e]);
-    return t ? ((t = t.toLowerCase()), (e) => n(e) && e.toLowerCase().endsWith(t)) : n;
-  },
+  fm = (e, t, n = {}) => (zp(t), !n.nocomment && t.charAt(0) === `#` ? !1 : new Um(t, n).match(e)),
+  pm = /^\*+([^+@!?*[(]*)$/,
+  mm = (e) => (t) => !t.startsWith(`.`) && t.endsWith(e),
+  hm = (e) => (t) => t.endsWith(e),
+  gm = (e) => ((e = e.toLowerCase()), (t) => !t.startsWith(`.`) && t.toLowerCase().endsWith(e)),
+  _m = (e) => ((e = e.toLowerCase()), (t) => t.toLowerCase().endsWith(e)),
+  vm = /^\*+\.\*+$/,
+  ym = (e) => !e.startsWith(`.`) && e.includes(`.`),
+  bm = (e) => e !== `.` && e !== `..` && e.includes(`.`),
+  xm = /^\.\*+$/,
+  Sm = (e) => e !== `.` && e !== `..` && e.startsWith(`.`),
+  Cm = /^\*+$/,
+  wm = (e) => e.length !== 0 && !e.startsWith(`.`),
+  Tm = (e) => e.length !== 0 && e !== `.` && e !== `..`,
+  Em = /^\?+([^+@!?*[(]*)?$/,
   Dm = ([e, t = ``]) => {
-    let n = Am([e]);
-    return t ? (e) => n(e) && e.endsWith(t) : n;
+    let n = jm([e]);
+    return t ? ((t = t.toLowerCase()), (e) => n(e) && e.toLowerCase().endsWith(t)) : n;
   },
   Om = ([e, t = ``]) => {
-    let n = km([e]);
+    let n = Mm([e]);
+    return t ? ((t = t.toLowerCase()), (e) => n(e) && e.toLowerCase().endsWith(t)) : n;
+  },
+  km = ([e, t = ``]) => {
+    let n = Mm([e]);
     return t ? (e) => n(e) && e.endsWith(t) : n;
   },
-  km = ([e]) => {
+  Am = ([e, t = ``]) => {
+    let n = jm([e]);
+    return t ? (e) => n(e) && e.endsWith(t) : n;
+  },
+  jm = ([e]) => {
     let t = e.length;
     return (e) => e.length === t && !e.startsWith(`.`);
   },
-  Am = ([e]) => {
+  Mm = ([e]) => {
     let t = e.length;
     return (e) => e.length === t && e !== `.` && e !== `..`;
   },
-  jm =
+  Nm =
     typeof process == `object` && process
       ? (typeof process.env == `object` &&
           process.env &&
           process.env.__MINIMATCH_TESTING_PLATFORM__) ||
         process.platform
       : `posix`,
-  Mm = { win32: { sep: `\\` }, posix: { sep: `/` } };
-um.sep = jm === `win32` ? Mm.win32.sep : Mm.posix.sep;
-var Nm = Symbol(`globstar **`);
-um.GLOBSTAR = Nm;
-var Pm = `[^/]*?`,
-  Fm = `(?:(?!(?:\\/|^)(?:\\.{1,2})($|\\/)).)*?`,
-  Im = `(?:(?!(?:\\/|^)\\.).)*?`;
-um.filter =
+  Pm = { win32: { sep: `\\` }, posix: { sep: `/` } };
+fm.sep = Nm === `win32` ? Pm.win32.sep : Pm.posix.sep;
+var Fm = Symbol(`globstar **`);
+fm.GLOBSTAR = Fm;
+var Im = `[^/]*?`,
+  Lm = `(?:(?!(?:\\/|^)(?:\\.{1,2})($|\\/)).)*?`,
+  Rm = `(?:(?!(?:\\/|^)\\.).)*?`;
+fm.filter =
   (e, t = {}) =>
   (n) =>
-    um(n, e, t);
-var Lm = (e, t = {}) => Object.assign({}, e, t);
-um.defaults = (e) => {
-  if (!e || typeof e != `object` || !Object.keys(e).length) return um;
-  let t = um;
-  return Object.assign((n, r, i = {}) => t(n, r, Lm(e, i)), {
+    fm(n, e, t);
+var zm = (e, t = {}) => Object.assign({}, e, t);
+fm.defaults = (e) => {
+  if (!e || typeof e != `object` || !Object.keys(e).length) return fm;
+  let t = fm;
+  return Object.assign((n, r, i = {}) => t(n, r, zm(e, i)), {
     Minimatch: class extends t.Minimatch {
       constructor(t, n = {}) {
-        super(t, Lm(e, n));
+        super(t, zm(e, n));
       }
       static defaults(n) {
-        return t.defaults(Lm(e, n)).Minimatch;
+        return t.defaults(zm(e, n)).Minimatch;
       }
     },
     AST: class extends t.AST {
       constructor(t, n, r = {}) {
-        super(t, n, Lm(e, r));
+        super(t, n, zm(e, r));
       }
       static fromGlob(n, r = {}) {
-        return t.AST.fromGlob(n, Lm(e, r));
+        return t.AST.fromGlob(n, zm(e, r));
       }
     },
-    unescape: (n, r = {}) => t.unescape(n, Lm(e, r)),
-    escape: (n, r = {}) => t.escape(n, Lm(e, r)),
-    filter: (n, r = {}) => t.filter(n, Lm(e, r)),
-    defaults: (n) => t.defaults(Lm(e, n)),
-    makeRe: (n, r = {}) => t.makeRe(n, Lm(e, r)),
-    braceExpand: (n, r = {}) => t.braceExpand(n, Lm(e, r)),
-    match: (n, r, i = {}) => t.match(n, r, Lm(e, i)),
+    unescape: (n, r = {}) => t.unescape(n, zm(e, r)),
+    escape: (n, r = {}) => t.escape(n, zm(e, r)),
+    filter: (n, r = {}) => t.filter(n, zm(e, r)),
+    defaults: (n) => t.defaults(zm(e, n)),
+    makeRe: (n, r = {}) => t.makeRe(n, zm(e, r)),
+    braceExpand: (n, r = {}) => t.braceExpand(n, zm(e, r)),
+    match: (n, r, i = {}) => t.match(n, r, zm(e, i)),
     sep: t.sep,
-    GLOBSTAR: Nm,
+    GLOBSTAR: Fm,
   });
 };
-var Rm = (e, t = {}) => (
-  Lp(e),
-  t.nobrace || !/\{(?:(?!\{).)*\}/.test(e) ? [e] : Op(e, { max: t.braceExpandMax })
+var Bm = (e, t = {}) => (
+  zp(e),
+  t.nobrace || !/\{(?:(?!\{).)*\}/.test(e) ? [e] : Ap(e, { max: t.braceExpandMax })
 );
-((um.braceExpand = Rm),
-  (um.makeRe = (e, t = {}) => new Vm(e, t).makeRe()),
-  (um.match = (e, t, n = {}) => {
-    let r = new Vm(t, n);
+((fm.braceExpand = Bm),
+  (fm.makeRe = (e, t = {}) => new Um(e, t).makeRe()),
+  (fm.match = (e, t, n = {}) => {
+    let r = new Um(t, n);
     return ((e = e.filter((e) => r.match(e))), r.options.nonull && !e.length && e.push(t), e);
   }));
-var zm = /[?*]|[+@!]\(.*?\)|\[|\]/,
-  Bm = (e) => e.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, `\\$&`),
-  Vm = class {
+var Vm = /[?*]|[+@!]\(.*?\)|\[|\]/,
+  Hm = (e) => e.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, `\\$&`),
+  Um = class {
     options;
     set;
     pattern;
@@ -26067,12 +26113,12 @@ var zm = /[?*]|[+@!]\(.*?\)|\[|\]/,
     maxGlobstarRecursion;
     regexp;
     constructor(e, t = {}) {
-      (Lp(e),
+      (zp(e),
         (t ||= {}),
         (this.options = t),
         (this.maxGlobstarRecursion = t.maxGlobstarRecursion ?? 200),
         (this.pattern = e),
-        (this.platform = t.platform || jm),
+        (this.platform = t.platform || Nm),
         (this.isWindows = this.platform === `win32`),
         (this.windowsPathsNoEscape = !!t.windowsPathsNoEscape || t.allowWindowsEscape === !1),
         this.windowsPathsNoEscape && (this.pattern = this.pattern.replace(/\\/g, `/`)),
@@ -26118,7 +26164,7 @@ var zm = /[?*]|[+@!]\(.*?\)|\[|\]/,
       ((this.globParts = this.preprocess(n)), this.debug(this.pattern, this.globParts));
       let r = this.globParts.map((e, t, n) => {
         if (this.isWindows && this.windowsNoMagicRoot) {
-          let t = e[0] === `` && e[1] === `` && (e[2] === `?` || !zm.test(e[2])) && !zm.test(e[3]),
+          let t = e[0] === `` && e[1] === `` && (e[2] === `?` || !Vm.test(e[2])) && !Vm.test(e[3]),
             n = /^[a-z]:/i.test(e[0]);
           if (t) return [...e.slice(0, 4), ...e.slice(4).map((e) => this.parse(e))];
           if (n) return [e[0], ...e.slice(1).map((e) => this.parse(e))];
@@ -26316,12 +26362,12 @@ var zm = /[?*]|[+@!]\(.*?\)|\[|\]/,
       let { optimizationLevel: a = 1 } = this.options;
       return (
         a >= 2 && (e = this.levelTwoFileOptimize(e)),
-        t.includes(Nm) ? this.#e(e, t, n, r, i) : this.#n(e, t, n, r, i)
+        t.includes(Fm) ? this.#e(e, t, n, r, i) : this.#n(e, t, n, r, i)
       );
     }
     #e(e, t, n, r, i) {
-      let a = t.indexOf(Nm, i),
-        o = t.lastIndexOf(Nm),
+      let a = t.indexOf(Fm, i),
+        o = t.lastIndexOf(Fm),
         [s, c, l] = n
           ? [t.slice(i, a), t.slice(a + 1), []]
           : [t.slice(i, a), t.slice(a + 1, o), t.slice(o + 1)];
@@ -26354,7 +26400,7 @@ var zm = /[?*]|[+@!]\(.*?\)|\[|\]/,
         f = d[0],
         p = 0,
         m = [0];
-      for (let e of c) e === Nm ? (m.push(p), (f = [[], 0]), d.push(f)) : (f[0].push(e), p++);
+      for (let e of c) e === Fm ? (m.push(p), (f = [[], 0]), d.push(f)) : (f[0].push(e), p++);
       let h = d.length - 1,
         g = e.length - u;
       for (let e of d) e[1] = g - (m[h--] + e[0].length);
@@ -26388,7 +26434,7 @@ var zm = /[?*]|[+@!]\(.*?\)|\[|\]/,
         this.debug(`matchOne loop`);
         let n = t[o],
           r = e[a];
-        if ((this.debug(t, n, r), n === !1 || n === Nm)) return !1;
+        if ((this.debug(t, n, r), n === !1 || n === Fm)) return !1;
         let i;
         if (
           (typeof n == `string`
@@ -26404,25 +26450,25 @@ var zm = /[?*]|[+@!]\(.*?\)|\[|\]/,
       throw Error(`wtf?`);
     }
     braceExpand() {
-      return Rm(this.pattern, this.options);
+      return Bm(this.pattern, this.options);
     }
     parse(e) {
-      Lp(e);
+      zp(e);
       let t = this.options;
-      if (e === `**`) return Nm;
+      if (e === `**`) return Fm;
       if (e === ``) return ``;
       let n,
         r = null;
-      (n = e.match(xm))
-        ? (r = t.dot ? Cm : Sm)
-        : (n = e.match(dm))
-          ? (r = (t.nocase ? (t.dot ? hm : mm) : t.dot ? pm : fm)(n[1]))
-          : (n = e.match(wm))
-            ? (r = (t.nocase ? (t.dot ? Em : Tm) : t.dot ? Dm : Om)(n))
-            : (n = e.match(gm))
-              ? (r = t.dot ? vm : _m)
-              : (n = e.match(ym)) && (r = bm);
-      let i = cm.fromGlob(e, this.options).toMMPattern();
+      (n = e.match(Cm))
+        ? (r = t.dot ? Tm : wm)
+        : (n = e.match(pm))
+          ? (r = (t.nocase ? (t.dot ? _m : gm) : t.dot ? hm : mm)(n[1]))
+          : (n = e.match(Em))
+            ? (r = (t.nocase ? (t.dot ? Om : Dm) : t.dot ? km : Am)(n))
+            : (n = e.match(vm))
+              ? (r = t.dot ? bm : ym)
+              : (n = e.match(xm)) && (r = Sm);
+      let i = um.fromGlob(e, this.options).toMMPattern();
       return (r && typeof i == `object` && Reflect.defineProperty(i, "test", { value: r }), i);
     }
     makeRe() {
@@ -26430,29 +26476,29 @@ var zm = /[?*]|[+@!]\(.*?\)|\[|\]/,
       let e = this.set;
       if (!e.length) return ((this.regexp = !1), this.regexp);
       let t = this.options,
-        n = t.noglobstar ? Pm : t.dot ? Fm : Im,
+        n = t.noglobstar ? Im : t.dot ? Lm : Rm,
         r = new Set(t.nocase ? [`i`] : []),
         i = e
           .map((e) => {
             let t = e.map((e) => {
               if (e instanceof RegExp) for (let t of e.flags.split(``)) r.add(t);
-              return typeof e == `string` ? Bm(e) : e === Nm ? Nm : e._src;
+              return typeof e == `string` ? Hm(e) : e === Fm ? Fm : e._src;
             });
             t.forEach((e, r) => {
               let i = t[r + 1],
                 a = t[r - 1];
-              e === Nm &&
-                a !== Nm &&
+              e === Fm &&
+                a !== Fm &&
                 (a === void 0
-                  ? i !== void 0 && i !== Nm
+                  ? i !== void 0 && i !== Fm
                     ? (t[r + 1] = `(?:\\/|` + n + `\\/)?` + i)
                     : (t[r] = n)
                   : i === void 0
                     ? (t[r - 1] = a + `(?:\\/|\\/` + n + `)?`)
-                    : i !== Nm &&
-                      ((t[r - 1] = a + `(?:\\/|\\/` + n + `\\/)` + i), (t[r + 1] = Nm)));
+                    : i !== Fm &&
+                      ((t[r - 1] = a + `(?:\\/|\\/` + n + `\\/)` + i), (t[r + 1] = Fm)));
             });
-            let i = t.filter((e) => e !== Nm);
+            let i = t.filter((e) => e !== Fm);
             if (this.partial && i.length >= 1) {
               let e = [];
               for (let t = 1; t <= i.length; t++) e.push(i.slice(0, t).join(`/`));
@@ -26499,22 +26545,22 @@ var zm = /[?*]|[+@!]\(.*?\)|\[|\]/,
       return !n.flipNegate && this.negate;
     }
     static defaults(e) {
-      return um.defaults(e).Minimatch;
+      return fm.defaults(e).Minimatch;
     }
   };
-((um.AST = cm), (um.Minimatch = Vm), (um.escape = lm), (um.unescape = Up));
-var Hm = process.platform === `win32`,
-  Um = class {
+((fm.AST = um), (fm.Minimatch = Um), (fm.escape = dm), (fm.unescape = Gp));
+var Wm = process.platform === `win32`,
+  Gm = class {
     constructor(e) {
       if (((this.segments = []), typeof e == `string`)) {
-        if ((g(e, `Parameter 'itemPath' must not be empty`), (e = Yf(e)), !qf(e)))
+        if ((g(e, `Parameter 'itemPath' must not be empty`), (e = Zf(e)), !Yf(e)))
           this.segments = e.split(d.sep);
         else {
           let t = e,
-            n = Wf(t);
+            n = Kf(t);
           for (; n !== t;) {
             let e = d.basename(t);
-            (this.segments.unshift(e), (t = n), (n = Wf(t)));
+            (this.segments.unshift(e), (t = n), (n = Kf(t)));
           }
           this.segments.unshift(t);
         }
@@ -26523,11 +26569,11 @@ var Hm = process.platform === `win32`,
         for (let t = 0; t < e.length; t++) {
           let n = e[t];
           (g(n, `Parameter 'itemPath' must not contain any empty segments`),
-            (n = Jf(e[t])),
-            t === 0 && qf(n)
-              ? ((n = Yf(n)),
+            (n = Xf(e[t])),
+            t === 0 && Yf(n)
+              ? ((n = Zf(n)),
                 g(
-                  n === Wf(n),
+                  n === Kf(n),
                   `Parameter 'itemPath' root segment contains information for multiple segments`,
                 ),
                 this.segments.push(n))
@@ -26538,14 +26584,14 @@ var Hm = process.platform === `win32`,
     }
     toString() {
       let e = this.segments[0],
-        t = e.endsWith(d.sep) || (Hm && /^[A-Z]:$/i.test(e));
+        t = e.endsWith(d.sep) || (Wm && /^[A-Z]:$/i.test(e));
       for (let n = 1; n < this.segments.length; n++)
         (t ? (t = !1) : (e += d.sep), (e += this.segments[n]));
       return e;
     }
   },
-  Wm = process.platform === `win32`,
-  Gm = class e {
+  Km = process.platform === `win32`,
+  qm = class e {
     constructor(t, n = !1, r, i) {
       this.negate = !1;
       let a;
@@ -26553,78 +26599,78 @@ var Hm = process.platform === `win32`,
       else {
         ((r ||= []), g(r.length, `Parameter 'segments' must not empty`));
         let n = e.getLiteral(r[0]);
-        (g(n && Kf(n), `Parameter 'segments' first element must be a root path`),
-          (a = new Um(r).toString().trim()),
+        (g(n && Jf(n), `Parameter 'segments' first element must be a root path`),
+          (a = new Gm(r).toString().trim()),
           t && (a = `!${a}`));
       }
       for (; a.startsWith(`!`);) ((this.negate = !this.negate), (a = a.substr(1).trim()));
       ((a = e.fixupPattern(a, i)),
-        (this.segments = new Um(a).segments),
-        (this.trailingSeparator = Jf(a).endsWith(d.sep)),
-        (a = Yf(a)));
+        (this.segments = new Gm(a).segments),
+        (this.trailingSeparator = Xf(a).endsWith(d.sep)),
+        (a = Zf(a)));
       let o = !1,
         s = this.segments.map((t) => e.getLiteral(t)).filter((e) => !o && !(o = e === ``));
-      ((this.searchPath = new Um(s).toString()),
-        (this.rootRegExp = new RegExp(e.regExpEscape(s[0]), Wm ? `i` : ``)),
+      ((this.searchPath = new Gm(s).toString()),
+        (this.rootRegExp = new RegExp(e.regExpEscape(s[0]), Km ? `i` : ``)),
         (this.isImplicitPattern = n));
-      let c = { dot: !0, nobrace: !0, nocase: Wm, nocomment: !0, noext: !0, nonegate: !0 };
-      ((a = Wm ? a.replace(/\\/g, `/`) : a), (this.minimatch = new Vm(a, c)));
+      let c = { dot: !0, nobrace: !0, nocase: Km, nocomment: !0, noext: !0, nonegate: !0 };
+      ((a = Km ? a.replace(/\\/g, `/`) : a), (this.minimatch = new Um(a, c)));
     }
     match(e) {
       return (
         this.segments[this.segments.length - 1] === `**`
-          ? ((e = Jf(e)),
+          ? ((e = Xf(e)),
             !e.endsWith(d.sep) && this.isImplicitPattern === !1 && (e = `${e}${d.sep}`))
-          : (e = Yf(e)),
-        this.minimatch.match(e) ? (this.trailingSeparator ? Xf.Directory : Xf.All) : Xf.None
+          : (e = Zf(e)),
+        this.minimatch.match(e) ? (this.trailingSeparator ? Qf.Directory : Qf.All) : Qf.None
       );
     }
     partialMatch(e) {
       return (
-        (e = Yf(e)),
-        Wf(e) === e
+        (e = Zf(e)),
+        Kf(e) === e
           ? this.rootRegExp.test(e)
-          : this.minimatch.matchOne(e.split(Wm ? /\\+/ : /\/+/), this.minimatch.set[0], !0)
+          : this.minimatch.matchOne(e.split(Km ? /\\+/ : /\/+/), this.minimatch.set[0], !0)
       );
     }
     static globEscape(e) {
-      return (Wm ? e : e.replace(/\\/g, `\\\\`))
+      return (Km ? e : e.replace(/\\/g, `\\\\`))
         .replace(/(\[)(?=[^/]+\])/g, `[[]`)
         .replace(/\?/g, `[?]`)
         .replace(/\*/g, `[*]`);
     }
     static fixupPattern(n, r) {
       g(n, `pattern cannot be empty`);
-      let i = new Um(n).segments.map((t) => e.getLiteral(t));
+      let i = new Gm(n).segments.map((t) => e.getLiteral(t));
       if (
         (g(
           i.every((e, t) => (e !== `.` || t === 0) && e !== `..`),
           `Invalid pattern '${n}'. Relative pathing '.' and '..' is not allowed.`,
         ),
-        g(!qf(n) || i[0], `Invalid pattern '${n}'. Root segment must not contain globs.`),
-        (n = Jf(n)),
+        g(!Yf(n) || i[0], `Invalid pattern '${n}'. Root segment must not contain globs.`),
+        (n = Xf(n)),
         n === `.` || n.startsWith(`.${d.sep}`))
       )
         n = e.globEscape(process.cwd()) + n.substr(1);
       else if (n === `~` || n.startsWith(`~${d.sep}`))
         ((r ||= t.homedir()),
           g(r, `Unable to determine HOME directory`),
-          g(Kf(r), `Expected HOME directory to be a rooted path. Actual '${r}'`),
+          g(Jf(r), `Expected HOME directory to be a rooted path. Actual '${r}'`),
           (n = e.globEscape(r) + n.substr(1)));
-      else if (Wm && (n.match(/^[A-Z]:$/i) || n.match(/^[A-Z]:[^\\]/i))) {
-        let t = Gf(`C:\\dummy-root`, n.substr(0, 2));
+      else if (Km && (n.match(/^[A-Z]:$/i) || n.match(/^[A-Z]:[^\\]/i))) {
+        let t = qf(`C:\\dummy-root`, n.substr(0, 2));
         (n.length > 2 && !t.endsWith(`\\`) && (t += `\\`), (n = e.globEscape(t) + n.substr(2)));
-      } else if (Wm && (n === `\\` || n.match(/^\\[^\\]/))) {
-        let t = Gf(`C:\\dummy-root`, `\\`);
+      } else if (Km && (n === `\\` || n.match(/^\\[^\\]/))) {
+        let t = qf(`C:\\dummy-root`, `\\`);
         (t.endsWith(`\\`) || (t += `\\`), (n = e.globEscape(t) + n.substr(1)));
-      } else n = Gf(e.globEscape(process.cwd()), n);
-      return Jf(n);
+      } else n = qf(e.globEscape(process.cwd()), n);
+      return Xf(n);
     }
     static getLiteral(e) {
       let t = ``;
       for (let n = 0; n < e.length; n++) {
         let r = e[n];
-        if (r === `\\` && !Wm && n + 1 < e.length) {
+        if (r === `\\` && !Km && n + 1 < e.length) {
           t += e[++n];
           continue;
         }
@@ -26634,7 +26680,7 @@ var Hm = process.platform === `win32`,
             i = -1;
           for (let t = n + 1; t < e.length; t++) {
             let n = e[t];
-            if (n === `\\` && !Wm && t + 1 < e.length) {
+            if (n === `\\` && !Km && t + 1 < e.length) {
               r += e[++t];
               continue;
             }
@@ -26660,12 +26706,12 @@ var Hm = process.platform === `win32`,
       return e.replace(/[[\\^$.|?*+()]/g, `\\$&`);
     }
   },
-  Km = class {
+  Jm = class {
     constructor(e, t) {
       ((this.path = e), (this.level = t));
     }
   },
-  qm = function (e, t, n, r) {
+  Ym = function (e, t, n, r) {
     function i(e) {
       return e instanceof n
         ? e
@@ -26694,7 +26740,7 @@ var Hm = process.platform === `win32`,
       c((r = r.apply(e, t || [])).next());
     });
   },
-  Jm = function (e) {
+  Xm = function (e) {
     if (!Symbol.asyncIterator) throw TypeError(`Symbol.asyncIterator is not defined.`);
     var t = e[Symbol.asyncIterator],
       n;
@@ -26724,10 +26770,10 @@ var Hm = process.platform === `win32`,
       }, t);
     }
   },
-  Ym = function (e) {
-    return this instanceof Ym ? ((this.v = e), this) : new Ym(e);
+  Zm = function (e) {
+    return this instanceof Zm ? ((this.v = e), this) : new Zm(e);
   },
-  Xm = function (e, t, n) {
+  Qm = function (e, t, n) {
     if (!Symbol.asyncIterator) throw TypeError(`Symbol.asyncIterator is not defined.`);
     var r = n.apply(e, t || []),
       i,
@@ -26764,7 +26810,7 @@ var Hm = process.platform === `win32`,
       }
     }
     function l(e) {
-      e.value instanceof Ym ? Promise.resolve(e.value.v).then(u, d) : f(a[0][2], e);
+      e.value instanceof Zm ? Promise.resolve(e.value.v).then(u, d) : f(a[0][2], e);
     }
     function u(e) {
       c(`next`, e);
@@ -26776,21 +26822,21 @@ var Hm = process.platform === `win32`,
       (e(t), a.shift(), a.length && c(a[0][0], a[0][1]));
     }
   },
-  Zm = process.platform === `win32`,
-  Qm = class e {
+  $m = process.platform === `win32`,
+  eh = class e {
     constructor(e) {
-      ((this.patterns = []), (this.searchPaths = []), (this.options = Hf(e)));
+      ((this.patterns = []), (this.searchPaths = []), (this.options = Wf(e)));
     }
     getSearchPaths() {
       return this.searchPaths.slice();
     }
     glob() {
-      return qm(this, void 0, void 0, function* () {
+      return Ym(this, void 0, void 0, function* () {
         var e, t, n, r;
         let i = [];
         try {
           for (
-            var a = !0, o = Jm(this.globGenerator()), s;
+            var a = !0, o = Xm(this.globGenerator()), s;
             (s = yield o.next()), (e = s.done), !e;
             a = !0
           ) {
@@ -26811,48 +26857,48 @@ var Hm = process.platform === `win32`,
       });
     }
     globGenerator() {
-      return Xm(this, arguments, function* () {
-        let t = Hf(this.options),
+      return Qm(this, arguments, function* () {
+        let t = Wf(this.options),
           n = [];
         for (let e of this.patterns)
           (n.push(e),
             t.implicitDescendants &&
               (e.trailingSeparator || e.segments[e.segments.length - 1] !== `**`) &&
-              n.push(new Gm(e.negate, !0, e.segments.concat(`**`))));
+              n.push(new qm(e.negate, !0, e.segments.concat(`**`))));
         let r = [];
-        for (let e of Qf(n)) {
+        for (let e of ep(n)) {
           P(`Search path '${e}'`);
           try {
-            yield Ym(a.promises.lstat(e));
+            yield Zm(a.promises.lstat(e));
           } catch (e) {
             if (e.code === `ENOENT`) continue;
             throw e;
           }
-          r.unshift(new Km(e, 1));
+          r.unshift(new Jm(e, 1));
         }
         let i = [];
         for (; r.length;) {
           let o = r.pop(),
-            s = $f(n, o.path),
-            c = !!s || ep(n, o.path);
+            s = tp(n, o.path),
+            c = !!s || np(n, o.path);
           if (!s && !c) continue;
-          let l = yield Ym(e.stat(o, t, i));
+          let l = yield Zm(e.stat(o, t, i));
           if (l && !(t.excludeHiddenFiles && d.basename(o.path).match(/^\./))) {
             if (l.isDirectory()) {
-              if (s & Xf.Directory && t.matchDirectories) yield yield Ym(o.path);
+              if (s & Qf.Directory && t.matchDirectories) yield yield Zm(o.path);
               else if (!c) continue;
               let e = o.level + 1,
-                n = (yield Ym(a.promises.readdir(o.path))).map((t) => new Km(d.join(o.path, t), e));
+                n = (yield Zm(a.promises.readdir(o.path))).map((t) => new Jm(d.join(o.path, t), e));
               r.push(...n.reverse());
-            } else s & Xf.File && (yield yield Ym(o.path));
+            } else s & Qf.File && (yield yield Zm(o.path));
           }
         }
       });
     }
     static create(t, n) {
-      return qm(this, void 0, void 0, function* () {
+      return Ym(this, void 0, void 0, function* () {
         let r = new e(n);
-        Zm &&
+        $m &&
           ((t = t.replace(
             /\r\n/g,
             `
@@ -26869,12 +26915,12 @@ var Hm = process.platform === `win32`,
           .map((e) => e.trim());
         for (let e of i)
           if (!e || e.startsWith(`#`)) continue;
-          else r.patterns.push(new Gm(e));
-        return (r.searchPaths.push(...Qf(r.patterns)), r);
+          else r.patterns.push(new qm(e));
+        return (r.searchPaths.push(...ep(r.patterns)), r);
       });
     }
     static stat(e, t, n) {
-      return qm(this, void 0, void 0, function* () {
+      return Ym(this, void 0, void 0, function* () {
         let r;
         if (t.followSymbolicLinks)
           try {
@@ -26905,7 +26951,7 @@ var Hm = process.platform === `win32`,
       });
     }
   },
-  $m = function (e, t, n, r) {
+  th = function (e, t, n, r) {
     function i(e) {
       return e instanceof n
         ? e
@@ -26934,12 +26980,12 @@ var Hm = process.platform === `win32`,
       c((r = r.apply(e, t || [])).next());
     });
   };
-function eh(e, t) {
-  return $m(this, void 0, void 0, function* () {
-    return yield Qm.create(e, t);
+function nh(e, t) {
+  return th(this, void 0, void 0, function* () {
+    return yield eh.create(e, t);
   });
 }
-var th = M((e, t) => {
+var rh = M((e, t) => {
     t.exports = {
       MAX_LENGTH: 256,
       MAX_SAFE_COMPONENT_LENGTH: 16,
@@ -26951,7 +26997,7 @@ var th = M((e, t) => {
       FLAG_LOOSE: 2,
     };
   }),
-  nh = M((e, t) => {
+  ih = M((e, t) => {
     t.exports =
       typeof process == `object` &&
       process.env &&
@@ -26960,9 +27006,9 @@ var th = M((e, t) => {
         ? (...e) => console.error(`SEMVER`, ...e)
         : () => {};
   }),
-  rh = M((e, t) => {
-    var { MAX_SAFE_COMPONENT_LENGTH: n, MAX_SAFE_BUILD_LENGTH: r, MAX_LENGTH: i } = th(),
-      a = nh();
+  ah = M((e, t) => {
+    var { MAX_SAFE_COMPONENT_LENGTH: n, MAX_SAFE_BUILD_LENGTH: r, MAX_LENGTH: i } = rh(),
+      a = ih();
     e = t.exports = {};
     var o = (e.re = []),
       s = (e.safeRe = []),
@@ -27059,12 +27105,12 @@ var th = M((e, t) => {
       h(`GTE0`, `^\\s*>=\\s*0\\.0\\.0\\s*$`),
       h(`GTE0PRE`, `^\\s*>=\\s*0\\.0\\.0-0\\s*$`));
   }),
-  ih = M((e, t) => {
+  oh = M((e, t) => {
     var n = Object.freeze({ loose: !0 }),
       r = Object.freeze({});
     t.exports = (e) => (e ? (typeof e == `object` ? e : n) : r);
   }),
-  ah = M((e, t) => {
+  sh = M((e, t) => {
     var n = /^[0-9]+$/,
       r = (e, t) => {
         if (typeof e == `number` && typeof t == `number`) return e === t ? 0 : e < t ? -1 : 1;
@@ -27076,12 +27122,12 @@ var th = M((e, t) => {
       };
     t.exports = { compareIdentifiers: r, rcompareIdentifiers: (e, t) => r(t, e) };
   }),
-  oh = M((e, t) => {
-    var n = nh(),
-      { MAX_LENGTH: r, MAX_SAFE_INTEGER: i } = th(),
-      { safeRe: a, t: o } = rh(),
-      s = ih(),
-      { compareIdentifiers: c } = ah(),
+  ch = M((e, t) => {
+    var n = ih(),
+      { MAX_LENGTH: r, MAX_SAFE_INTEGER: i } = rh(),
+      { safeRe: a, t: o } = ah(),
+      s = oh(),
+      { compareIdentifiers: c } = sh(),
       l = (e, t) => {
         let n = t.split(`.`);
         if (n.length > e.length) return !1;
@@ -27264,8 +27310,8 @@ var th = M((e, t) => {
       }
     };
   }),
-  sh = M((e, t) => {
-    var n = oh();
+  lh = M((e, t) => {
+    var n = ch();
     t.exports = (e, t, r = !1) => {
       if (e instanceof n) return e;
       try {
@@ -27276,22 +27322,22 @@ var th = M((e, t) => {
       }
     };
   }),
-  ch = M((e, t) => {
-    var n = sh();
+  uh = M((e, t) => {
+    var n = lh();
     t.exports = (e, t) => {
       let r = n(e, t);
       return r ? r.version : null;
     };
   }),
-  lh = M((e, t) => {
-    var n = sh();
+  dh = M((e, t) => {
+    var n = lh();
     t.exports = (e, t) => {
       let r = n(e.trim().replace(/^[=v]+/, ``), t);
       return r ? r.version : null;
     };
   }),
-  uh = M((e, t) => {
-    var n = oh();
+  fh = M((e, t) => {
+    var n = ch();
     t.exports = (e, t, r, i, a) => {
       typeof r == `string` && ((a = i), (i = r), (r = void 0));
       try {
@@ -27301,8 +27347,8 @@ var th = M((e, t) => {
       }
     };
   }),
-  dh = M((e, t) => {
-    var n = sh();
+  ph = M((e, t) => {
+    var n = lh();
     t.exports = (e, t) => {
       let r = n(e, null, !0),
         i = n(t, null, !0),
@@ -27326,84 +27372,84 @@ var th = M((e, t) => {
         : u + `major`;
     };
   }),
-  fh = M((e, t) => {
-    var n = oh();
+  mh = M((e, t) => {
+    var n = ch();
     t.exports = (e, t) => new n(e, t).major;
   }),
-  ph = M((e, t) => {
-    var n = oh();
+  hh = M((e, t) => {
+    var n = ch();
     t.exports = (e, t) => new n(e, t).minor;
   }),
-  mh = M((e, t) => {
-    var n = oh();
+  gh = M((e, t) => {
+    var n = ch();
     t.exports = (e, t) => new n(e, t).patch;
   }),
-  hh = M((e, t) => {
-    var n = sh();
+  _h = M((e, t) => {
+    var n = lh();
     t.exports = (e, t) => {
       let r = n(e, t);
       return r && r.prerelease.length ? r.prerelease : null;
     };
   }),
-  gh = M((e, t) => {
-    var n = oh();
+  vh = M((e, t) => {
+    var n = ch();
     t.exports = (e, t, r) => new n(e, r).compare(new n(t, r));
   }),
-  _h = M((e, t) => {
-    var n = gh();
+  yh = M((e, t) => {
+    var n = vh();
     t.exports = (e, t, r) => n(t, e, r);
   }),
-  vh = M((e, t) => {
-    var n = gh();
+  bh = M((e, t) => {
+    var n = vh();
     t.exports = (e, t) => n(e, t, !0);
   }),
-  yh = M((e, t) => {
-    var n = oh();
+  xh = M((e, t) => {
+    var n = ch();
     t.exports = (e, t, r) => {
       let i = new n(e, r),
         a = new n(t, r);
       return i.compare(a) || i.compareBuild(a);
     };
   }),
-  bh = M((e, t) => {
-    var n = yh();
+  Sh = M((e, t) => {
+    var n = xh();
     t.exports = (e, t) => e.sort((e, r) => n(e, r, t));
   }),
-  xh = M((e, t) => {
-    var n = yh();
+  Ch = M((e, t) => {
+    var n = xh();
     t.exports = (e, t) => e.sort((e, r) => n(r, e, t));
   }),
-  Sh = M((e, t) => {
-    var n = gh();
+  wh = M((e, t) => {
+    var n = vh();
     t.exports = (e, t, r) => n(e, t, r) > 0;
   }),
-  Ch = M((e, t) => {
-    var n = gh();
+  Th = M((e, t) => {
+    var n = vh();
     t.exports = (e, t, r) => n(e, t, r) < 0;
   }),
-  wh = M((e, t) => {
-    var n = gh();
+  Eh = M((e, t) => {
+    var n = vh();
     t.exports = (e, t, r) => n(e, t, r) === 0;
   }),
-  Th = M((e, t) => {
-    var n = gh();
+  Dh = M((e, t) => {
+    var n = vh();
     t.exports = (e, t, r) => n(e, t, r) !== 0;
   }),
-  Eh = M((e, t) => {
-    var n = gh();
+  Oh = M((e, t) => {
+    var n = vh();
     t.exports = (e, t, r) => n(e, t, r) >= 0;
   }),
-  Dh = M((e, t) => {
-    var n = gh();
+  kh = M((e, t) => {
+    var n = vh();
     t.exports = (e, t, r) => n(e, t, r) <= 0;
   }),
-  Oh = M((e, t) => {
-    var n = wh(),
-      r = Th(),
-      i = Sh(),
-      a = Eh(),
-      o = Ch(),
-      s = Dh();
+  Ah = M((e, t) => {
+    var n = Eh(),
+      r = Dh(),
+      i = wh(),
+      a = Oh(),
+      o = Th(),
+      s = kh();
     t.exports = (e, t, c, l) => {
       switch (t) {
         case `===`:
@@ -27437,10 +27483,10 @@ var th = M((e, t) => {
       }
     };
   }),
-  kh = M((e, t) => {
-    var n = oh(),
-      r = sh(),
-      { safeRe: i, t: a } = rh();
+  jh = M((e, t) => {
+    var n = ch(),
+      r = lh(),
+      { safeRe: i, t: a } = ah();
     t.exports = (e, t) => {
       if (e instanceof n) return e;
       if ((typeof e == `number` && (e = String(e)), typeof e != `string`)) return null;
@@ -27463,10 +27509,10 @@ var th = M((e, t) => {
       );
     };
   }),
-  Ah = M((e, t) => {
-    var n = sh(),
-      r = th(),
-      i = oh(),
+  Mh = M((e, t) => {
+    var n = lh(),
+      r = rh(),
+      i = ch(),
       a = (e, t, n) => {
         if (!r.RELEASE_TYPES.includes(t)) return null;
         let i = o(e, n);
@@ -27487,7 +27533,7 @@ var th = M((e, t) => {
       c = (e) => e.startsWith(`pre`);
     t.exports = a;
   }),
-  jh = M((e, t) => {
+  Nh = M((e, t) => {
     t.exports = class {
       constructor() {
         ((this.max = 1e3), (this.map = new Map()));
@@ -27511,7 +27557,7 @@ var th = M((e, t) => {
       }
     };
   }),
-  Mh = M((e, t) => {
+  Ph = M((e, t) => {
     var n = /\s+/g;
     t.exports = class e {
       constructor(t, r) {
@@ -27621,11 +27667,11 @@ var th = M((e, t) => {
         return !1;
       }
     };
-    var r = new (jh())(),
-      i = ih(),
-      a = Nh(),
-      o = nh(),
-      s = oh(),
+    var r = new (Nh())(),
+      i = oh(),
+      a = Fh(),
+      o = ih(),
+      s = ch(),
       {
         safeRe: c,
         src: l,
@@ -27633,8 +27679,8 @@ var th = M((e, t) => {
         comparatorTrimReplace: d,
         tildeTrimReplace: f,
         caretTrimReplace: p,
-      } = rh(),
-      { FLAG_INCLUDE_PRERELEASE: m, FLAG_LOOSE: h } = th(),
+      } = ah(),
+      { FLAG_INCLUDE_PRERELEASE: m, FLAG_LOOSE: h } = rh(),
       g = new RegExp(l[u.BUILD], `g`),
       _ = (e) => e.value === `<0.0.0-0`,
       v = (e) => e.value === ``,
@@ -27808,7 +27854,7 @@ var th = M((e, t) => {
         return !0;
       };
   }),
-  Nh = M((e, t) => {
+  Fh = M((e, t) => {
     var n = Symbol(`SemVer ANY`);
     t.exports = class e {
       static get ANY() {
@@ -27874,15 +27920,15 @@ var th = M((e, t) => {
                   ));
       }
     };
-    var r = ih(),
-      { safeRe: i, t: a } = rh(),
-      o = Oh(),
-      s = nh(),
-      c = oh(),
-      l = Mh();
+    var r = oh(),
+      { safeRe: i, t: a } = ah(),
+      o = Ah(),
+      s = ih(),
+      c = ch(),
+      l = Ph();
   }),
-  Ph = M((e, t) => {
-    var n = Mh();
+  Ih = M((e, t) => {
+    var n = Ph();
     t.exports = (e, t, r) => {
       try {
         t = new n(t, r);
@@ -27892,8 +27938,8 @@ var th = M((e, t) => {
       return t.test(e);
     };
   }),
-  Fh = M((e, t) => {
-    var n = Mh();
+  Lh = M((e, t) => {
+    var n = Ph();
     t.exports = (e, t) =>
       new n(e, t).set.map((e) =>
         e
@@ -27903,9 +27949,9 @@ var th = M((e, t) => {
           .split(` `),
       );
   }),
-  Ih = M((e, t) => {
-    var n = oh(),
-      r = Mh();
+  Rh = M((e, t) => {
+    var n = ch(),
+      r = Ph();
     t.exports = (e, t, i) => {
       let a = null,
         o = null,
@@ -27923,9 +27969,9 @@ var th = M((e, t) => {
       );
     };
   }),
-  Lh = M((e, t) => {
-    var n = oh(),
-      r = Mh();
+  zh = M((e, t) => {
+    var n = ch(),
+      r = Ph();
     t.exports = (e, t, i) => {
       let a = null,
         o = null,
@@ -27943,10 +27989,10 @@ var th = M((e, t) => {
       );
     };
   }),
-  Rh = M((e, t) => {
-    var n = oh(),
-      r = Mh(),
-      i = Sh();
+  Bh = M((e, t) => {
+    var n = ch(),
+      r = Ph(),
+      i = wh();
     t.exports = (e, t) => {
       e = new r(e, t);
       let a = new n(`0.0.0`);
@@ -27976,8 +28022,8 @@ var th = M((e, t) => {
       return a && e.test(a) ? a : null;
     };
   }),
-  zh = M((e, t) => {
-    var n = Mh();
+  Vh = M((e, t) => {
+    var n = Ph();
     t.exports = (e, t) => {
       try {
         return new n(e, t).range || `*`;
@@ -27986,16 +28032,16 @@ var th = M((e, t) => {
       }
     };
   }),
-  Bh = M((e, t) => {
-    var n = oh(),
-      r = Nh(),
+  Hh = M((e, t) => {
+    var n = ch(),
+      r = Fh(),
       { ANY: i } = r,
-      a = Mh(),
-      o = Ph(),
-      s = Sh(),
-      c = Ch(),
-      l = Dh(),
-      u = Eh();
+      a = Ph(),
+      o = Ih(),
+      s = wh(),
+      c = Th(),
+      l = kh(),
+      u = Oh();
     t.exports = (e, t, d, f) => {
       ((e = new n(e, f)), (t = new a(t, f)));
       let p, m, h, g, _;
@@ -28031,21 +28077,21 @@ var th = M((e, t) => {
       return !0;
     };
   }),
-  Vh = M((e, t) => {
-    var n = Bh();
+  Uh = M((e, t) => {
+    var n = Hh();
     t.exports = (e, t, r) => n(e, t, `>`, r);
   }),
-  Hh = M((e, t) => {
-    var n = Bh();
+  Wh = M((e, t) => {
+    var n = Hh();
     t.exports = (e, t, r) => n(e, t, `<`, r);
   }),
-  Uh = M((e, t) => {
-    var n = Mh();
+  Gh = M((e, t) => {
+    var n = Ph();
     t.exports = (e, t, r) => ((e = new n(e, r)), (t = new n(t, r)), e.intersects(t, r));
   }),
-  Wh = M((e, t) => {
-    var n = Ph(),
-      r = gh();
+  Kh = M((e, t) => {
+    var n = Ih(),
+      r = vh();
     t.exports = (e, t, i) => {
       let a = [],
         o = null,
@@ -28070,12 +28116,12 @@ var th = M((e, t) => {
       return u.length < d.length ? u : t;
     };
   }),
-  Gh = M((e, t) => {
-    var n = Mh(),
-      r = Nh(),
+  qh = M((e, t) => {
+    var n = Ph(),
+      r = Fh(),
       { ANY: i } = r,
-      a = Ph(),
-      o = gh(),
+      a = Ih(),
+      o = vh(),
       s = (e, t, r = {}) => {
         if (e === t) return !0;
         ((e = new n(e, r)), (t = new n(t, r)));
@@ -28180,51 +28226,51 @@ var th = M((e, t) => {
       };
     t.exports = s;
   }),
-  Kh = ke(
+  Jh = ke(
     M((e, t) => {
-      var n = rh(),
-        r = th(),
-        i = oh(),
-        a = ah();
+      var n = ah(),
+        r = rh(),
+        i = ch(),
+        a = sh();
       t.exports = {
-        parse: sh(),
-        valid: ch(),
-        clean: lh(),
-        inc: uh(),
-        diff: dh(),
-        major: fh(),
-        minor: ph(),
-        patch: mh(),
-        prerelease: hh(),
-        compare: gh(),
-        rcompare: _h(),
-        compareLoose: vh(),
-        compareBuild: yh(),
-        sort: bh(),
-        rsort: xh(),
-        gt: Sh(),
-        lt: Ch(),
-        eq: wh(),
-        neq: Th(),
-        gte: Eh(),
-        lte: Dh(),
-        cmp: Oh(),
-        coerce: kh(),
-        truncate: Ah(),
-        Comparator: Nh(),
-        Range: Mh(),
-        satisfies: Ph(),
-        toComparators: Fh(),
-        maxSatisfying: Ih(),
-        minSatisfying: Lh(),
-        minVersion: Rh(),
-        validRange: zh(),
-        outside: Bh(),
-        gtr: Vh(),
-        ltr: Hh(),
-        intersects: Uh(),
-        simplifyRange: Wh(),
-        subset: Gh(),
+        parse: lh(),
+        valid: uh(),
+        clean: dh(),
+        inc: fh(),
+        diff: ph(),
+        major: mh(),
+        minor: hh(),
+        patch: gh(),
+        prerelease: _h(),
+        compare: vh(),
+        rcompare: yh(),
+        compareLoose: bh(),
+        compareBuild: xh(),
+        sort: Sh(),
+        rsort: Ch(),
+        gt: wh(),
+        lt: Th(),
+        eq: Eh(),
+        neq: Dh(),
+        gte: Oh(),
+        lte: kh(),
+        cmp: Ah(),
+        coerce: jh(),
+        truncate: Mh(),
+        Comparator: Fh(),
+        Range: Ph(),
+        satisfies: Ih(),
+        toComparators: Lh(),
+        maxSatisfying: Rh(),
+        minSatisfying: zh(),
+        minVersion: Bh(),
+        validRange: Vh(),
+        outside: Hh(),
+        gtr: Uh(),
+        ltr: Wh(),
+        intersects: Gh(),
+        simplifyRange: Kh(),
+        subset: qh(),
         SemVer: i,
         re: n.re,
         src: n.src,
@@ -28237,26 +28283,26 @@ var th = M((e, t) => {
     })(),
     1,
   ),
-  qh;
+  Yh;
 (function (e) {
   ((e.Gzip = `cache.tgz`), (e.Zstd = `cache.tzst`));
-})((qh ||= {}));
-var Jh;
+})((Yh ||= {}));
+var Xh;
 (function (e) {
   ((e.Gzip = `gzip`), (e.ZstdWithoutLong = `zstd-without-long`), (e.Zstd = `zstd`));
-})((Jh ||= {}));
-var Yh;
+})((Xh ||= {}));
+var Zh;
 (function (e) {
   ((e.GNU = `gnu`), (e.BSD = `bsd`));
-})((Yh ||= {}));
-var Xh = 5e3,
-  Zh = 5e3,
-  Qh = `${process.env.PROGRAMFILES}\\Git\\usr\\bin\\tar.exe`,
-  $h = `${process.env.SYSTEMDRIVE}\\Windows\\System32\\tar.exe`,
-  eg = `cache.tar`,
-  tg = `manifest.txt`,
-  ng = `cache read denied:`,
-  rg = function (e, t, n, r) {
+})((Zh ||= {}));
+var Qh = 5e3,
+  $h = 5e3,
+  eg = `${process.env.PROGRAMFILES}\\Git\\usr\\bin\\tar.exe`,
+  tg = `${process.env.SYSTEMDRIVE}\\Windows\\System32\\tar.exe`,
+  ng = `cache.tar`,
+  rg = `manifest.txt`,
+  ig = `cache read denied:`,
+  ag = function (e, t, n, r) {
     function i(e) {
       return e instanceof n
         ? e
@@ -28285,7 +28331,7 @@ var Xh = 5e3,
       c((r = r.apply(e, t || [])).next());
     });
   },
-  ig = function (e) {
+  og = function (e) {
     if (!Symbol.asyncIterator) throw TypeError(`Symbol.asyncIterator is not defined.`);
     var t = e[Symbol.asyncIterator],
       n;
@@ -28315,9 +28361,9 @@ var Xh = 5e3,
       }, t);
     }
   },
-  ag = `1.0`;
-function og() {
-  return rg(this, void 0, void 0, function* () {
+  sg = `1.0`;
+function cg() {
+  return ag(this, void 0, void 0, function* () {
     let e = process.platform === `win32`,
       t = process.env.RUNNER_TEMP || ``;
     if (!t) {
@@ -28333,22 +28379,22 @@ function og() {
     return (yield Tr(n), n);
   });
 }
-function sg(e) {
+function lg(e) {
   return a.statSync(e).size;
 }
-function cg(e) {
-  return rg(this, void 0, void 0, function* () {
+function ug(e) {
+  return ag(this, void 0, void 0, function* () {
     var t, n, r, i;
     let a = [],
       o = process.env.GITHUB_WORKSPACE ?? process.cwd(),
-      s = yield eh(
+      s = yield nh(
         e.join(`
 `),
         { implicitDescendants: !1 },
       );
     try {
       for (
-        var c = !0, l = ig(s.globGenerator()), u;
+        var c = !0, l = og(s.globGenerator()), u;
         (u = yield l.next()), (t = u.done), !t;
         c = !0
       ) {
@@ -28369,13 +28415,13 @@ function cg(e) {
     return a;
   });
 }
-function lg(e) {
-  return rg(this, void 0, void 0, function* () {
+function dg(e) {
+  return ag(this, void 0, void 0, function* () {
     return v.promisify(a.unlink)(e);
   });
 }
-function ug(e) {
-  return rg(this, arguments, void 0, function* (e, t = []) {
+function fg(e) {
+  return ag(this, arguments, void 0, function* (e, t = []) {
     let n = ``;
     (t.push(`--version`), P(`Checking ${e} ${t.join(` `)}`));
     try {
@@ -28390,75 +28436,75 @@ function ug(e) {
     return ((n = n.trim()), P(n), n);
   });
 }
-function dg() {
-  return rg(this, void 0, void 0, function* () {
-    let e = yield ug(`zstd`, [`--quiet`]);
-    return (P(`zstd version: ${Kh.clean(e)}`), e === `` ? Jh.Gzip : Jh.ZstdWithoutLong);
+function pg() {
+  return ag(this, void 0, void 0, function* () {
+    let e = yield fg(`zstd`, [`--quiet`]);
+    return (P(`zstd version: ${Jh.clean(e)}`), e === `` ? Xh.Gzip : Xh.ZstdWithoutLong);
   });
 }
-function fg(e) {
-  return e === Jh.Gzip ? qh.Gzip : qh.Zstd;
+function mg(e) {
+  return e === Xh.Gzip ? Yh.Gzip : Yh.Zstd;
 }
-function pg() {
-  return rg(this, void 0, void 0, function* () {
-    return a.existsSync(Qh)
-      ? Qh
-      : (yield ug(`tar`)).toLowerCase().includes(`gnu tar`)
+function hg() {
+  return ag(this, void 0, void 0, function* () {
+    return a.existsSync(eg)
+      ? eg
+      : (yield fg(`tar`)).toLowerCase().includes(`gnu tar`)
         ? Er(`tar`)
         : ``;
   });
 }
-function mg(e, t) {
+function gg(e, t) {
   if (t === void 0) throw Error(`Expected ${e} but value was undefiend`);
   return t;
 }
-function hg(e, t, n = !1) {
+function _g(e, t, n = !1) {
   let r = e.slice();
   return (
     t && r.push(t),
     process.platform === `win32` && !n && r.push(`windows-only`),
-    r.push(ag),
+    r.push(sg),
     i.createHash(`sha256`).update(r.join(`|`)).digest(`hex`)
   );
 }
-function gg() {
+function vg() {
   let e = process.env.ACTIONS_RUNTIME_TOKEN;
   if (!e) throw Error(`Unable to get the ACTIONS_RUNTIME_TOKEN env variable`);
   return e;
 }
-var _g = class extends Error {
+var yg = class extends Error {
   constructor(e) {
     (super(e), (this.name = `AbortError`));
   }
 };
-function vg(e, ...t) {
+function bg(e, ...t) {
   he.stderr.write(`${C.format(e, ...t)}${pe}`);
 }
-function yg(e) {
+function xg(e) {
   return he.env[e];
 }
 (typeof he.versions.deno == `string` && he.versions.deno.length,
   typeof he.versions.bun == `string` && he.versions.bun.length);
-var bg = yg(`DEBUG`),
-  xg,
-  Sg = [],
-  Cg = [],
-  wg = [];
-bg && Eg(bg);
-var Tg = Object.assign((e) => Ag(e), { enable: Eg, enabled: Dg, disable: kg, log: vg });
-function Eg(e) {
-  ((xg = e), (Sg = []), (Cg = []));
+var Sg = xg(`DEBUG`),
+  Cg,
+  wg = [],
+  Tg = [],
+  Eg = [];
+Sg && Og(Sg);
+var Dg = Object.assign((e) => Mg(e), { enable: Og, enabled: kg, disable: jg, log: bg });
+function Og(e) {
+  ((Cg = e), (wg = []), (Tg = []));
   let t = e.split(`,`).map((e) => e.trim());
-  for (let e of t) e.startsWith(`-`) ? Cg.push(e.substring(1)) : Sg.push(e);
-  for (let e of wg) e.enabled = Dg(e.namespace);
+  for (let e of t) e.startsWith(`-`) ? Tg.push(e.substring(1)) : wg.push(e);
+  for (let e of Eg) e.enabled = kg(e.namespace);
 }
-function Dg(e) {
+function kg(e) {
   if (e.endsWith(`*`)) return !0;
-  for (let t of Cg) if (Og(e, t)) return !1;
-  for (let t of Sg) if (Og(e, t)) return !0;
+  for (let t of Tg) if (Ag(e, t)) return !1;
+  for (let t of wg) if (Ag(e, t)) return !0;
   return !1;
 }
-function Og(e, t) {
+function Ag(e, t) {
   if (t.indexOf(`*`) === -1) return e === t;
   let n = t;
   if (t.indexOf(`**`) !== -1) {
@@ -28493,64 +28539,64 @@ function Og(e, t) {
     d = i === n.length - 1 && n[i] === `*`;
   return l && (u || d);
 }
-function kg() {
-  let e = xg || ``;
-  return (Eg(``), e);
+function jg() {
+  let e = Cg || ``;
+  return (Og(``), e);
 }
-function Ag(e) {
-  let t = Object.assign(n, { enabled: Dg(e), destroy: jg, log: Tg.log, namespace: e, extend: Mg });
+function Mg(e) {
+  let t = Object.assign(n, { enabled: kg(e), destroy: Ng, log: Dg.log, namespace: e, extend: Pg });
   function n(...n) {
     t.enabled && (n.length > 0 && (n[0] = `${e} ${n[0]}`), t.log(...n));
   }
-  return (wg.push(t), t);
+  return (Eg.push(t), t);
 }
-function jg() {
-  let e = wg.indexOf(this);
-  return e >= 0 && (wg.splice(e, 1), !0);
+function Ng() {
+  let e = Eg.indexOf(this);
+  return e >= 0 && (Eg.splice(e, 1), !0);
 }
-function Mg(e) {
-  let t = Ag(`${this.namespace}:${e}`);
+function Pg(e) {
+  let t = Mg(`${this.namespace}:${e}`);
   return ((t.log = this.log), t);
 }
-var Ng = [`verbose`, `info`, `warning`, `error`],
-  Pg = { verbose: 400, info: 300, warning: 200, error: 100 };
-function Fg(e, t) {
+var Fg = [`verbose`, `info`, `warning`, `error`],
+  Ig = { verbose: 400, info: 300, warning: 200, error: 100 };
+function Lg(e, t) {
   t.log = (...t) => {
     e.log(...t);
   };
 }
-function Ig(e) {
-  return Ng.includes(e);
+function Rg(e) {
+  return Fg.includes(e);
 }
-function Lg(e) {
+function zg(e) {
   let t = new Set(),
-    n = yg(e.logLevelEnvVarName),
+    n = xg(e.logLevelEnvVarName),
     r,
-    i = Tg(e.namespace);
+    i = Dg(e.namespace);
   i.log = (...e) => {
-    Tg.log(...e);
+    Dg.log(...e);
   };
   function a(e) {
-    if (e && !Ig(e)) throw Error(`Unknown log level '${e}'. Acceptable values: ${Ng.join(`,`)}`);
+    if (e && !Rg(e)) throw Error(`Unknown log level '${e}'. Acceptable values: ${Fg.join(`,`)}`);
     r = e;
     let n = [];
     for (let e of t) o(e) && n.push(e.namespace);
-    Tg.enable(n.join(`,`));
+    Dg.enable(n.join(`,`));
   }
   n &&
-    (Ig(n)
+    (Rg(n)
       ? a(n)
       : console.error(
-          `${e.logLevelEnvVarName} set to unknown log level '${n}'; logging is not enabled. Acceptable values: ${Ng.join(`, `)}.`,
+          `${e.logLevelEnvVarName} set to unknown log level '${n}'; logging is not enabled. Acceptable values: ${Fg.join(`, `)}.`,
         ));
   function o(e) {
-    return !!(r && Pg[e.level] <= Pg[r]);
+    return !!(r && Ig[e.level] <= Ig[r]);
   }
   function s(e, n) {
     let r = Object.assign(e.extend(n), { level: n });
-    if ((Fg(e, r), o(r))) {
-      let e = Tg.disable();
-      Tg.enable(e + `,` + r.namespace);
+    if ((Lg(e, r), o(r))) {
+      let e = Dg.disable();
+      Dg.enable(e + `,` + r.namespace);
     }
     return (t.add(r), r);
   }
@@ -28560,7 +28606,7 @@ function Lg(e) {
   function l(e) {
     let t = i.extend(e);
     return (
-      Fg(i, t),
+      Lg(i, t),
       {
         error: s(t, `error`),
         warning: s(t, `warning`),
@@ -28571,38 +28617,38 @@ function Lg(e) {
   }
   return { setLogLevel: a, getLogLevel: c, createClientLogger: l, logger: i };
 }
-var Rg = Lg({ logLevelEnvVarName: `TYPESPEC_RUNTIME_LOG_LEVEL`, namespace: `typeSpecRuntime` });
-Rg.logger;
-function zg(e) {
-  return Rg.createClientLogger(e);
+var Bg = zg({ logLevelEnvVarName: `TYPESPEC_RUNTIME_LOG_LEVEL`, namespace: `typeSpecRuntime` });
+Bg.logger;
+function Vg(e) {
+  return Bg.createClientLogger(e);
 }
-function Bg(e) {
+function Hg(e) {
   return e.toLowerCase();
 }
-function Vg(e) {
+function Ug(e) {
   return String(e)
     .trim()
     .replace(/[\r\n]/g, ``);
 }
-function* Hg(e) {
+function* Wg(e) {
   for (let t of e.values()) yield [t.name, t.value];
 }
-var Ug = class {
+var Gg = class {
   _headersMap;
   constructor(e) {
     if (((this._headersMap = new Map()), e)) for (let t of Object.keys(e)) this.set(t, e[t]);
   }
   set(e, t) {
-    this._headersMap.set(Bg(e), { name: e, value: Vg(t) });
+    this._headersMap.set(Hg(e), { name: e, value: Ug(t) });
   }
   get(e) {
-    return this._headersMap.get(Bg(e))?.value;
+    return this._headersMap.get(Hg(e))?.value;
   }
   has(e) {
-    return this._headersMap.has(Bg(e));
+    return this._headersMap.has(Hg(e));
   }
   delete(e) {
-    this._headersMap.delete(Bg(e));
+    this._headersMap.delete(Hg(e));
   }
   toJSON(e = {}) {
     let t = {};
@@ -28614,16 +28660,16 @@ var Ug = class {
     return JSON.stringify(this.toJSON({ preserveCase: !0 }));
   }
   [Symbol.iterator]() {
-    return Hg(this._headersMap);
+    return Wg(this._headersMap);
   }
 };
-function Wg(e) {
-  return new Ug(e);
+function Kg(e) {
+  return new Gg(e);
 }
-function Gg() {
+function qg() {
   return globalThis.crypto.randomUUID();
 }
-var Kg = class {
+var Jg = class {
   url;
   method;
   headers;
@@ -28646,7 +28692,7 @@ var Kg = class {
   constructor(e) {
     ((this.url = e.url),
       (this.body = e.body),
-      (this.headers = e.headers ?? Wg()),
+      (this.headers = e.headers ?? Kg()),
       (this.method = e.method ?? `GET`),
       (this.timeout = e.timeout ?? 0),
       (this.multipartBody = e.multipartBody),
@@ -28658,18 +28704,18 @@ var Kg = class {
       (this.abortSignal = e.abortSignal),
       (this.onUploadProgress = e.onUploadProgress),
       (this.onDownloadProgress = e.onDownloadProgress),
-      (this.requestId = e.requestId || Gg()),
+      (this.requestId = e.requestId || qg()),
       (this.allowInsecureConnection = e.allowInsecureConnection ?? !1),
       (this.enableBrowserStreams = e.enableBrowserStreams ?? !1),
       (this.requestOverrides = e.requestOverrides),
       (this.authSchemes = e.authSchemes));
   }
 };
-function qg(e) {
-  return new Kg(e);
+function Yg(e) {
+  return new Jg(e);
 }
-var Jg = new Set([`Deserialize`, `Serialize`, `Retry`, `Sign`]),
-  Yg = class e {
+var Xg = new Set([`Deserialize`, `Serialize`, `Retry`, `Sign`]),
+  Zg = class e {
     _policies = [];
     _orderedPolicies;
     constructor(e) {
@@ -28678,8 +28724,8 @@ var Jg = new Set([`Deserialize`, `Serialize`, `Retry`, `Sign`]),
     addPolicy(e, t = {}) {
       if (t.phase && t.afterPhase)
         throw Error(`Policies inside a phase cannot specify afterPhase.`);
-      if (t.phase && !Jg.has(t.phase)) throw Error(`Invalid phase name: ${t.phase}`);
-      if (t.afterPhase && !Jg.has(t.afterPhase))
+      if (t.phase && !Xg.has(t.phase)) throw Error(`Invalid phase name: ${t.phase}`);
+      if (t.afterPhase && !Xg.has(t.afterPhase))
         throw Error(`Invalid afterPhase name: ${t.afterPhase}`);
       (this._policies.push({ policy: e, options: t }), (this._orderedPolicies = void 0));
     }
@@ -28790,10 +28836,10 @@ var Jg = new Set([`Deserialize`, `Serialize`, `Retry`, `Sign`]),
       return e;
     }
   };
-function Xg() {
-  return Yg.create();
+function Qg() {
+  return Zg.create();
 }
-function Zg(e) {
+function $g(e) {
   return (
     typeof e == `object` &&
     !!e &&
@@ -28802,30 +28848,30 @@ function Zg(e) {
     !(e instanceof Date)
   );
 }
-function Qg(e) {
-  if (Zg(e)) {
+function e_(e) {
+  if ($g(e)) {
     let t = typeof e.name == `string`,
       n = typeof e.message == `string`;
     return t && n;
   }
   return !1;
 }
-var $g = w.custom,
-  e_ = `REDACTED`,
-  t_ =
+var t_ = w.custom,
+  n_ = `REDACTED`,
+  r_ =
     `x-ms-client-request-id.x-ms-return-client-request-id.x-ms-useragent.x-ms-correlation-request-id.x-ms-request-id.client-request-id.ms-cv.return-client-request-id.traceparent.Access-Control-Allow-Credentials.Access-Control-Allow-Headers.Access-Control-Allow-Methods.Access-Control-Allow-Origin.Access-Control-Expose-Headers.Access-Control-Max-Age.Access-Control-Request-Headers.Access-Control-Request-Method.Origin.Accept.Accept-Encoding.Cache-Control.Connection.Content-Length.Content-Type.Date.ETag.Expires.If-Match.If-Modified-Since.If-None-Match.If-Unmodified-Since.Last-Modified.Pragma.Request-Id.Retry-After.Server.Transfer-Encoding.User-Agent.WWW-Authenticate`.split(
       `.`,
     ),
-  n_ = [`api-version`],
-  r_ = class {
+  i_ = [`api-version`],
+  a_ = class {
     allowedHeaderNames;
     allowedQueryParameters;
     constructor({
       additionalAllowedHeaderNames: e = [],
       additionalAllowedQueryParameters: t = [],
     } = {}) {
-      ((e = t_.concat(e)),
-        (t = n_.concat(t)),
+      ((e = r_.concat(e)),
+        (t = i_.concat(t)),
         (this.allowedHeaderNames = new Set(e.map((e) => e.toLowerCase()))),
         (this.allowedQueryParameters = new Set(t.map((e) => e.toLowerCase()))));
     }
@@ -28835,11 +28881,11 @@ var $g = w.custom,
         e,
         (e, n) => {
           if (n instanceof Error) return { ...n, name: n.name, message: n.message };
-          if (e === `headers` && Zg(n)) return this.sanitizeHeaders(n);
+          if (e === `headers` && $g(n)) return this.sanitizeHeaders(n);
           if (e === `url` && typeof n == `string`) return this.sanitizeUrl(n);
-          if (e === `query` && Zg(n)) return this.sanitizeQuery(n);
+          if (e === `query` && $g(n)) return this.sanitizeQuery(n);
           if (e !== `body` && e !== `response` && e !== `operationSpec`) {
-            if (Array.isArray(n) || Zg(n)) {
+            if (Array.isArray(n) || $g(n)) {
               if (t.has(n)) return `[Circular]`;
               t.add(n);
             }
@@ -28854,24 +28900,24 @@ var $g = w.custom,
       let t = new URL(e);
       if (!t.search) return e;
       for (let [e] of t.searchParams)
-        this.allowedQueryParameters.has(e.toLowerCase()) || t.searchParams.set(e, e_);
+        this.allowedQueryParameters.has(e.toLowerCase()) || t.searchParams.set(e, n_);
       return t.toString();
     }
     sanitizeHeaders(e) {
       let t = {};
-      for (let n of Object.keys(e)) t[n] = this.allowedHeaderNames.has(n.toLowerCase()) ? e[n] : e_;
+      for (let n of Object.keys(e)) t[n] = this.allowedHeaderNames.has(n.toLowerCase()) ? e[n] : n_;
       return t;
     }
     sanitizeQuery(e) {
       if (typeof e != `object` || !e) return e;
       let t = {};
       for (let n of Object.keys(e))
-        t[n] = this.allowedQueryParameters.has(n.toLowerCase()) ? e[n] : e_;
+        t[n] = this.allowedQueryParameters.has(n.toLowerCase()) ? e[n] : n_;
       return t;
     }
   },
-  i_ = new r_(),
-  a_ = class e extends Error {
+  o_ = new a_(),
+  s_ = class e extends Error {
     static REQUEST_SEND_ERROR = `REQUEST_SEND_ERROR`;
     static PARSE_ERROR = `PARSE_ERROR`;
     code;
@@ -28892,29 +28938,29 @@ var $g = w.custom,
             maxSockets: this.request.agent.maxSockets,
           }
         : void 0;
-      (Object.defineProperty(this, $g, {
+      (Object.defineProperty(this, t_, {
         value: () =>
-          `RestError: ${this.message} \n ${i_.sanitize({ ...this, request: { ...this.request, agent: r }, response: this.response })}`,
+          `RestError: ${this.message} \n ${o_.sanitize({ ...this, request: { ...this.request, agent: r }, response: this.response })}`,
         enumerable: !1,
       }),
         Object.setPrototypeOf(this, e.prototype));
     }
   };
-function o_(e) {
-  return e instanceof a_ || (Qg(e) && e.name === `RestError`);
+function c_(e) {
+  return e instanceof s_ || (e_(e) && e.name === `RestError`);
 }
-function s_(e, t) {
+function l_(e, t) {
   return Buffer.from(e).toString(t);
 }
-function c_(e, t) {
+function u_(e, t) {
   return Buffer.from(e, t);
 }
-var l_ = zg(`ts-http-runtime`),
-  u_ = {};
-function d_(e) {
+var d_ = Vg(`ts-http-runtime`),
+  f_ = {};
+function p_(e) {
   return e && typeof e.pipe == `function`;
 }
-function f_(e) {
+function m_(e) {
   return e.readable === !1
     ? Promise.resolve()
     : new Promise((t) => {
@@ -28927,10 +28973,10 @@ function f_(e) {
         (e.on(`close`, n), e.on(`end`, n), e.on(`error`, n));
       });
 }
-function p_(e) {
+function h_(e) {
   return e && typeof e.byteLength == `number`;
 }
-var m_ = class extends x {
+var g_ = class extends x {
     loadedBytes = 0;
     progressCallback;
     _transform(e, t, n) {
@@ -28945,7 +28991,7 @@ var m_ = class extends x {
       (super(), (this.progressCallback = e));
     }
   },
-  h_ = class {
+  __ = class {
     cachedHttpAgent;
     cachedHttpsAgents = new WeakMap();
     async sendRequest(e) {
@@ -28953,7 +28999,7 @@ var m_ = class extends x {
         n;
       if (e.abortSignal) {
         if (e.abortSignal.aborted)
-          throw new _g(`The operation was aborted. Request has already been canceled.`);
+          throw new yg(`The operation was aborted. Request has already been canceled.`);
         ((n = (e) => {
           e.type === `abort` && t.abort();
         }),
@@ -28962,37 +29008,37 @@ var m_ = class extends x {
       let r;
       e.timeout > 0 &&
         (r = setTimeout(() => {
-          let n = new r_();
-          (l_.info(`request to '${n.sanitizeUrl(e.url)}' timed out. canceling...`), t.abort());
+          let n = new a_();
+          (d_.info(`request to '${n.sanitizeUrl(e.url)}' timed out. canceling...`), t.abort());
         }, e.timeout));
       let i = e.headers.get(`Accept-Encoding`),
         a = i?.includes(`gzip`) || i?.includes(`deflate`),
         o = typeof e.body == `function` ? e.body() : e.body;
       if (o && !e.headers.has(`Content-Length`)) {
-        let t = y_(o);
+        let t = x_(o);
         t !== null && e.headers.set(`Content-Length`, t);
       }
       let s;
       try {
         if (o && e.onUploadProgress) {
           let t = e.onUploadProgress,
-            n = new m_(t);
+            n = new g_(t);
           (n.on(`error`, (e) => {
-            l_.error(`Error in upload progress`, e);
+            d_.error(`Error in upload progress`, e);
           }),
-            d_(o) ? o.pipe(n) : n.end(o),
+            p_(o) ? o.pipe(n) : n.end(o),
             (o = n));
         }
         let n = await this.makeRequest(e, t, o),
-          r = g_(n),
+          r = v_(n),
           i = { status: n.statusCode ?? 0, headers: r, request: e };
         if (e.method === `HEAD`) return (n.resume(), i);
-        s = a ? __(n, r) : n;
+        s = a ? y_(n, r) : n;
         let c = e.onDownloadProgress;
         if (c) {
-          let e = new m_(c);
+          let e = new g_(c);
           (e.on(`error`, (e) => {
-            l_.error(`Error in download progress`, e);
+            d_.error(`Error in download progress`, e);
           }),
             s.pipe(e),
             (s = e));
@@ -29000,21 +29046,21 @@ var m_ = class extends x {
         return (
           e.streamResponseStatusCodes?.has(1 / 0) || e.streamResponseStatusCodes?.has(i.status)
             ? (i.readableStreamBody = s)
-            : (i.bodyAsText = await v_(s)),
+            : (i.bodyAsText = await b_(s)),
           i
         );
       } finally {
         if ((r !== void 0 && clearTimeout(r), e.abortSignal && n)) {
           let t = Promise.resolve();
-          d_(o) && (t = f_(o));
+          p_(o) && (t = m_(o));
           let r = Promise.resolve();
-          (d_(s) && (r = f_(s)),
+          (p_(s) && (r = m_(s)),
             Promise.all([t, r])
               .then(() => {
                 n && e.abortSignal?.removeEventListener(`abort`, n);
               })
               .catch((e) => {
-                l_.warning(`Error when cleaning up abortListener on httpRequest`, e);
+                d_.warning(`Error when cleaning up abortListener on httpRequest`, e);
               }));
         }
       }
@@ -29036,26 +29082,26 @@ var m_ = class extends x {
       return new Promise((r, o) => {
         let s = i ? y.request(a, r) : ge.request(a, r);
         (s.once(`error`, (t) => {
-          o(new a_(t.message, { code: t.code ?? a_.REQUEST_SEND_ERROR, request: e }));
+          o(new s_(t.message, { code: t.code ?? s_.REQUEST_SEND_ERROR, request: e }));
         }),
           t.signal.addEventListener(`abort`, () => {
-            let e = new _g(
+            let e = new yg(
               `The operation was aborted. Rejecting from abort signal callback while making request.`,
             );
             (s.destroy(e), o(e));
           }),
-          n && d_(n)
+          n && p_(n)
             ? n.pipe(s)
             : n
               ? typeof n == `string` || Buffer.isBuffer(n)
                 ? s.end(n)
-                : p_(n)
+                : h_(n)
                   ? s.end(
                       ArrayBuffer.isView(n)
                         ? Buffer.from(n.buffer, n.byteOffset, n.byteLength)
                         : Buffer.from(n),
                     )
-                  : (l_.error(`Unrecognized body type`, n), o(new a_(`Unrecognized body type`)))
+                  : (d_.error(`Unrecognized body type`, n), o(new s_(`Unrecognized body type`)))
               : s.end());
       });
     }
@@ -29067,26 +29113,26 @@ var m_ = class extends x {
           : ((this.cachedHttpAgent ||= new y.Agent({ keepAlive: !0 })), this.cachedHttpAgent);
       {
         if (n && !e.tlsSettings) return ge.globalAgent;
-        let t = e.tlsSettings ?? u_,
+        let t = e.tlsSettings ?? f_,
           r = this.cachedHttpsAgents.get(t);
         return r && r.options.keepAlive === !n
           ? r
-          : (l_.info(`No cached TLS Agent exist, creating a new Agent`),
+          : (d_.info(`No cached TLS Agent exist, creating a new Agent`),
             (r = new ge.Agent({ keepAlive: !n, ...t })),
             this.cachedHttpsAgents.set(t, r),
             r);
       }
     }
   };
-function g_(e) {
-  let t = Wg();
+function v_(e) {
+  let t = Kg();
   for (let n of Object.keys(e.headers)) {
     let r = e.headers[n];
     Array.isArray(r) ? r.length > 0 && t.set(n, r[0]) : r && t.set(n, r);
   }
   return t;
 }
-function __(e, t) {
+function y_(e, t) {
   let n = t.get(`Content-Encoding`);
   if (n === `gzip`) {
     let t = T.createGunzip();
@@ -29098,7 +29144,7 @@ function __(e, t) {
   }
   return e;
 }
-function v_(e) {
+function b_(e) {
   return new Promise((t, n) => {
     let r = [];
     (e.on(`data`, (e) => {
@@ -29110,38 +29156,38 @@ function v_(e) {
       e.on(`error`, (e) => {
         e && e?.name === `AbortError`
           ? n(e)
-          : n(new a_(`Error reading response as text: ${e.message}`, { code: a_.PARSE_ERROR }));
+          : n(new s_(`Error reading response as text: ${e.message}`, { code: s_.PARSE_ERROR }));
       }));
   });
 }
-function y_(e) {
+function x_(e) {
   return e
     ? Buffer.isBuffer(e)
       ? e.length
-      : d_(e)
+      : p_(e)
         ? null
-        : p_(e)
+        : h_(e)
           ? e.byteLength
           : typeof e == `string`
             ? Buffer.from(e).length
             : null
     : 0;
 }
-function b_() {
-  return new h_();
+function S_() {
+  return new __();
 }
-function x_() {
-  return b_();
+function C_() {
+  return S_();
 }
-var S_ = `logPolicy`;
-function C_(e = {}) {
-  let t = e.logger ?? l_.info,
-    n = new r_({
+var w_ = `logPolicy`;
+function T_(e = {}) {
+  let t = e.logger ?? d_.info,
+    n = new a_({
       additionalAllowedHeaderNames: e.additionalAllowedHeaderNames,
       additionalAllowedQueryParameters: e.additionalAllowedQueryParameters,
     });
   return {
-    name: S_,
+    name: w_,
     async sendRequest(e, r) {
       if (!t.enabled) return r(e);
       t(`Request: ${n.sanitize(e)}`);
@@ -29154,20 +29200,20 @@ function C_(e = {}) {
     },
   };
 }
-function w_(e, t) {
+function E_(e, t) {
   return ((e = Math.ceil(e)), (t = Math.floor(t)), Math.floor(Math.random() * (t - e + 1)) + e);
 }
-function T_(e, t) {
+function D_(e, t) {
   let n = t.retryDelayInMs * 2 ** e,
     r = Math.min(t.maxRetryDelayInMs, n);
-  return { retryAfterInMs: r / 2 + w_(0, r / 2) };
+  return { retryAfterInMs: r / 2 + E_(0, r / 2) };
 }
-var E_ = `The operation was aborted.`;
-function D_(e, t, n) {
+var O_ = `The operation was aborted.`;
+function k_(e, t, n) {
   return new Promise((r, i) => {
     let a,
       o,
-      s = () => i(new _g(n?.abortErrorMsg ? n?.abortErrorMsg : E_)),
+      s = () => i(new yg(n?.abortErrorMsg ? n?.abortErrorMsg : O_)),
       c = () => {
         n?.abortSignal && o && n.abortSignal.removeEventListener(`abort`, o);
       };
@@ -29179,22 +29225,22 @@ function D_(e, t, n) {
       n?.abortSignal && n.abortSignal.addEventListener(`abort`, o));
   });
 }
-function O_(e, t) {
+function A_(e, t) {
   let n = e.headers.get(t);
   if (!n) return;
   let r = Number(n);
   if (!Number.isNaN(r)) return r;
 }
-var k_ = `Retry-After`,
-  A_ = [`retry-after-ms`, `x-ms-retry-after-ms`, k_];
-function j_(e) {
+var j_ = `Retry-After`,
+  M_ = [`retry-after-ms`, `x-ms-retry-after-ms`, j_];
+function N_(e) {
   if (e && [429, 503].includes(e.status))
     try {
-      for (let t of A_) {
-        let n = O_(e, t);
-        if (n === 0 || n) return n * (t === k_ ? 1e3 : 1);
+      for (let t of M_) {
+        let n = A_(e, t);
+        if (n === 0 || n) return n * (t === j_ ? 1e3 : 1);
       }
-      let t = e.headers.get(k_);
+      let t = e.headers.get(j_);
       if (!t) return;
       let n = Date.parse(t) - Date.now();
       return Number.isFinite(n) ? Math.max(0, n) : void 0;
@@ -29202,39 +29248,39 @@ function j_(e) {
       return;
     }
 }
-function M_(e) {
-  return Number.isFinite(j_(e));
+function P_(e) {
+  return Number.isFinite(N_(e));
 }
-function N_() {
+function F_() {
   return {
     name: `throttlingRetryStrategy`,
     retry({ response: e }) {
-      let t = j_(e);
+      let t = N_(e);
       return Number.isFinite(t) ? { retryAfterInMs: t } : { skipStrategy: !0 };
     },
   };
 }
-var P_ = 1e3,
-  F_ = 64e3;
-function I_(e = {}) {
-  let t = e.retryDelayInMs ?? P_,
-    n = e.maxRetryDelayInMs ?? F_;
+var I_ = 1e3,
+  L_ = 64e3;
+function R_(e = {}) {
+  let t = e.retryDelayInMs ?? I_,
+    n = e.maxRetryDelayInMs ?? L_;
   return {
     name: `exponentialRetryStrategy`,
     retry({ retryCount: r, response: i, responseError: a }) {
-      let o = R_(a),
+      let o = B_(a),
         s = o && e.ignoreSystemErrors,
-        c = L_(i),
+        c = z_(i),
         l = c && e.ignoreHttpStatusCodes;
-      return (i && (M_(i) || !c)) || l || s
+      return (i && (P_(i) || !c)) || l || s
         ? { skipStrategy: !0 }
         : a && !o && !c
           ? { errorToThrow: a }
-          : T_(r, { retryDelayInMs: t, maxRetryDelayInMs: n });
+          : D_(r, { retryDelayInMs: t, maxRetryDelayInMs: n });
     },
   };
 }
-function L_(e) {
+function z_(e) {
   return !!(
     e &&
     e.status !== void 0 &&
@@ -29243,7 +29289,7 @@ function L_(e) {
     e.status !== 505
   );
 }
-function R_(e) {
+function B_(e) {
   return e
     ? e.code === `ETIMEDOUT` ||
         e.code === `ESOCKETTIMEDOUT` ||
@@ -29253,12 +29299,12 @@ function R_(e) {
         e.code === `ENOTFOUND`
     : !1;
 }
-var z_ = zg(`ts-http-runtime retryPolicy`),
-  B_ = `retryPolicy`;
-function V_(e, t = { maxRetries: 3 }) {
-  let n = t.logger || z_;
+var V_ = Vg(`ts-http-runtime retryPolicy`),
+  H_ = `retryPolicy`;
+function U_(e, t = { maxRetries: 3 }) {
+  let n = t.logger || V_;
   return {
-    name: B_,
+    name: H_,
     async sendRequest(r, i) {
       let a,
         o,
@@ -29270,10 +29316,10 @@ function V_(e, t = { maxRetries: 3 }) {
             (a = await i(r)),
             n.info(`Retry ${s}: Received a response from request`, r.requestId));
         } catch (e) {
-          if ((n.error(`Retry ${s}: Received an error from request`, r.requestId), !o_(e))) throw e;
+          if ((n.error(`Retry ${s}: Received an error from request`, r.requestId), !c_(e))) throw e;
           ((o = e), (a = e.response));
         }
-        if (r.abortSignal?.aborted) throw (n.error(`Retry ${s}: Request aborted.`), new _g());
+        if (r.abortSignal?.aborted) throw (n.error(`Retry ${s}: Request aborted.`), new yg());
         if (s >= (t.maxRetries ?? 3)) {
           if (
             (n.info(
@@ -29298,7 +29344,7 @@ function V_(e, t = { maxRetries: 3 }) {
           if (c) throw (e.error(`Retry ${s}: Retry strategy ${t.name} throws error:`, c), c);
           if (l || l === 0) {
             (e.info(`Retry ${s}: Retry strategy ${t.name} retries after ${l}`),
-              await D_(l, void 0, { abortSignal: r.abortSignal }));
+              await k_(l, void 0, { abortSignal: r.abortSignal }));
             continue retryRequest;
           }
           if (u) {
@@ -29322,14 +29368,14 @@ function V_(e, t = { maxRetries: 3 }) {
     },
   };
 }
-var H_ = `defaultRetryPolicy`;
-function U_(e = {}) {
+var W_ = `defaultRetryPolicy`;
+function G_(e = {}) {
   return {
-    name: H_,
-    sendRequest: V_([N_(), I_(e)], { maxRetries: e.maxRetries ?? 3 }).sendRequest,
+    name: W_,
+    sendRequest: U_([F_(), R_(e)], { maxRetries: e.maxRetries ?? 3 }).sendRequest,
   };
 }
-function W_(e) {
+function K_(e) {
   if (typeof FormData < `u` && e instanceof FormData) {
     let t = {};
     for (let [n, r] of e.entries()) {
@@ -29339,31 +29385,31 @@ function W_(e) {
     return t;
   }
 }
-var G_ = `formDataPolicy`;
-function K_() {
+var q_ = `formDataPolicy`;
+function J_() {
   return {
-    name: G_,
+    name: q_,
     async sendRequest(e, t) {
-      let n = W_(e.body);
+      let n = K_(e.body);
       if ((n && ((e.formData = n), (e.body = void 0)), e.formData)) {
         let t = e.headers.get(`Content-Type`);
         (t && t.indexOf(`application/x-www-form-urlencoded`) !== -1
-          ? (e.body = q_(e.formData))
-          : await J_(e.formData, e),
+          ? (e.body = Y_(e.formData))
+          : await X_(e.formData, e),
           (e.formData = void 0));
       }
       return t(e);
     },
   };
 }
-function q_(e) {
+function Y_(e) {
   let t = new URLSearchParams();
   for (let [n, r] of Object.entries(e))
     if (Array.isArray(r)) for (let e of r) t.append(n, e.toString());
     else t.append(n, r.toString());
   return t.toString();
 }
-async function J_(e, t) {
+async function X_(e, t) {
   let n = t.headers.get(`Content-Type`);
   if (n && !n.startsWith(`multipart/form-data`)) return;
   t.headers.set(`Content-Type`, n ?? `multipart/form-data`);
@@ -29372,8 +29418,8 @@ async function J_(e, t) {
     for (let e of Array.isArray(n) ? n : [n])
       if (typeof e == `string`)
         r.push({
-          headers: Wg({ "Content-Disposition": `form-data; name="${t}"` }),
-          body: c_(e, `utf-8`),
+          headers: Kg({ "Content-Disposition": `form-data; name="${t}"` }),
+          body: u_(e, `utf-8`),
         });
       else if (typeof e != `object` || !e)
         throw Error(
@@ -29381,22 +29427,22 @@ async function J_(e, t) {
         );
       else {
         let n = e.name || `blob`,
-          i = Wg();
+          i = Kg();
         (i.set(`Content-Disposition`, `form-data; name="${t}"; filename="${n}"`),
           i.set(`Content-Type`, e.type || `application/octet-stream`),
           r.push({ headers: i, body: e }));
       }
   t.multipartBody = { parts: r };
 }
-var Y_ = `agentPolicy`;
-function X_(e) {
-  return { name: Y_, sendRequest: async (t, n) => ((t.agent ||= e), n(t)) };
-}
-var Z_ = `tlsPolicy`;
+var Z_ = `agentPolicy`;
 function Q_(e) {
-  return { name: Z_, sendRequest: async (t, n) => ((t.tlsSettings ||= e), n(t)) };
+  return { name: Z_, sendRequest: async (t, n) => ((t.agent ||= e), n(t)) };
 }
-var $_ = M((e, t) => {
+var $_ = `tlsPolicy`;
+function ev(e) {
+  return { name: $_, sendRequest: async (t, n) => ((t.tlsSettings ||= e), n(t)) };
+}
+var tv = M((e, t) => {
     var n = 1e3,
       r = n * 60,
       i = r * 60,
@@ -29492,7 +29538,7 @@ var $_ = M((e, t) => {
       return Math.round(e / n) + ` ` + r + (i ? `s` : ``);
     }
   }),
-  ev = M((e, t) => {
+  nv = M((e, t) => {
     function n(e) {
       ((n.debug = n),
         (n.default = n),
@@ -29500,7 +29546,7 @@ var $_ = M((e, t) => {
         (n.disable = o),
         (n.enable = i),
         (n.enabled = s),
-        (n.humanize = $_()),
+        (n.humanize = tv()),
         (n.destroy = l),
         Object.keys(e).forEach((t) => {
           n[t] = e[t];
@@ -29609,7 +29655,7 @@ var $_ = M((e, t) => {
     }
     t.exports = n;
   }),
-  tv = M((e, t) => {
+  rv = M((e, t) => {
     ((e.formatArgs = r),
       (e.save = i),
       (e.load = a),
@@ -29700,7 +29746,7 @@ var $_ = M((e, t) => {
         return localStorage;
       } catch {}
     }
-    t.exports = ev()(e);
+    t.exports = nv()(e);
     var { formatters: s } = t.exports;
     s.j = function (e) {
       try {
@@ -29710,7 +29756,7 @@ var $_ = M((e, t) => {
       }
     };
   }),
-  nv = M((e, t) => {
+  iv = M((e, t) => {
     var n = N(`tty`),
       r = N(`util`);
     ((e.init = u),
@@ -29797,7 +29843,7 @@ var $_ = M((e, t) => {
       let n = Object.keys(e.inspectOpts);
       for (let r = 0; r < n.length; r++) t.inspectOpts[n[r]] = e.inspectOpts[n[r]];
     }
-    t.exports = ev()(e);
+    t.exports = nv()(e);
     var { formatters: d } = t.exports;
     ((d.o = function (e) {
       return (
@@ -29814,16 +29860,16 @@ var $_ = M((e, t) => {
         return ((this.inspectOpts.colors = this.useColors), r.inspect(e, this.inspectOpts));
       }));
   }),
-  rv = M((e, t) => {
+  av = M((e, t) => {
     t.exports =
       typeof process > `u` ||
       process.type === `renderer` ||
       process.browser === !0 ||
       process.__nwjs
-        ? tv()
-        : nv();
+        ? rv()
+        : iv();
   }),
-  iv = M((e) => {
+  ov = M((e) => {
     var t =
         (e && e.__createBinding) ||
         (Object.create
@@ -29890,7 +29936,7 @@ var $_ = M((e, t) => {
     }
     e.req = c;
   }),
-  av = M((e) => {
+  sv = M((e) => {
     var t =
         (e && e.__createBinding) ||
         (Object.create
@@ -29938,7 +29984,7 @@ var $_ = M((e, t) => {
     var a = r(N(`net`)),
       o = r(N(`http`)),
       s = N(`https`);
-    i(iv(), e);
+    i(ov(), e);
     var c = Symbol(`AgentBaseInternalState`);
     e.Agent = class extends o.Agent {
       constructor(e) {
@@ -30017,14 +30063,14 @@ var $_ = M((e, t) => {
       }
     };
   }),
-  ov = M((e) => {
+  cv = M((e) => {
     var t =
       (e && e.__importDefault) ||
       function (e) {
         return e && e.__esModule ? e : { default: e };
       };
     (Object.defineProperty(e, "__esModule", { value: !0 }), (e.parseProxyResponse = void 0));
-    var n = (0, t(rv()).default)(`https-proxy-agent:parse-proxy-response`);
+    var n = (0, t(av()).default)(`https-proxy-agent:parse-proxy-response`);
     function r(e) {
       return new Promise((t, r) => {
         let i = 0,
@@ -30081,7 +30127,7 @@ var $_ = M((e, t) => {
     }
     e.parseProxyResponse = r;
   }),
-  sv = M((e) => {
+  lv = M((e) => {
     var t =
         (e && e.__createBinding) ||
         (Object.create
@@ -30128,10 +30174,10 @@ var $_ = M((e, t) => {
     var a = r(N(`net`)),
       o = r(N(`tls`)),
       s = i(N(`assert`)),
-      c = i(rv()),
-      l = av(),
+      c = i(av()),
+      l = sv(),
       u = N(`url`),
-      d = ov(),
+      d = cv(),
       f = (0, c.default)(`https-proxy-agent`),
       p = (e) =>
         e.servername === void 0 && e.host && !a.isIP(e.host) ? { ...e, servername: e.host } : e,
@@ -30212,7 +30258,7 @@ var $_ = M((e, t) => {
       return n;
     }
   }),
-  cv = M((e) => {
+  uv = M((e) => {
     var t =
         (e && e.__createBinding) ||
         (Object.create
@@ -30258,9 +30304,9 @@ var $_ = M((e, t) => {
     (Object.defineProperty(e, "__esModule", { value: !0 }), (e.HttpProxyAgent = void 0));
     var a = r(N(`net`)),
       o = r(N(`tls`)),
-      s = i(rv()),
+      s = i(av()),
       c = N(`events`),
-      l = av(),
+      l = sv(),
       u = N(`url`),
       d = (0, s.default)(`http-proxy-agent`),
       f = class extends l.Agent {
@@ -30332,28 +30378,28 @@ var $_ = M((e, t) => {
       return n;
     }
   }),
-  lv = sv(),
-  uv = cv(),
-  dv = `HTTPS_PROXY`,
-  fv = `HTTP_PROXY`,
-  pv = `ALL_PROXY`,
-  mv = `NO_PROXY`,
-  hv = `proxyPolicy`,
-  gv = [],
-  _v = !1,
-  vv = new Map();
-function yv(e) {
+  dv = lv(),
+  fv = uv(),
+  pv = `HTTPS_PROXY`,
+  mv = `HTTP_PROXY`,
+  hv = `ALL_PROXY`,
+  gv = `NO_PROXY`,
+  _v = `proxyPolicy`,
+  vv = [],
+  yv = !1,
+  bv = new Map();
+function xv(e) {
   if (process.env[e]) return process.env[e];
   if (process.env[e.toLowerCase()]) return process.env[e.toLowerCase()];
 }
-function bv() {
+function Sv() {
   if (!process) return;
-  let e = yv(dv),
-    t = yv(pv),
-    n = yv(fv);
+  let e = xv(pv),
+    t = xv(hv),
+    n = xv(mv);
   return e || t || n;
 }
-function xv(e, t, n) {
+function Cv(e, t, n) {
   if (t.length === 0) return !1;
   let r = new URL(e).hostname;
   if (n?.has(r)) return n.get(r);
@@ -30364,10 +30410,10 @@ function xv(e, t, n) {
       : r === e && (i = !0);
   return (n?.set(r, i), i);
 }
-function Sv() {
-  let e = yv(mv);
+function wv() {
+  let e = xv(gv);
   return (
-    (_v = !0),
+    (yv = !0),
     e
       ? e
           .split(`,`)
@@ -30376,8 +30422,8 @@ function Sv() {
       : []
   );
 }
-function Cv(e) {
-  if (!e && ((e = bv()), !e)) return;
+function Tv(e) {
+  if (!e && ((e = Sv()), !e)) return;
   let t = new URL(e);
   return {
     host: (t.protocol ? t.protocol + `//` : ``) + t.hostname,
@@ -30386,11 +30432,11 @@ function Cv(e) {
     password: t.password,
   };
 }
-function wv() {
-  let e = bv();
+function Ev() {
+  let e = Sv();
   return e ? new URL(e) : void 0;
 }
-function Tv(e) {
+function Dv(e) {
   let t;
   try {
     t = new URL(e.host);
@@ -30404,63 +30450,63 @@ function Tv(e) {
     t
   );
 }
-function Ev(e, t, n) {
+function Ov(e, t, n) {
   if (e.agent) return;
   let r = new URL(e.url).protocol !== `https:`;
   (e.tlsSettings &&
-    l_.warning(
+    d_.warning(
       `TLS settings are not supported in combination with custom Proxy, certificates provided to the client will be ignored.`,
     ),
     r
-      ? ((t.httpProxyAgent ||= new uv.HttpProxyAgent(n)), (e.agent = t.httpProxyAgent))
-      : ((t.httpsProxyAgent ||= new lv.HttpsProxyAgent(n)), (e.agent = t.httpsProxyAgent)));
+      ? ((t.httpProxyAgent ||= new fv.HttpProxyAgent(n)), (e.agent = t.httpProxyAgent))
+      : ((t.httpsProxyAgent ||= new dv.HttpsProxyAgent(n)), (e.agent = t.httpsProxyAgent)));
 }
-function Dv(e, t) {
-  _v || gv.push(...Sv());
-  let n = e ? Tv(e) : wv(),
+function kv(e, t) {
+  yv || vv.push(...wv());
+  let n = e ? Dv(e) : Ev(),
     r = {};
   return {
-    name: hv,
+    name: _v,
     async sendRequest(e, i) {
       return (
         !e.proxySettings &&
         n &&
-        !xv(e.url, t?.customNoProxyList ?? gv, t?.customNoProxyList ? void 0 : vv)
-          ? Ev(e, r, n)
-          : e.proxySettings && Ev(e, r, Tv(e.proxySettings)),
+        !Cv(e.url, t?.customNoProxyList ?? vv, t?.customNoProxyList ? void 0 : bv)
+          ? Ov(e, r, n)
+          : e.proxySettings && Ov(e, r, Dv(e.proxySettings)),
         i(e)
       );
     },
   };
 }
-var Ov = `decompressResponsePolicy`;
-function kv() {
+var Av = `decompressResponsePolicy`;
+function jv() {
   return {
-    name: Ov,
+    name: Av,
     async sendRequest(e, t) {
       return (e.method !== `HEAD` && e.headers.set(`Accept-Encoding`, `gzip,deflate`), t(e));
     },
   };
 }
-var Av = `redirectPolicy`,
-  jv = [`GET`, `HEAD`];
-function Mv(e = {}) {
+var Mv = `redirectPolicy`,
+  Nv = [`GET`, `HEAD`];
+function Pv(e = {}) {
   let { maxRetries: t = 20, allowCrossOriginRedirects: n = !1 } = e;
   return {
-    name: Av,
+    name: Mv,
     async sendRequest(e, r) {
-      return Nv(r, await r(e), t, n);
+      return Fv(r, await r(e), t, n);
     },
   };
 }
-async function Nv(e, t, n, r, i = 0) {
+async function Fv(e, t, n, r, i = 0) {
   let { request: a, status: o, headers: s } = t,
     c = s.get(`location`);
   if (
     c &&
     (o === 300 ||
-      (o === 301 && jv.includes(a.method)) ||
-      (o === 302 && jv.includes(a.method)) ||
+      (o === 301 && Nv.includes(a.method)) ||
+      (o === 302 && Nv.includes(a.method)) ||
       (o === 303 && a.method === `POST`) ||
       o === 307) &&
     i < n
@@ -30469,21 +30515,21 @@ async function Nv(e, t, n, r, i = 0) {
     if (!r) {
       let e = new URL(a.url);
       if (s.origin !== e.origin)
-        return (l_.verbose(`Skipping cross-origin redirect from ${e.origin} to ${s.origin}.`), t);
+        return (d_.verbose(`Skipping cross-origin redirect from ${e.origin} to ${s.origin}.`), t);
     }
     return (
       (a.url = s.toString()),
       o === 303 && ((a.method = `GET`), a.headers.delete(`Content-Length`), delete a.body),
       a.headers.delete(`Authorization`),
-      Nv(e, await e(a), n, r, i + 1)
+      Fv(e, await e(a), n, r, i + 1)
     );
   }
   return t;
 }
-function Pv(e) {
+function Iv(e) {
   return e instanceof Blob;
 }
-async function* Fv() {
+async function* Lv() {
   let e = this.getReader();
   try {
     for (;;) {
@@ -30495,18 +30541,18 @@ async function* Fv() {
     e.releaseLock();
   }
 }
-function Iv(e) {
-  (e[Symbol.asyncIterator] || (e[Symbol.asyncIterator] = Fv.bind(e)), (e.values ||= Fv.bind(e)));
-}
-function Lv(e) {
-  return e instanceof ReadableStream ? (Iv(e), ue.fromWeb(e)) : e;
-}
 function Rv(e) {
-  return e instanceof Uint8Array ? ue.from(Buffer.from(e)) : Pv(e) ? Lv(e.stream()) : Lv(e);
+  (e[Symbol.asyncIterator] || (e[Symbol.asyncIterator] = Lv.bind(e)), (e.values ||= Lv.bind(e)));
 }
-async function zv(e) {
+function zv(e) {
+  return e instanceof ReadableStream ? (Rv(e), ue.fromWeb(e)) : e;
+}
+function Bv(e) {
+  return e instanceof Uint8Array ? ue.from(Buffer.from(e)) : Iv(e) ? zv(e.stream()) : zv(e);
+}
+async function Vv(e) {
   return function () {
-    let t = e.map((e) => (typeof e == `function` ? e() : e)).map(Rv);
+    let t = e.map((e) => (typeof e == `function` ? e() : e)).map(Bv);
     return ue.from(
       (async function* () {
         for (let e of t) for await (let t of e) yield t;
@@ -30514,67 +30560,67 @@ async function zv(e) {
     );
   };
 }
-function Bv() {
-  return `----AzSDKFormBoundary${Gg()}`;
+function Hv() {
+  return `----AzSDKFormBoundary${qg()}`;
 }
-function Vv(e) {
+function Uv(e) {
   let t = ``;
   for (let [n, r] of e) t += `${n}: ${r}\r\n`;
   return t;
 }
-function Hv(e) {
+function Wv(e) {
   if (e instanceof Uint8Array) return e.byteLength;
-  if (Pv(e)) return e.size === -1 ? void 0 : e.size;
+  if (Iv(e)) return e.size === -1 ? void 0 : e.size;
 }
-function Uv(e) {
+function Gv(e) {
   let t = 0;
   for (let n of e) {
-    let e = Hv(n);
+    let e = Wv(n);
     if (e === void 0) return;
     t += e;
   }
   return t;
 }
-async function Wv(e, t, n) {
+async function Kv(e, t, n) {
   let r = [
-      c_(`--${n}`, `utf-8`),
+      u_(`--${n}`, `utf-8`),
       ...t.flatMap((e) => [
-        c_(
+        u_(
           `\r
 `,
           `utf-8`,
         ),
-        c_(Vv(e.headers), `utf-8`),
-        c_(
+        u_(Uv(e.headers), `utf-8`),
+        u_(
           `\r
 `,
           `utf-8`,
         ),
         e.body,
-        c_(`\r\n--${n}`, `utf-8`),
+        u_(`\r\n--${n}`, `utf-8`),
       ]),
-      c_(
+      u_(
         `--\r
 \r
 `,
         `utf-8`,
       ),
     ],
-    i = Uv(r);
-  (i && e.headers.set(`Content-Length`, i), (e.body = await zv(r)));
+    i = Gv(r);
+  (i && e.headers.set(`Content-Length`, i), (e.body = await Vv(r)));
 }
-var Gv = `multipartPolicy`,
-  Kv = 70,
-  qv = new Set(`abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'()+,-./:=?`);
-function Jv(e) {
-  if (e.length > Kv)
+var qv = `multipartPolicy`,
+  Jv = 70,
+  Yv = new Set(`abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'()+,-./:=?`);
+function Xv(e) {
+  if (e.length > Jv)
     throw Error(`Multipart boundary "${e}" exceeds maximum length of 70 characters`);
-  if (Array.from(e).some((e) => !qv.has(e)))
+  if (Array.from(e).some((e) => !Yv.has(e)))
     throw Error(`Multipart boundary "${e}" contains invalid characters`);
 }
-function Yv() {
+function Zv() {
   return {
-    name: Gv,
+    name: qv,
     async sendRequest(e, t) {
       if (!e.multipartBody) return t(e);
       if (e.body) throw Error(`multipartBody and regular body cannot be set at the same time`);
@@ -30590,35 +30636,35 @@ function Yv() {
         );
       return (
         (n ??= o),
-        n ? Jv(n) : (n = Bv()),
+        n ? Xv(n) : (n = Hv()),
         e.headers.set(`Content-Type`, `${a}; boundary=${n}`),
-        await Wv(e, e.multipartBody.parts, n),
+        await Kv(e, e.multipartBody.parts, n),
         (e.multipartBody = void 0),
         t(e)
       );
     },
   };
 }
-function Xv() {
-  return Xg();
+function Qv() {
+  return Qg();
 }
-var Zv = Lg({ logLevelEnvVarName: `AZURE_LOG_LEVEL`, namespace: `azure` });
-Zv.logger;
-function Qv(e) {
-  return Zv.createClientLogger(e);
+var $v = zg({ logLevelEnvVarName: `AZURE_LOG_LEVEL`, namespace: `azure` });
+$v.logger;
+function ey(e) {
+  return $v.createClientLogger(e);
 }
-var $v = Qv(`core-rest-pipeline`);
-function ey(e = {}) {
-  return C_({ logger: $v.info, ...e });
-}
-var ty = Av;
+var ty = ey(`core-rest-pipeline`);
 function ny(e = {}) {
-  return Mv(e);
+  return T_({ logger: ty.info, ...e });
 }
-function ry() {
+var ry = Mv;
+function iy(e = {}) {
+  return Pv(e);
+}
+function ay() {
   return `User-Agent`;
 }
-async function iy(e) {
+async function oy(e) {
   if (he && he.versions) {
     let t = `${fe.type()} ${fe.release()}; ${fe.arch()}`,
       n = he.versions;
@@ -30629,8 +30675,8 @@ async function iy(e) {
         : n.node && e.set(`Node`, `${n.node} (${t})`);
   }
 }
-var ay = `1.22.3`;
-function oy(e) {
+var sy = `1.22.3`;
+function cy(e) {
   let t = [];
   for (let [n, r] of e) {
     let e = r ? `${n}/${r}` : n;
@@ -30638,36 +30684,36 @@ function oy(e) {
   }
   return t.join(` `);
 }
-function sy() {
-  return ry();
+function ly() {
+  return ay();
 }
-async function cy(e) {
+async function uy(e) {
   let t = new Map();
-  (t.set(`core-rest-pipeline`, ay), await iy(t));
-  let n = oy(t);
+  (t.set(`core-rest-pipeline`, sy), await oy(t));
+  let n = cy(t);
   return e ? `${e} ${n}` : n;
 }
-var ly = sy(),
-  uy = `userAgentPolicy`;
-function dy(e = {}) {
-  let t = cy(e.userAgentPrefix);
+var dy = ly(),
+  fy = `userAgentPolicy`;
+function py(e = {}) {
+  let t = uy(e.userAgentPrefix);
   return {
-    name: uy,
+    name: fy,
     async sendRequest(e, n) {
-      return (e.headers.has(ly) || e.headers.set(ly, await t), n(e));
+      return (e.headers.has(dy) || e.headers.set(dy, await t), n(e));
     },
   };
 }
-var fy = class extends Error {
+var my = class extends Error {
   constructor(e) {
     (super(e), (this.name = `AbortError`));
   }
 };
-function py(e, t) {
+function hy(e, t) {
   let { cleanupBeforeAbort: n, abortSignal: r, abortErrorMsg: i } = t ?? {};
   return new Promise((t, a) => {
     function o() {
-      a(new fy(i ?? `The operation was aborted.`));
+      a(new my(i ?? `The operation was aborted.`));
     }
     function s() {
       r?.removeEventListener(`abort`, c);
@@ -30691,19 +30737,19 @@ function py(e, t) {
     r?.addEventListener(`abort`, c);
   });
 }
-var my = `The delay was aborted.`;
-function hy(e, t) {
+var gy = `The delay was aborted.`;
+function _y(e, t) {
   let n,
     { abortSignal: r, abortErrorMsg: i } = t ?? {};
-  return py(
+  return hy(
     (t) => {
       n = setTimeout(t, e);
     },
-    { cleanupBeforeAbort: () => clearTimeout(n), abortSignal: r, abortErrorMsg: i ?? my },
+    { cleanupBeforeAbort: () => clearTimeout(n), abortSignal: r, abortErrorMsg: i ?? gy },
   );
 }
-function gy(e) {
-  if (Qg(e)) return e.message;
+function vy(e) {
+  if (e_(e)) return e.message;
   {
     let t;
     try {
@@ -30714,81 +30760,81 @@ function gy(e) {
     return `Unknown error ${t}`;
   }
 }
-function _y(e) {
-  return Qg(e);
+function yy(e) {
+  return e_(e);
 }
-function vy() {
-  return Gg();
+function by() {
+  return qg();
 }
-var yy = !0;
-function by(e, t) {
-  return s_(e, t);
+var xy = !0;
+function Sy(e, t) {
+  return l_(e, t);
 }
-function xy(e, t) {
-  return c_(e, t);
+function Cy(e, t) {
+  return u_(e, t);
 }
-var Sy = Symbol(`rawContent`);
-function Cy(e) {
-  return typeof e[Sy] == `function`;
+var wy = Symbol(`rawContent`);
+function Ty(e) {
+  return typeof e[wy] == `function`;
 }
-function wy(e) {
-  return Cy(e) ? e[Sy]() : e;
+function Ey(e) {
+  return Ty(e) ? e[wy]() : e;
 }
-var Ty = Gv;
-function Ey() {
-  let e = Yv();
+var Dy = qv;
+function Oy() {
+  let e = Zv();
   return {
-    name: Ty,
+    name: Dy,
     sendRequest: async (t, n) => {
-      if (t.multipartBody) for (let e of t.multipartBody.parts) Cy(e.body) && (e.body = wy(e.body));
+      if (t.multipartBody) for (let e of t.multipartBody.parts) Ty(e.body) && (e.body = Ey(e.body));
       return e.sendRequest(t, n);
     },
   };
 }
-var Dy = Ov;
-function Oy() {
-  return kv();
-}
-function ky(e = {}) {
-  return U_(e);
-}
+var ky = Av;
 function Ay() {
-  return K_();
+  return jv();
 }
-function jy(e) {
-  return Cv(e);
+function jy(e = {}) {
+  return G_(e);
 }
-function My(e, t) {
-  return Dv(e, t);
+function My() {
+  return J_();
 }
-var Ny = `setClientRequestIdPolicy`;
-function Py(e = `x-ms-client-request-id`) {
+function Ny(e) {
+  return Tv(e);
+}
+function Py(e, t) {
+  return kv(e, t);
+}
+var Fy = `setClientRequestIdPolicy`;
+function Iy(e = `x-ms-client-request-id`) {
   return {
-    name: Ny,
+    name: Fy,
     async sendRequest(t, n) {
       return (t.headers.has(e) || t.headers.set(e, t.requestId), n(t));
     },
   };
 }
-function Fy(e) {
-  return X_(e);
-}
-function Iy(e) {
+function Ly(e) {
   return Q_(e);
 }
-var Ly = {
+function Ry(e) {
+  return ev(e);
+}
+var zy = {
   span: Symbol.for(`@azure/core-tracing span`),
   namespace: Symbol.for(`@azure/core-tracing namespace`),
 };
-function Ry(e = {}) {
-  let t = new zy(e.parentContext);
+function By(e = {}) {
+  let t = new Vy(e.parentContext);
   return (
-    e.span && (t = t.setValue(Ly.span, e.span)),
-    e.namespace && (t = t.setValue(Ly.namespace, e.namespace)),
+    e.span && (t = t.setValue(zy.span, e.span)),
+    e.namespace && (t = t.setValue(zy.namespace, e.namespace)),
     t
   );
 }
-var zy = class e {
+var Vy = class e {
     _contextMap;
     constructor(t) {
       this._contextMap = t instanceof e ? new Map(t._contextMap) : new Map();
@@ -30805,12 +30851,12 @@ var zy = class e {
       return (n._contextMap.delete(t), n);
     }
   },
-  By = M((e) => {
+  Hy = M((e) => {
     (Object.defineProperty(e, "__esModule", { value: !0 }),
       (e.state = void 0),
       (e.state = { instrumenterImplementation: void 0 }));
   })().state;
-function Vy() {
+function Uy() {
   return {
     end: () => {},
     isRecording: () => !1,
@@ -30820,23 +30866,23 @@ function Vy() {
     addEvent: () => {},
   };
 }
-function Hy() {
+function Wy() {
   return {
     createRequestHeaders: () => ({}),
     parseTraceparentHeader: () => {},
-    startSpan: (e, t) => ({ span: Vy(), tracingContext: Ry({ parentContext: t.tracingContext }) }),
+    startSpan: (e, t) => ({ span: Uy(), tracingContext: By({ parentContext: t.tracingContext }) }),
     withContext(e, t, ...n) {
       return t(...n);
     },
   };
 }
-function Uy() {
-  return ((By.instrumenterImplementation ||= Hy()), By.instrumenterImplementation);
+function Gy() {
+  return ((Hy.instrumenterImplementation ||= Wy()), Hy.instrumenterImplementation);
 }
-function Wy(e) {
+function Ky(e) {
   let { namespace: t, packageName: n, packageVersion: r } = e;
   function i(e, i, a) {
-    let o = Uy().startSpan(e, {
+    let o = Gy().startSpan(e, {
         ...a,
         packageName: n,
         packageVersion: r,
@@ -30845,8 +30891,8 @@ function Wy(e) {
       s = o.tracingContext,
       c = o.span;
     return (
-      s.getValue(Ly.namespace) || (s = s.setValue(Ly.namespace, t)),
-      c.setAttribute(`az.namespace`, s.getValue(Ly.namespace)),
+      s.getValue(zy.namespace) || (s = s.setValue(zy.namespace, t)),
+      c.setAttribute(`az.namespace`, s.getValue(zy.namespace)),
       {
         span: c,
         updatedOptions: Object.assign({}, i, {
@@ -30867,13 +30913,13 @@ function Wy(e) {
     }
   }
   function o(e, t, ...n) {
-    return Uy().withContext(e, t, ...n);
+    return Gy().withContext(e, t, ...n);
   }
   function s(e) {
-    return Uy().parseTraceparentHeader(e);
+    return Gy().parseTraceparentHeader(e);
   }
   function c(e) {
-    return Uy().createRequestHeaders(e);
+    return Gy().createRequestHeaders(e);
   }
   return {
     startSpan: i,
@@ -30883,17 +30929,17 @@ function Wy(e) {
     createRequestHeaders: c,
   };
 }
-var Gy = a_;
-function Ky(e) {
-  return o_(e);
+var qy = s_;
+function Jy(e) {
+  return c_(e);
 }
-var qy = `tracingPolicy`;
-function Jy(e = {}) {
-  let t = cy(e.userAgentPrefix),
-    n = new r_({ additionalAllowedQueryParameters: e.additionalAllowedQueryParameters }),
-    r = Yy();
+var Yy = `tracingPolicy`;
+function Xy(e = {}) {
+  let t = uy(e.userAgentPrefix),
+    n = new a_({ additionalAllowedQueryParameters: e.additionalAllowedQueryParameters }),
+    r = Zy();
   return {
-    name: qy,
+    name: Yy,
     async sendRequest(e, i) {
       if (!r) return i(e);
       let a = await t,
@@ -30904,26 +30950,26 @@ function Jy(e = {}) {
           requestId: e.requestId,
         };
       a && (o[`http.user_agent`] = a);
-      let { span: s, tracingContext: c } = Xy(r, e, o) ?? {};
+      let { span: s, tracingContext: c } = Qy(r, e, o) ?? {};
       if (!s || !c) return i(e);
       try {
         let t = await r.withContext(c, i, e);
-        return (Qy(s, t), t);
+        return (eb(s, t), t);
       } catch (e) {
-        throw (Zy(s, e), e);
+        throw ($y(s, e), e);
       }
     },
   };
 }
-function Yy() {
+function Zy() {
   try {
-    return Wy({ namespace: ``, packageName: `@azure/core-rest-pipeline`, packageVersion: ay });
+    return Ky({ namespace: ``, packageName: `@azure/core-rest-pipeline`, packageVersion: sy });
   } catch (e) {
-    $v.warning(`Error when creating the TracingClient: ${gy(e)}`);
+    ty.warning(`Error when creating the TracingClient: ${vy(e)}`);
     return;
   }
 }
-function Xy(e, t, n) {
+function Qy(e, t, n) {
   try {
     let { span: r, updatedOptions: i } = e.startSpan(
       `HTTP ${t.method}`,
@@ -30938,20 +30984,20 @@ function Xy(e, t, n) {
     for (let [e, n] of Object.entries(a)) t.headers.set(e, n);
     return { span: r, tracingContext: i.tracingOptions.tracingContext };
   } catch (e) {
-    $v.warning(`Skipping creating a tracing span due to an error: ${gy(e)}`);
+    ty.warning(`Skipping creating a tracing span due to an error: ${vy(e)}`);
     return;
   }
 }
-function Zy(e, t) {
+function $y(e, t) {
   try {
-    (e.setStatus({ status: `error`, error: _y(t) ? t : void 0 }),
-      Ky(t) && t.statusCode && e.setAttribute(`http.status_code`, t.statusCode),
+    (e.setStatus({ status: `error`, error: yy(t) ? t : void 0 }),
+      Jy(t) && t.statusCode && e.setAttribute(`http.status_code`, t.statusCode),
       e.end());
   } catch (e) {
-    $v.warning(`Skipping tracing span processing due to an error: ${gy(e)}`);
+    ty.warning(`Skipping tracing span processing due to an error: ${vy(e)}`);
   }
 }
-function Qy(e, t) {
+function eb(e, t) {
   try {
     e.setAttribute(`http.status_code`, t.status);
     let n = t.headers.get(`x-ms-request-id`);
@@ -30959,10 +31005,10 @@ function Qy(e, t) {
       t.status >= 400 && e.setStatus({ status: `error` }),
       e.end());
   } catch (e) {
-    $v.warning(`Skipping tracing span processing due to an error: ${gy(e)}`);
+    ty.warning(`Skipping tracing span processing due to an error: ${vy(e)}`);
   }
 }
-function $y(e) {
+function tb(e) {
   if (e instanceof AbortSignal) return { abortSignal: e };
   if (e.aborted) return { abortSignal: AbortSignal.abort(e.reason) };
   let t = new AbortController(),
@@ -30975,13 +31021,13 @@ function $y(e) {
   }
   return (e.addEventListener(`abort`, i), { abortSignal: t.signal, cleanup: r });
 }
-var eb = `wrapAbortSignalLikePolicy`;
-function tb() {
+var nb = `wrapAbortSignalLikePolicy`;
+function rb() {
   return {
-    name: eb,
+    name: nb,
     sendRequest: async (e, t) => {
       if (!e.abortSignal) return t(e);
-      let { abortSignal: n, cleanup: r } = $y(e.abortSignal);
+      let { abortSignal: n, cleanup: r } = tb(e.abortSignal);
       e.abortSignal = n;
       try {
         return await t(e);
@@ -30991,31 +31037,31 @@ function tb() {
     },
   };
 }
-function nb(e) {
-  let t = Xv();
+function ib(e) {
+  let t = Qv();
   return (
-    yy &&
-      (e.agent && t.addPolicy(Fy(e.agent)),
-      e.tlsOptions && t.addPolicy(Iy(e.tlsOptions)),
-      t.addPolicy(My(e.proxyOptions)),
-      t.addPolicy(Oy())),
-    t.addPolicy(tb()),
-    t.addPolicy(Ay(), { beforePolicies: [Ty] }),
-    t.addPolicy(dy(e.userAgentOptions)),
-    t.addPolicy(Py(e.telemetryOptions?.clientRequestIdHeaderName)),
-    t.addPolicy(Ey(), { afterPhase: `Deserialize` }),
-    t.addPolicy(ky(e.retryOptions), { phase: `Retry` }),
-    t.addPolicy(Jy({ ...e.userAgentOptions, ...e.loggingOptions }), { afterPhase: `Retry` }),
-    yy && t.addPolicy(ny(e.redirectOptions), { afterPhase: `Retry` }),
-    t.addPolicy(ey(e.loggingOptions), { afterPhase: `Sign` }),
+    xy &&
+      (e.agent && t.addPolicy(Ly(e.agent)),
+      e.tlsOptions && t.addPolicy(Ry(e.tlsOptions)),
+      t.addPolicy(Py(e.proxyOptions)),
+      t.addPolicy(Ay())),
+    t.addPolicy(rb()),
+    t.addPolicy(My(), { beforePolicies: [Dy] }),
+    t.addPolicy(py(e.userAgentOptions)),
+    t.addPolicy(Iy(e.telemetryOptions?.clientRequestIdHeaderName)),
+    t.addPolicy(Oy(), { afterPhase: `Deserialize` }),
+    t.addPolicy(jy(e.retryOptions), { phase: `Retry` }),
+    t.addPolicy(Xy({ ...e.userAgentOptions, ...e.loggingOptions }), { afterPhase: `Retry` }),
+    xy && t.addPolicy(iy(e.redirectOptions), { afterPhase: `Retry` }),
+    t.addPolicy(ny(e.loggingOptions), { afterPhase: `Sign` }),
     t
   );
 }
-function rb() {
-  let e = x_();
+function ab() {
+  let e = C_();
   return {
     async sendRequest(t) {
-      let { abortSignal: n, cleanup: r } = t.abortSignal ? $y(t.abortSignal) : {};
+      let { abortSignal: n, cleanup: r } = t.abortSignal ? tb(t.abortSignal) : {};
       try {
         return ((t.abortSignal = n), await e.sendRequest(t));
       } finally {
@@ -31024,14 +31070,14 @@ function rb() {
     },
   };
 }
-function ib(e) {
-  return Wg(e);
+function ob(e) {
+  return Kg(e);
 }
-function ab(e) {
-  return qg(e);
+function sb(e) {
+  return Yg(e);
 }
-var ob = { forcedRefreshWindowInMs: 1e3, retryIntervalInMs: 3e3, refreshWindowInMs: 12e4 };
-async function sb(e, t, n) {
+var cb = { forcedRefreshWindowInMs: 1e3, retryIntervalInMs: 3e3, refreshWindowInMs: 12e4 };
+async function lb(e, t, n) {
   async function r() {
     if (Date.now() < n)
       try {
@@ -31046,14 +31092,14 @@ async function sb(e, t, n) {
     }
   }
   let i = await r();
-  for (; i === null;) (await hy(t), (i = await r()));
+  for (; i === null;) (await _y(t), (i = await r()));
   return i;
 }
-function cb(e, t) {
+function ub(e, t) {
   let n = null,
     r = null,
     i,
-    a = { ...ob, ...t },
+    a = { ...cb, ...t },
     o = {
       get isRefreshing() {
         return n !== null;
@@ -31072,7 +31118,7 @@ function cb(e, t) {
   function s(t, s) {
     return (
       o.isRefreshing ||
-        (n = sb(() => e.getToken(t, s), a.retryIntervalInMs, r?.expiresOnTimestamp ?? Date.now())
+        (n = lb(() => e.getToken(t, s), a.retryIntervalInMs, r?.expiresOnTimestamp ?? Date.now())
           .then((e) => ((n = null), (r = e), (i = s.tenantId), r))
           .catch((e) => {
             throw ((n = null), (r = null), (i = void 0), e);
@@ -31086,40 +31132,40 @@ function cb(e, t) {
     return (n && (r = null), a || n || o.mustRefresh ? s(e, t) : (o.shouldRefresh && s(e, t), r));
   };
 }
-var lb = `bearerTokenAuthenticationPolicy`;
-async function ub(e, t) {
+var db = `bearerTokenAuthenticationPolicy`;
+async function fb(e, t) {
   try {
     return [await t(e), void 0];
   } catch (e) {
-    if (Ky(e) && e.response) return [e.response, e];
+    if (Jy(e) && e.response) return [e.response, e];
     throw e;
   }
 }
-async function db(e) {
+async function pb(e) {
   let { scopes: t, getAccessToken: n, request: r } = e,
     i = await n(t, { abortSignal: r.abortSignal, tracingOptions: r.tracingOptions, enableCae: !0 });
   i && e.request.headers.set(`Authorization`, `Bearer ${i.token}`);
 }
-function fb(e) {
+function mb(e) {
   return e.status === 401 && e.headers.has(`WWW-Authenticate`);
 }
-async function pb(e, t) {
+async function hb(e, t) {
   let { scopes: n } = e,
     r = await e.getAccessToken(n, { enableCae: !0, claims: t });
   return r
     ? (e.request.headers.set(`Authorization`, `${r.tokenType ?? `Bearer`} ${r.token}`), !0)
     : !1;
 }
-function mb(e) {
+function gb(e) {
   let { credential: t, scopes: n, challengeCallbacks: r } = e,
-    i = e.logger || $v,
+    i = e.logger || ty,
     a = {
-      authorizeRequest: r?.authorizeRequest?.bind(r) ?? db,
+      authorizeRequest: r?.authorizeRequest?.bind(r) ?? pb,
       authorizeRequestOnChallenge: r?.authorizeRequestOnChallenge?.bind(r),
     },
-    o = t ? cb(t) : () => Promise.resolve(null);
+    o = t ? ub(t) : () => Promise.resolve(null);
   return {
-    name: lb,
+    name: db,
     async sendRequest(e, t) {
       if (!e.url.toLowerCase().startsWith(`https://`))
         throw Error(
@@ -31132,8 +31178,8 @@ function mb(e) {
         logger: i,
       });
       let r, s, c;
-      if ((([r, s] = await ub(e, t)), fb(r))) {
-        let l = gb(r.headers.get(`WWW-Authenticate`));
+      if ((([r, s] = await fb(e, t)), mb(r))) {
+        let l = vb(r.headers.get(`WWW-Authenticate`));
         if (l) {
           let a;
           try {
@@ -31146,7 +31192,7 @@ function mb(e) {
               r
             );
           }
-          ((c = await pb(
+          ((c = await hb(
             {
               scopes: Array.isArray(n) ? n : [n],
               response: r,
@@ -31156,7 +31202,7 @@ function mb(e) {
             },
             a,
           )),
-            c && ([r, s] = await ub(e, t)));
+            c && ([r, s] = await fb(e, t)));
         } else if (
           a.authorizeRequestOnChallenge &&
           ((c = await a.authorizeRequestOnChallenge({
@@ -31166,8 +31212,8 @@ function mb(e) {
             getAccessToken: o,
             logger: i,
           })),
-          c && ([r, s] = await ub(e, t)),
-          fb(r) && ((l = gb(r.headers.get(`WWW-Authenticate`))), l))
+          c && ([r, s] = await fb(e, t)),
+          mb(r) && ((l = vb(r.headers.get(`WWW-Authenticate`))), l))
         ) {
           let a;
           try {
@@ -31180,7 +31226,7 @@ function mb(e) {
               r
             );
           }
-          ((c = await pb(
+          ((c = await hb(
             {
               scopes: Array.isArray(n) ? n : [n],
               response: r,
@@ -31190,7 +31236,7 @@ function mb(e) {
             },
             a,
           )),
-            c && ([r, s] = await ub(e, t)));
+            c && ([r, s] = await fb(e, t)));
         }
       }
       if (s) throw s;
@@ -31198,7 +31244,7 @@ function mb(e) {
     },
   };
 }
-function hb(e) {
+function _b(e) {
   let t = /(\w+)\s+((?:\w+=(?:"[^"]*"|[^,]*),?\s*)+)/g,
     n = /(\w+)="([^"]*)"/g,
     r = [],
@@ -31213,37 +31259,37 @@ function hb(e) {
   }
   return r;
 }
-function gb(e) {
+function vb(e) {
   if (e)
-    return hb(e).find(
+    return _b(e).find(
       (e) => e.scheme === `Bearer` && e.params.claims && e.params.error === `insufficient_claims`,
     )?.params.claims;
 }
-function _b(e) {
+function yb(e) {
   let t = e;
   return (
     t && typeof t.getToken == `function` && (t.signRequest === void 0 || t.getToken.length > 0)
   );
 }
-var vb = `DisableKeepAlivePolicy`;
-function yb() {
+var bb = `DisableKeepAlivePolicy`;
+function xb() {
   return {
-    name: vb,
+    name: bb,
     sendRequest(e, t) {
       return ((e.disableKeepAlive = !0), t(e));
     },
   };
 }
-function bb(e) {
-  return e.getOrderedPolicies().some((e) => e.name === vb);
-}
-function xb(e) {
-  return by(e, `base64`);
-}
 function Sb(e) {
-  return xy(e, `base64`);
+  return e.getOrderedPolicies().some((e) => e.name === bb);
 }
-function Cb(e, t) {
+function Cb(e) {
+  return Sy(e, `base64`);
+}
+function wb(e) {
+  return Cy(e, `base64`);
+}
+function Tb(e, t) {
   return (
     t !== `Composite` &&
     t !== `Dictionary` &&
@@ -31254,16 +31300,16 @@ function Cb(e, t) {
       e == null)
   );
 }
-var wb =
+var Eb =
   /^(-|\+)?P(?:([-+]?[0-9,.]*)Y)?(?:([-+]?[0-9,.]*)M)?(?:([-+]?[0-9,.]*)W)?(?:([-+]?[0-9,.]*)D)?(?:T(?:([-+]?[0-9,.]*)H)?(?:([-+]?[0-9,.]*)M)?(?:([-+]?[0-9,.]*)S)?)?$/;
-function Tb(e) {
-  return wb.test(e);
-}
-var Eb = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i;
 function Db(e) {
   return Eb.test(e);
 }
-function Ob(e) {
+var Ob = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i;
+function kb(e) {
+  return Ob.test(e);
+}
+function Ab(e) {
   let t = { ...e.headers, ...e.body };
   return e.hasNullableType && Object.getOwnPropertyNames(t).length === 0
     ? e.shouldWrapBody
@@ -31273,7 +31319,7 @@ function Ob(e) {
       ? { ...e.headers, body: e.body }
       : t;
 }
-function kb(e, t) {
+function jb(e, t) {
   let n = e.parsedHeaders;
   if (e.request.method === `HEAD`) return { ...n, body: e.parsedBody };
   let r = t && t.bodyMapper,
@@ -31289,14 +31335,14 @@ function kb(e, t) {
     if (n) for (let e of Object.keys(n)) t[e] = n[e];
     return i && !e.parsedBody && !n && Object.getOwnPropertyNames(o).length === 0 ? null : t;
   }
-  return Ob({
+  return Ab({
     body: e.parsedBody,
     headers: n,
     hasNullableType: i,
-    shouldWrapBody: Cb(e.parsedBody, a),
+    shouldWrapBody: Tb(e.parsedBody, a),
   });
 }
-var Ab = class {
+var Mb = class {
   modelMappers;
   isXML;
   constructor(e = {}, t = !1) {
@@ -31367,14 +31413,14 @@ var Ab = class {
                     ? o.match(/^Sequence$/i) === null
                       ? o.match(/^Dictionary$/i) === null
                         ? o.match(/^Composite$/i) !== null &&
-                          (a = Jb(this, e, t, n, !!this.isXML, i))
-                        : (a = Wb(this, e, t, n, !!this.isXML, i))
-                      : (a = Ub(this, e, t, n, !!this.isXML, i))
-                    : (a = Vb(n, t))
-                  : (a = Bb(n, t))
-                : (a = Hb(o, t, n))
-              : (a = zb(n, e.type.allowedValues, t))
-            : (a = Rb(o, n, t))
+                          (a = Xb(this, e, t, n, !!this.isXML, i))
+                        : (a = Kb(this, e, t, n, !!this.isXML, i))
+                      : (a = Gb(this, e, t, n, !!this.isXML, i))
+                    : (a = Ub(n, t))
+                  : (a = Hb(n, t))
+                : (a = Wb(o, t, n))
+              : (a = Vb(n, e.type.allowedValues, t))
+            : (a = Bb(o, n, t))
           : (a = t),
       a
     );
@@ -31396,7 +31442,7 @@ var Ab = class {
       );
     let a,
       o = e.type.name;
-    if (((n ||= e.serializedName), o.match(/^Composite$/i) !== null)) a = Zb(this, e, t, n, i);
+    if (((n ||= e.serializedName), o.match(/^Composite$/i) !== null)) a = $b(this, e, t, n, i);
     else {
       if (this.isXML) {
         let e = i.xml.xmlCharKey;
@@ -31410,11 +31456,11 @@ var Ab = class {
                 ? o.match(/^ByteArray$/i) === null
                   ? o.match(/^Base64Url$/i) === null
                     ? o.match(/^Sequence$/i) === null
-                      ? o.match(/^Dictionary$/i) !== null && (a = Qb(this, e, t, n, i))
-                      : (a = $b(this, e, t, n, i))
-                    : (a = Pb(t))
-                  : (a = Sb(t))
-                : (a = Lb(t))
+                      ? o.match(/^Dictionary$/i) !== null && (a = ex(this, e, t, n, i))
+                      : (a = tx(this, e, t, n, i))
+                    : (a = Ib(t))
+                  : (a = wb(t))
+                : (a = zb(t))
               : (a = new Date(t))
             : (a = t)
           : (a = t === `true` || (t !== `false` && t))
@@ -31423,29 +31469,29 @@ var Ab = class {
     return (e.isConstant && (a = e.defaultValue), a);
   }
 };
-function jb(e = {}, t = !1) {
-  return new Ab(e, t);
+function Nb(e = {}, t = !1) {
+  return new Mb(e, t);
 }
-function Mb(e, t) {
+function Pb(e, t) {
   let n = e.length;
   for (; n - 1 >= 0 && e[n - 1] === t;) --n;
   return e.substr(0, n);
 }
-function Nb(e) {
+function Fb(e) {
   if (e) {
     if (!(e instanceof Uint8Array))
       throw Error(`Please provide an input of type Uint8Array for converting to Base64Url.`);
-    return Mb(xb(e), `=`).replace(/\+/g, `-`).replace(/\//g, `_`);
+    return Pb(Cb(e), `=`).replace(/\+/g, `-`).replace(/\//g, `_`);
   }
 }
-function Pb(e) {
+function Ib(e) {
   if (e) {
     if (e && typeof e.valueOf() != `string`)
       throw Error(`Please provide an input of type string for converting to Uint8Array`);
-    return ((e = e.replace(/-/g, `+`).replace(/_/g, `/`)), Sb(e));
+    return ((e = e.replace(/-/g, `+`).replace(/_/g, `/`)), wb(e));
   }
 }
-function Fb(e) {
+function Lb(e) {
   let t = [],
     n = ``;
   if (e) {
@@ -31457,14 +31503,14 @@ function Fb(e) {
   }
   return t;
 }
-function Ib(e) {
+function Rb(e) {
   if (e)
     return (typeof e.valueOf() == `string` && (e = new Date(e)), Math.floor(e.getTime() / 1e3));
 }
-function Lb(e) {
+function zb(e) {
   if (e) return new Date(e * 1e3);
 }
-function Rb(e, t, n) {
+function Bb(e, t, n) {
   if (n != null) {
     if (e.match(/^Number$/i) !== null) {
       if (typeof n != `number`) throw Error(`${t} with value ${n} must be of type number.`);
@@ -31472,7 +31518,7 @@ function Rb(e, t, n) {
       if (typeof n.valueOf() != `string`)
         throw Error(`${t} with value "${n}" must be of type string.`);
     } else if (e.match(/^Uuid$/i) !== null) {
-      if (!(typeof n.valueOf() == `string` && Db(n)))
+      if (!(typeof n.valueOf() == `string` && kb(n)))
         throw Error(`${t} with value "${n}" must be of type string and a valid uuid.`);
     } else if (e.match(/^Boolean$/i) !== null) {
       if (typeof n != `boolean`) throw Error(`${t} with value ${n} must be of type boolean.`);
@@ -31494,7 +31540,7 @@ function Rb(e, t, n) {
   }
   return n;
 }
-function zb(e, t, n) {
+function Vb(e, t, n) {
   if (!t) throw Error(`Please provide a set of allowedValues to validate ${e} as an Enum Type.`);
   if (
     !t.some((e) => (typeof e.valueOf() == `string` ? e.toLowerCase() === n.toLowerCase() : e === n))
@@ -31502,21 +31548,21 @@ function zb(e, t, n) {
     throw Error(`${n} is not a valid value for ${e}. The valid values are: ${JSON.stringify(t)}.`);
   return n;
 }
-function Bb(e, t) {
+function Hb(e, t) {
   if (t != null) {
     if (!(t instanceof Uint8Array)) throw Error(`${e} must be of type Uint8Array.`);
-    t = xb(t);
+    t = Cb(t);
   }
   return t;
 }
-function Vb(e, t) {
+function Ub(e, t) {
   if (t != null) {
     if (!(t instanceof Uint8Array)) throw Error(`${e} must be of type Uint8Array.`);
-    t = Nb(t);
+    t = Fb(t);
   }
   return t;
 }
-function Hb(e, t, n) {
+function Wb(e, t, n) {
   if (t != null) {
     if (e.match(/^Date$/i) !== null) {
       if (!(t instanceof Date || (typeof t.valueOf() == `string` && !isNaN(Date.parse(t)))))
@@ -31538,13 +31584,13 @@ function Hb(e, t, n) {
         throw Error(
           `${n} must be an instanceof Date or a string in RFC-1123/ISO8601 format for it to be serialized in UnixTime/Epoch format.`,
         );
-      t = Ib(t);
-    } else if (e.match(/^TimeSpan$/i) !== null && !Tb(t))
+      t = Rb(t);
+    } else if (e.match(/^TimeSpan$/i) !== null && !Db(t))
       throw Error(`${n} must be a string in ISO 8601 format. Instead was "${t}".`);
   }
   return t;
 }
-function Ub(e, t, n, r, i, a) {
+function Gb(e, t, n, r, i, a) {
   if (!Array.isArray(n)) throw Error(`${r} must be of type Array.`);
   let o = t.type.element;
   if (!o || typeof o != `object`)
@@ -31564,7 +31610,7 @@ function Ub(e, t, n, r, i, a) {
   }
   return s;
 }
-function Wb(e, t, n, r, i, a) {
+function Kb(e, t, n, r, i, a) {
   if (typeof n != `object`) throw Error(`${r} must be of type object.`);
   let o = t.type.value;
   if (!o || typeof o != `object`)
@@ -31572,7 +31618,7 @@ function Wb(e, t, n, r, i, a) {
       `"value" metadata for a Dictionary must be defined in the mapper and it must of type "object" in ${r}.`,
     );
   let s = {};
-  for (let t of Object.keys(n)) s[t] = Yb(o, e.serialize(o, n[t], r, a), i, a);
+  for (let t of Object.keys(n)) s[t] = Zb(o, e.serialize(o, n[t], r, a), i, a);
   if (i && t.xmlNamespace) {
     let e = t.xmlNamespacePrefix ? `xmlns:${t.xmlNamespacePrefix}` : `xmlns`,
       n = s;
@@ -31580,11 +31626,11 @@ function Wb(e, t, n, r, i, a) {
   }
   return s;
 }
-function Gb(e, t, n) {
+function qb(e, t, n) {
   let r = t.type.additionalProperties;
-  return !r && t.type.className ? Kb(e, t, n)?.type.additionalProperties : r;
+  return !r && t.type.className ? Jb(e, t, n)?.type.additionalProperties : r;
 }
-function Kb(e, t, n) {
+function Jb(e, t, n) {
   let r = t.type.className;
   if (!r)
     throw Error(
@@ -31592,10 +31638,10 @@ function Kb(e, t, n) {
     );
   return e.modelMappers[r];
 }
-function qb(e, t, n) {
+function Yb(e, t, n) {
   let r = t.type.modelProperties;
   if (!r) {
-    let i = Kb(e, t, n);
+    let i = Jb(e, t, n);
     if (!i) throw Error(`mapper() cannot be null or undefined for model "${t.type.className}".`);
     if (((r = i?.type.modelProperties), !r))
       throw Error(
@@ -31604,10 +31650,10 @@ function qb(e, t, n) {
   }
   return r;
 }
-function Jb(e, t, n, r, i, a) {
-  if ((nx(e, t) && (t = tx(e, t, n, `clientName`)), n != null)) {
+function Xb(e, t, n, r, i, a) {
+  if ((ix(e, t) && (t = rx(e, t, n, `clientName`)), n != null)) {
     let o = {},
-      s = qb(e, t, r);
+      s = Yb(e, t, r);
     for (let c of Object.keys(s)) {
       let l = s[c];
       if (l.readOnly) continue;
@@ -31615,7 +31661,7 @@ function Jb(e, t, n, r, i, a) {
         d = o;
       if (e.isXML) u = l.xmlIsWrapped ? l.xmlName : l.xmlElementName || l.xmlName;
       else {
-        let e = Fb(l.serializedName);
+        let e = Lb(l.serializedName);
         u = e.pop();
         for (let t of e)
           (d[t] == null &&
@@ -31630,11 +31676,11 @@ function Jb(e, t, n, r, i, a) {
         }
         let o = l.serializedName === `` ? r : r + `.` + l.serializedName,
           s = n[c],
-          f = nx(e, t);
+          f = ix(e, t);
         f && f.clientName === c && s == null && (s = t.serializedName);
         let p = e.serialize(l, s, o, a);
         if (p !== void 0 && u != null) {
-          let e = Yb(l, p, i, a);
+          let e = Zb(l, p, i, a);
           i && l.xmlIsAttribute
             ? ((d.$ = d.$ || {}), (d.$[u] = p))
             : i && l.xmlIsWrapped
@@ -31643,7 +31689,7 @@ function Jb(e, t, n, r, i, a) {
         }
       }
     }
-    let c = Gb(e, t, r);
+    let c = qb(e, t, r);
     if (c) {
       let t = Object.keys(s);
       for (let i of Object.keys(n))
@@ -31659,7 +31705,7 @@ function Jb(e, t, n, r, i, a) {
   }
   return n;
 }
-function Yb(e, t, n, r) {
+function Zb(e, t, n, r) {
   if (!n || !e.xmlNamespace) return t;
   let i = { [e.xmlNamespacePrefix ? `xmlns:${e.xmlNamespacePrefix}` : `xmlns`]: e.xmlNamespace };
   if ([`Composite`].includes(e.type.name)) {
@@ -31672,18 +31718,18 @@ function Yb(e, t, n, r) {
   let a = {};
   return ((a[r.xml.xmlCharKey] = t), (a.$ = i), a);
 }
-function Xb(e, t) {
+function Qb(e, t) {
   return [`$`, t.xml.xmlCharKey].includes(e);
 }
-function Zb(e, t, n, r, i) {
+function $b(e, t, n, r, i) {
   let a = i.xml.xmlCharKey ?? `_`;
-  nx(e, t) && (t = tx(e, t, n, `serializedName`));
-  let o = qb(e, t, r),
+  ix(e, t) && (t = rx(e, t, n, `serializedName`));
+  let o = Yb(e, t, r),
     s = {},
     c = [];
   for (let l of Object.keys(o)) {
     let u = o[l],
-      d = Fb(o[l].serializedName);
+      d = Lb(o[l].serializedName);
     c.push(d[0]);
     let { serializedName: f, xmlName: p, xmlElementName: m } = u,
       h = r;
@@ -31740,7 +31786,7 @@ function Zb(e, t, n, r, i) {
   let l = t.type.additionalProperties;
   if (l) {
     let t = (e) => {
-      for (let t of Object.keys(o)) if (Fb(o[t].serializedName)[0] === e) return !1;
+      for (let t of Object.keys(o)) if (Lb(o[t].serializedName)[0] === e) return !1;
       return !0;
     };
     for (let a of Object.keys(n))
@@ -31752,7 +31798,7 @@ function Zb(e, t, n, r, i) {
     for (let e of Object.keys(n))
       s[e] === void 0 &&
         !c.includes(e) &&
-        !Xb(e, i) &&
+        !Qb(e, i) &&
         Object.defineProperty(s, e, {
           value: n[e],
           enumerable: !0,
@@ -31761,7 +31807,7 @@ function Zb(e, t, n, r, i) {
         });
   return s;
 }
-function Qb(e, t, n, r, i) {
+function ex(e, t, n, r, i) {
   let a = t.type.value;
   if (!a || typeof a != `object`)
     throw Error(
@@ -31774,7 +31820,7 @@ function Qb(e, t, n, r, i) {
   }
   return n;
 }
-function $b(e, t, n, r, i) {
+function tx(e, t, n, r, i) {
   let a = t.type.element;
   if (!a || typeof a != `object`)
     throw Error(
@@ -31791,7 +31837,7 @@ function $b(e, t, n, r, i) {
   }
   return n;
 }
-function ex(e, t, n) {
+function nx(e, t, n) {
   let r = [n];
   for (; r.length;) {
     let n = r.shift(),
@@ -31804,8 +31850,8 @@ function ex(e, t, n) {
         r.push(i.type.className);
   }
 }
-function tx(e, t, n, r) {
-  let i = nx(e, t);
+function rx(e, t, n, r) {
+  let i = ix(e, t);
   if (i) {
     let a = i[r];
     if (a) {
@@ -31813,20 +31859,20 @@ function tx(e, t, n, r) {
       let i = n[a],
         o = t.type.uberParent ?? t.type.className;
       if (typeof i == `string` && o) {
-        let n = ex(e.modelMappers.discriminators, i, o);
+        let n = nx(e.modelMappers.discriminators, i, o);
         n && (t = n);
       }
     }
   }
   return t;
 }
-function nx(e, t) {
-  return t.type.polymorphicDiscriminator || rx(e, t.type.uberParent) || rx(e, t.type.className);
+function ix(e, t) {
+  return t.type.polymorphicDiscriminator || ax(e, t.type.uberParent) || ax(e, t.type.className);
 }
-function rx(e, t) {
+function ax(e, t) {
   return t && e.modelMappers[t] && e.modelMappers[t].type.polymorphicDiscriminator;
 }
-var ix = {
+var ox = {
     Base64Url: `Base64Url`,
     Boolean: `Boolean`,
     ByteArray: `ByteArray`,
@@ -31844,12 +31890,12 @@ var ix = {
     TimeSpan: `TimeSpan`,
     UnixTime: `UnixTime`,
   },
-  ax = M((e) => {
+  sx = M((e) => {
     (Object.defineProperty(e, "__esModule", { value: !0 }),
       (e.state = void 0),
       (e.state = { operationRequestMap: new WeakMap() }));
   })().state;
-function ox(e, t, n) {
+function cx(e, t, n) {
   let r = t.parameterPath,
     i = t.mapper,
     a;
@@ -31857,8 +31903,8 @@ function ox(e, t, n) {
     if (r.length > 0) {
       if (i.isConstant) a = i.defaultValue;
       else {
-        let t = sx(e, r);
-        !t.propertyFound && n && (t = sx(n, r));
+        let t = lx(e, r);
+        !t.propertyFound && n && (t = lx(n, r));
         let o = !1;
         (t.propertyFound || (o = i.required || (r[0] === `options` && r.length === 2)),
           (a = o ? i.defaultValue : t.propertyValue));
@@ -31868,7 +31914,7 @@ function ox(e, t, n) {
     i.required && (a = {});
     for (let [t, o] of Object.entries(r)) {
       let r = i.type.modelProperties[t],
-        s = ox(e, { parameterPath: o, mapper: r }, n);
+        s = cx(e, { parameterPath: o, mapper: r }, n);
       s !== void 0 &&
         ((a ||= {}),
         Object.defineProperty(a, t, { value: s, enumerable: !0, configurable: !0, writable: !0 }));
@@ -31876,7 +31922,7 @@ function ox(e, t, n) {
   }
   return a;
 }
-function sx(e, t) {
+function lx(e, t) {
   let n = { propertyFound: !1 },
     r = 0;
   for (; r < t.length; ++r) {
@@ -31886,21 +31932,21 @@ function sx(e, t) {
   }
   return (r === t.length && ((n.propertyValue = e), (n.propertyFound = !0)), n);
 }
-var cx = Symbol.for(`@azure/core-client original request`);
-function lx(e) {
-  return cx in e;
+var ux = Symbol.for(`@azure/core-client original request`);
+function dx(e) {
+  return ux in e;
 }
-function ux(e) {
-  if (lx(e)) return ux(e[cx]);
-  let t = ax.operationRequestMap.get(e);
-  return (t || ((t = {}), ax.operationRequestMap.set(e, t)), t);
+function fx(e) {
+  if (dx(e)) return fx(e[ux]);
+  let t = sx.operationRequestMap.get(e);
+  return (t || ((t = {}), sx.operationRequestMap.set(e, t)), t);
 }
-var dx = [`application/json`, `text/json`],
-  fx = [`application/xml`, `application/atom+xml`],
-  px = `deserializationPolicy`;
-function mx(e = {}) {
-  let t = e.expectedContentTypes?.json ?? dx,
-    n = e.expectedContentTypes?.xml ?? fx,
+var px = [`application/json`, `text/json`],
+  mx = [`application/xml`, `application/atom+xml`],
+  hx = `deserializationPolicy`;
+function gx(e = {}) {
+  let t = e.expectedContentTypes?.json ?? px,
+    n = e.expectedContentTypes?.xml ?? mx,
     r = e.parseXML,
     i = e.serializerOptions,
     a = {
@@ -31911,17 +31957,17 @@ function mx(e = {}) {
       },
     };
   return {
-    name: px,
+    name: hx,
     async sendRequest(e, i) {
       let o = await i(e);
-      return _x(t, n, o, a, r);
+      return yx(t, n, o, a, r);
     },
   };
 }
-function hx(e) {
+function _x(e) {
   let t,
     n = e.request,
-    r = ux(n),
+    r = fx(n),
     i = r?.operationSpec;
   return (
     i &&
@@ -31929,31 +31975,31 @@ function hx(e) {
     t
   );
 }
-function gx(e) {
+function vx(e) {
   let t = e.request,
-    n = ux(t)?.shouldDeserialize,
+    n = fx(t)?.shouldDeserialize,
     r;
   return ((r = n === void 0 ? !0 : typeof n == `boolean` ? n : n(e)), r);
 }
-async function _x(e, t, n, r, i) {
-  let a = await bx(e, t, n, r, i);
-  if (!gx(a)) return a;
-  let o = ux(a.request)?.operationSpec;
+async function yx(e, t, n, r, i) {
+  let a = await Sx(e, t, n, r, i);
+  if (!vx(a)) return a;
+  let o = fx(a.request)?.operationSpec;
   if (!o || !o.responses) return a;
-  let s = hx(a),
-    { error: c, shouldReturnResponse: l } = yx(a, o, s, r);
+  let s = _x(a),
+    { error: c, shouldReturnResponse: l } = xx(a, o, s, r);
   if (c) throw c;
   if (l) return a;
   if (s) {
     if (s.bodyMapper) {
       let e = a.parsedBody;
       o.isXML &&
-        s.bodyMapper.type.name === ix.Sequence &&
+        s.bodyMapper.type.name === ox.Sequence &&
         (e = typeof e == `object` ? e[s.bodyMapper.xmlElementName] : []);
       try {
         a.parsedBody = o.serializer.deserialize(s.bodyMapper, e, `operationRes.parsedBody`, r);
       } catch (e) {
-        throw new Gy(`Error ${e} occurred in deserializing the responseBody - ${a.bodyAsText}`, {
+        throw new qy(`Error ${e} occurred in deserializing the responseBody - ${a.bodyAsText}`, {
           statusCode: a.status,
           request: a.request,
           response: a,
@@ -31970,19 +32016,19 @@ async function _x(e, t, n, r, i) {
   }
   return a;
 }
-function vx(e) {
+function bx(e) {
   let t = Object.keys(e.responses);
   return t.length === 0 || (t.length === 1 && t[0] === "default");
 }
-function yx(e, t, n, r) {
+function xx(e, t, n, r) {
   let i = 200 <= e.status && e.status < 300;
-  if (vx(t) ? i : n) {
+  if (bx(t) ? i : n) {
     if (n) {
       if (!n.isError) return { error: null, shouldReturnResponse: !1 };
     } else return { error: null, shouldReturnResponse: !1 };
   }
   let a = n ?? t.responses.default,
-    o = new Gy(
+    o = new qy(
       e.request.streamResponseStatusCodes?.has(e.status)
         ? `Unexpected status code: ${e.status}`
         : e.bodyAsText,
@@ -31997,7 +32043,7 @@ function yx(e, t, n, r) {
         i;
       if (s) {
         let e = n;
-        if (t.isXML && s.type.name === ix.Sequence) {
+        if (t.isXML && s.type.name === ox.Sequence) {
           e = [];
           let t = s.xmlElementName;
           typeof n == `object` && t && (e = n[t]);
@@ -32019,7 +32065,7 @@ function yx(e, t, n, r) {
   }
   return { error: o, shouldReturnResponse: !1 };
 }
-async function bx(e, t, n, r, i) {
+async function Sx(e, t, n, r, i) {
   if (!n.request.streamResponseStatusCodes?.has(n.status) && n.bodyAsText) {
     let a = n.bodyAsText,
       o = n.headers.get(`Content-Type`) || ``,
@@ -32032,8 +32078,8 @@ async function bx(e, t, n, r, i) {
         return ((n.parsedBody = await i(a, r.xml)), n);
       }
     } catch (e) {
-      throw new Gy(`Error "${e}" occurred while parsing the response body - ${n.bodyAsText}.`, {
-        code: e.code || Gy.PARSE_ERROR,
+      throw new qy(`Error "${e}" occurred while parsing the response body - ${n.bodyAsText}.`, {
+        code: e.code || qy.PARSE_ERROR,
         statusCode: n.status,
         request: n.request,
         response: n,
@@ -32042,45 +32088,45 @@ async function bx(e, t, n, r, i) {
   }
   return n;
 }
-function xx(e) {
+function Cx(e) {
   let t = new Set();
   for (let [n, r] of Object.entries(e.responses))
-    r.bodyMapper && r.bodyMapper.type.name === ix.Stream && t.add(Number(n));
+    r.bodyMapper && r.bodyMapper.type.name === ox.Stream && t.add(Number(n));
   return t;
 }
-function Sx(e) {
+function wx(e) {
   let { parameterPath: t, mapper: n } = e,
     r;
   return ((r = typeof t == `string` ? t : Array.isArray(t) ? t.join(`.`) : n.serializedName), r);
 }
-var Cx = `serializationPolicy`;
-function wx(e = {}) {
+var Tx = `serializationPolicy`;
+function Ex(e = {}) {
   let t = e.stringifyXML;
   return {
-    name: Cx,
+    name: Tx,
     sendRequest(e, n) {
-      let r = ux(e),
+      let r = fx(e),
         i = r?.operationSpec,
         a = r?.operationArguments;
-      return (i && a && (Tx(e, a, i), Ex(e, a, i, t)), n(e));
+      return (i && a && (Dx(e, a, i), Ox(e, a, i, t)), n(e));
     },
   };
 }
-function Tx(e, t, n) {
+function Dx(e, t, n) {
   if (n.headerParameters)
     for (let r of n.headerParameters) {
-      let i = ox(t, r);
+      let i = cx(t, r);
       if (i != null || r.mapper.required) {
-        i = n.serializer.serialize(r.mapper, i, Sx(r));
+        i = n.serializer.serialize(r.mapper, i, wx(r));
         let t = r.mapper.headerCollectionPrefix;
         if (t) for (let n of Object.keys(i)) e.headers.set(t + n, i[n]);
-        else e.headers.set(r.mapper.serializedName || Sx(r), i);
+        else e.headers.set(r.mapper.serializedName || wx(r), i);
       }
     }
   let r = t.options?.requestOptions?.customHeaders;
   if (r) for (let t of Object.keys(r)) e.headers.set(t, r[t]);
 }
-function Ex(
+function Ox(
   e,
   t,
   n,
@@ -32098,7 +32144,7 @@ function Ex(
     },
     o = a.xml.xmlCharKey;
   if (n.requestBody && n.requestBody.mapper) {
-    e.body = ox(t, n.requestBody);
+    e.body = cx(t, n.requestBody);
     let i = n.requestBody.mapper,
       {
         required: s,
@@ -32112,17 +32158,17 @@ function Ex(
       m = i.type.name;
     try {
       if ((e.body !== void 0 && e.body !== null) || (p && e.body === null) || s) {
-        let t = Sx(n.requestBody);
+        let t = wx(n.requestBody);
         e.body = n.serializer.serialize(i, e.body, t, a);
-        let s = m === ix.Stream;
+        let s = m === ox.Stream;
         if (n.isXML) {
           let t = f ? `xmlns:${f}` : `xmlns`,
-            n = Dx(d, t, m, e.body, a);
-          m === ix.Sequence
-            ? (e.body = r(Ox(n, u || l || c, t, d), { rootName: l || c, xmlCharKey: o }))
+            n = kx(d, t, m, e.body, a);
+          m === ox.Sequence
+            ? (e.body = r(Ax(n, u || l || c, t, d), { rootName: l || c, xmlCharKey: o }))
             : s || (e.body = r(n, { rootName: l || c, xmlCharKey: o }));
         } else if (
-          m === ix.String &&
+          m === ox.String &&
           (n.contentType?.match(`text/plain`) || n.mediaType === `text`)
         )
           return;
@@ -32137,79 +32183,79 @@ function Ex(
   } else if (n.formDataParameters && n.formDataParameters.length > 0) {
     e.formData = {};
     for (let r of n.formDataParameters) {
-      let i = ox(t, r);
+      let i = cx(t, r);
       if (i != null) {
-        let t = r.mapper.serializedName || Sx(r);
-        e.formData[t] = n.serializer.serialize(r.mapper, i, Sx(r), a);
+        let t = r.mapper.serializedName || wx(r);
+        e.formData[t] = n.serializer.serialize(r.mapper, i, wx(r), a);
       }
     }
   }
 }
-function Dx(e, t, n, r, i) {
+function kx(e, t, n, r, i) {
   if (e && ![`Composite`, `Sequence`, `Dictionary`].includes(n)) {
     let n = {};
     return ((n[i.xml.xmlCharKey] = r), (n.$ = { [t]: e }), n);
   }
   return r;
 }
-function Ox(e, t, n, r) {
+function Ax(e, t, n, r) {
   if ((Array.isArray(e) || (e = [e]), !n || !r)) return { [t]: e };
   let i = { [t]: e };
   return ((i.$ = { [n]: r }), i);
 }
-function kx(e = {}) {
-  let t = nb(e ?? {});
+function jx(e = {}) {
+  let t = ib(e ?? {});
   return (
     e.credentialOptions &&
       t.addPolicy(
-        mb({
+        gb({
           credential: e.credentialOptions.credential,
           scopes: e.credentialOptions.credentialScopes,
         }),
       ),
-    t.addPolicy(wx(e.serializationOptions), { phase: `Serialize` }),
-    t.addPolicy(mx(e.deserializationOptions), { phase: `Deserialize` }),
+    t.addPolicy(Ex(e.serializationOptions), { phase: `Serialize` }),
+    t.addPolicy(gx(e.deserializationOptions), { phase: `Deserialize` }),
     t
   );
 }
-var Ax;
-function jx() {
-  return ((Ax ||= rb()), Ax);
+var Mx;
+function Nx() {
+  return ((Mx ||= ab()), Mx);
 }
-var Mx = { CSV: `,`, SSV: ` `, Multi: `Multi`, TSV: `	`, Pipes: `|` };
-function Nx(e, t, n, r) {
-  let i = Fx(t, n, r),
+var Px = { CSV: `,`, SSV: ` `, Multi: `Multi`, TSV: `	`, Pipes: `|` };
+function Fx(e, t, n, r) {
+  let i = Lx(t, n, r),
     a = !1,
-    o = Px(e, i);
+    o = Ix(e, i);
   if (t.path) {
-    let e = Px(t.path, i);
+    let e = Ix(t.path, i);
     (t.path === `/{nextLink}` && e.startsWith(`/`) && (e = e.substring(1)),
-      Ix(e) ? ((o = e), (a = !0)) : (o = Lx(o, e)));
+      Rx(e) ? ((o = e), (a = !0)) : (o = zx(o, e)));
   }
-  let { queryParams: s, sequenceParams: c } = Rx(t, n, r);
-  return ((o = Bx(o, s, c, a)), o);
+  let { queryParams: s, sequenceParams: c } = Bx(t, n, r);
+  return ((o = Hx(o, s, c, a)), o);
 }
-function Px(e, t) {
+function Ix(e, t) {
   let n = e;
   for (let [e, r] of t) n = n.split(e).join(r);
   return n;
 }
-function Fx(e, t, n) {
+function Lx(e, t, n) {
   let r = new Map();
   if (e.urlParameters?.length)
     for (let i of e.urlParameters) {
-      let a = ox(t, i, n),
-        o = Sx(i);
+      let a = cx(t, i, n),
+        o = wx(i);
       ((a = e.serializer.serialize(i.mapper, a, o)),
         i.skipEncoding || (a = encodeURIComponent(a)),
         r.set(`{${i.mapper.serializedName || o}}`, a));
     }
   return r;
 }
-function Ix(e) {
+function Rx(e) {
   return e.includes(`://`);
 }
-function Lx(e, t) {
+function zx(e, t) {
   if (!t) return e;
   let n = new URL(e),
     r = n.pathname;
@@ -32222,7 +32268,7 @@ function Lx(e, t) {
   } else r += t;
   return (Object.assign(n, { pathname: r }), n.toString());
 }
-function Rx(e, t, n) {
+function Bx(e, t, n) {
   let r = new Map(),
     i = new Set();
   if (e.queryParameters?.length)
@@ -32230,10 +32276,10 @@ function Rx(e, t, n) {
       a.mapper.type.name === `Sequence` &&
         a.mapper.serializedName &&
         i.add(a.mapper.serializedName);
-      let o = ox(t, a, n);
+      let o = cx(t, a, n);
       if (o != null || a.mapper.required) {
-        o = e.serializer.serialize(a.mapper, o, Sx(a));
-        let t = a.collectionFormat ? Mx[a.collectionFormat] : ``;
+        o = e.serializer.serialize(a.mapper, o, wx(a));
+        let t = a.collectionFormat ? Px[a.collectionFormat] : ``;
         if (
           (Array.isArray(o) && (o = o.map((e) => e ?? ``)),
           a.collectionFormat === `Multi` && o.length === 0)
@@ -32247,12 +32293,12 @@ function Rx(e, t, n) {
           Array.isArray(o) &&
             (a.collectionFormat === `CSV` || a.collectionFormat === `Pipes`) &&
             (o = o.join(t)),
-          r.set(a.mapper.serializedName || Sx(a), o));
+          r.set(a.mapper.serializedName || wx(a), o));
       }
     }
   return { queryParams: r, sequenceParams: i };
 }
-function zx(e) {
+function Vx(e) {
   let t = new Map();
   if (!e || e[0] !== `?`) return t;
   e = e.slice(1);
@@ -32264,10 +32310,10 @@ function zx(e) {
   }
   return t;
 }
-function Bx(e, t, n, r = !1) {
+function Hx(e, t, n, r = !1) {
   if (t.size === 0) return e;
   let i = new URL(e),
-    a = zx(i.search);
+    a = Vx(i.search);
   for (let [e, i] of t) {
     let t = a.get(e);
     if (Array.isArray(t)) {
@@ -32288,8 +32334,8 @@ function Bx(e, t, n, r = !1) {
     else o.push(`${e}=${t}`);
   return ((i.search = o.length ? `?${o.join(`&`)}` : ``), i.toString());
 }
-var Vx = Qv(`core-client`),
-  Hx = class {
+var Ux = ey(`core-client`),
+  Wx = class {
     _endpoint;
     _requestContentType;
     _allowInsecureConnection;
@@ -32300,12 +32346,12 @@ var Vx = Qv(`core-client`),
         ((this._requestContentType = e.requestContentType),
         (this._endpoint = e.endpoint ?? e.baseUri),
         e.baseUri &&
-          Vx.warning(
+          Ux.warning(
             `The baseUri option for SDK Clients has been deprecated, please use endpoint instead.`,
           ),
         (this._allowInsecureConnection = e.allowInsecureConnection),
-        (this._httpClient = e.httpClient || jx()),
-        (this.pipeline = e.pipeline || Ux(e)),
+        (this._httpClient = e.httpClient || Nx()),
+        (this.pipeline = e.pipeline || Gx(e)),
         e.additionalPolicies?.length)
       )
         for (let { policy: t, position: n } of e.additionalPolicies) {
@@ -32322,9 +32368,9 @@ var Vx = Qv(`core-client`),
         throw Error(
           `If operationSpec.baseUrl is not specified, then the ServiceClient must have a endpoint string property that contains the base URL to use.`,
         );
-      let r = ab({ url: Nx(n, t, e, this) });
+      let r = sb({ url: Fx(n, t, e, this) });
       r.method = t.httpMethod;
-      let i = ux(r);
+      let i = fx(r);
       ((i.operationSpec = t), (i.operationArguments = e));
       let a = t.contentType || this._requestContentType;
       a && t.requestBody && r.headers.set(`Content-Type`, a);
@@ -32341,27 +32387,27 @@ var Vx = Qv(`core-client`),
           o.tracingOptions && (r.tracingOptions = o.tracingOptions));
       }
       (this._allowInsecureConnection && (r.allowInsecureConnection = !0),
-        r.streamResponseStatusCodes === void 0 && (r.streamResponseStatusCodes = xx(t)));
+        r.streamResponseStatusCodes === void 0 && (r.streamResponseStatusCodes = Cx(t)));
       try {
         let e = await this.sendRequest(r),
-          n = kb(e, t.responses[e.status]);
+          n = jb(e, t.responses[e.status]);
         return (o?.onResponse && o.onResponse(e, n), n);
       } catch (e) {
         if (typeof e == `object` && e?.response) {
           let n = e.response,
-            r = kb(n, t.responses[e.statusCode] || t.responses.default);
+            r = jb(n, t.responses[e.statusCode] || t.responses.default);
           ((e.details = r), o?.onResponse && o.onResponse(n, r, e));
         }
         throw e;
       }
     }
   };
-function Ux(e) {
-  let t = Wx(e),
+function Gx(e) {
+  let t = Kx(e),
     n = e.credential && t ? { credentialScopes: t, credential: e.credential } : void 0;
-  return kx({ ...e, credentialOptions: n });
+  return jx({ ...e, credentialOptions: n });
 }
-function Wx(e) {
+function Kx(e) {
   if (e.credentialScopes) return e.credentialScopes;
   if (e.endpoint) return `${e.endpoint}/.default`;
   if (e.baseUri) return `${e.baseUri}/.default`;
@@ -32370,24 +32416,24 @@ function Wx(e) {
       `When using credentials, the ServiceClientOptions must contain either a endpoint or a credentialScopes. Unable to create a bearerTokenAuthenticationPolicy`,
     );
 }
-var Gx = { DefaultScope: `/.default`, HeaderConstants: { AUTHORIZATION: `authorization` } };
-function Kx(e) {
+var qx = { DefaultScope: `/.default`, HeaderConstants: { AUTHORIZATION: `authorization` } };
+function Jx(e) {
   return /^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/.test(
     e,
   );
 }
-var qx = async (e) => {
-  let t = Qx(e.request),
-    n = Xx(e.response);
+var Yx = async (e) => {
+  let t = eS(e.request),
+    n = Qx(e.response);
   if (n) {
-    let r = Zx(n),
-      i = Yx(e, r),
-      a = Jx(r);
+    let r = $x(n),
+      i = Zx(e, r),
+      a = Xx(r);
     if (!a) return !1;
     let o = await e.getAccessToken(i, { ...t, tenantId: a });
     return o
       ? (e.request.headers.set(
-          Gx.HeaderConstants.AUTHORIZATION,
+          qx.HeaderConstants.AUTHORIZATION,
           `${o.tokenType ?? `Bearer`} ${o.token}`,
         ),
         !0)
@@ -32395,37 +32441,37 @@ var qx = async (e) => {
   }
   return !1;
 };
-function Jx(e) {
+function Xx(e) {
   let t = new URL(e.authorization_uri).pathname.split(`/`)[1];
-  if (t && Kx(t)) return t;
+  if (t && Jx(t)) return t;
 }
-function Yx(e, t) {
+function Zx(e, t) {
   if (!t.resource_id) return e.scopes;
   let n = new URL(t.resource_id),
-    r = new URL(Gx.DefaultScope, n.origin).toString();
+    r = new URL(qx.DefaultScope, n.origin).toString();
   return (r === `https://disk.azure.com/.default` && (r = `https://disk.azure.com//.default`), [r]);
 }
-function Xx(e) {
+function Qx(e) {
   let t = e.headers.get(`WWW-Authenticate`);
   if (e.status === 401 && t) return t;
 }
-function Zx(e) {
+function $x(e) {
   return `${e.slice(7).trim()} `
     .split(` `)
     .filter((e) => e)
     .map((e) => (([e, t]) => ({ [e]: t }))(e.trim().split(`=`)))
     .reduce((e, t) => ({ ...e, ...t }), {});
 }
-function Qx(e) {
+function eS(e) {
   return {
     abortSignal: e.abortSignal,
     requestOptions: { timeout: e.timeout },
     tracingOptions: e.tracingOptions,
   };
 }
-var $x = Symbol(`Original PipelineRequest`),
-  eS = Symbol.for(`@azure/core-client original request`),
-  tS = new Set([
+var tS = Symbol(`Original PipelineRequest`),
+  nS = Symbol.for(`@azure/core-client original request`),
+  rS = new Set([
     `url`,
     `method`,
     `withCredentials`,
@@ -32441,12 +32487,12 @@ var $x = Symbol(`Original PipelineRequest`),
     `agent`,
     `requestOverrides`,
   ]);
-function nS(e, t = {}) {
-  let n = e[$x],
-    r = ib(e.headers.toJson({ preserveCase: !0 }));
+function iS(e, t = {}) {
+  let n = e[tS],
+    r = ob(e.headers.toJson({ preserveCase: !0 }));
   if (n) return ((n.headers = r), n);
   {
-    let n = ab({
+    let n = sb({
       url: e.url,
       method: e.method,
       headers: r,
@@ -32464,15 +32510,15 @@ function nS(e, t = {}) {
       agent: e.agent,
       requestOverrides: e.requestOverrides,
     });
-    return (t.originalRequest && (n[eS] = t.originalRequest), n);
+    return (t.originalRequest && (n[nS] = t.originalRequest), n);
   }
 }
-function rS(e, t) {
+function aS(e, t) {
   let n = t?.originalRequest ?? e,
     r = {
       url: e.url,
       method: e.method,
-      headers: iS(e.headers),
+      headers: oS(e.headers),
       withCredentials: e.withCredentials,
       timeout: e.timeout,
       requestId: e.headers.get(`x-ms-client-request-id`) || e.requestId,
@@ -32497,46 +32543,46 @@ function rS(e, t) {
   return t?.createProxy
     ? new Proxy(r, {
         get(t, i, a) {
-          return i === $x
+          return i === tS
             ? e
             : i === `clone`
-              ? () => rS(nS(r, { originalRequest: n }), { createProxy: !0, originalRequest: n })
+              ? () => aS(iS(r, { originalRequest: n }), { createProxy: !0, originalRequest: n })
               : Reflect.get(t, i, a);
         },
         set(t, n, r, i) {
           return (
             n === `keepAlive` && (e.disableKeepAlive = !r),
-            typeof n == `string` && tS.has(n) && (e[n] = r),
+            typeof n == `string` && rS.has(n) && (e[n] = r),
             Reflect.set(t, n, r, i)
           );
         },
       })
     : r;
 }
-function iS(e) {
-  return new oS(e.toJSON({ preserveCase: !0 }));
+function oS(e) {
+  return new cS(e.toJSON({ preserveCase: !0 }));
 }
-function aS(e) {
+function sS(e) {
   return e.toLowerCase();
 }
-var oS = class e {
+var cS = class e {
     _headersMap;
     constructor(e) {
       if (((this._headersMap = {}), e)) for (let t in e) this.set(t, e[t]);
     }
     set(e, t) {
-      this._headersMap[aS(e)] = { name: e, value: t.toString() };
+      this._headersMap[sS(e)] = { name: e, value: t.toString() };
     }
     get(e) {
-      let t = this._headersMap[aS(e)];
+      let t = this._headersMap[sS(e)];
       return t ? t.value : void 0;
     }
     contains(e) {
-      return !!this._headersMap[aS(e)];
+      return !!this._headersMap[sS(e)];
     }
     remove(e) {
       let t = this.contains(e);
-      return (delete this._headersMap[aS(e)], t);
+      return (delete this._headersMap[sS(e)], t);
     }
     rawHeaders() {
       return this.toJson({ preserveCase: !0 });
@@ -32568,7 +32614,7 @@ var oS = class e {
       else
         for (let e in this._headersMap) {
           let n = this._headersMap[e];
-          t[aS(n.name)] = n.value;
+          t[sS(n.name)] = n.value;
         }
       return t;
     }
@@ -32584,14 +32630,14 @@ var oS = class e {
       return new e(t);
     }
   },
-  sS = Symbol(`Original FullOperationResponse`);
-function cS(e, t) {
-  let n = rS(e.request),
-    r = iS(e.headers);
+  lS = Symbol(`Original FullOperationResponse`);
+function uS(e, t) {
+  let n = aS(e.request),
+    r = oS(e.headers);
   return t?.createProxy
     ? new Proxy(e, {
         get(t, i, a) {
-          return i === `headers` ? r : i === `request` ? n : i === sS ? e : Reflect.get(t, i, a);
+          return i === `headers` ? r : i === `request` ? n : i === lS ? e : Reflect.get(t, i, a);
         },
         set(e, t, i, a) {
           return (t === `headers` ? (r = i) : t === `request` && (n = i), Reflect.set(e, t, i, a));
@@ -32599,16 +32645,16 @@ function cS(e, t) {
       })
     : { ...e, request: n, headers: r };
 }
-function lS(e) {
-  let t = e[sS],
-    n = ib(e.headers.toJson({ preserveCase: !0 }));
-  return t ? ((t.headers = n), t) : { ...e, headers: n, request: nS(e.request) };
+function dS(e) {
+  let t = e[lS],
+    n = ob(e.headers.toJson({ preserveCase: !0 }));
+  return t ? ((t.headers = n), t) : { ...e, headers: n, request: iS(e.request) };
 }
-var uS = class extends Hx {
+var fS = class extends Wx {
     constructor(e) {
       (super(e),
-        e.keepAliveOptions?.enable === !1 && !bb(this.pipeline) && this.pipeline.addPolicy(yb()),
-        e.redirectOptions?.handleRedirects === !1 && this.pipeline.removePolicy({ name: ty }));
+        e.keepAliveOptions?.enable === !1 && !Sb(this.pipeline) && this.pipeline.addPolicy(xb()),
+        e.redirectOptions?.handleRedirects === !1 && this.pipeline.removePolicy({ name: ry }));
     }
     async sendOperationRequest(e, t) {
       let n = e?.options?.onResponse,
@@ -32618,49 +32664,49 @@ var uS = class extends Hx {
       }
       e.options = { ...e.options, onResponse: i };
       let a = await super.sendOperationRequest(e, t);
-      return (r && Object.defineProperty(a, "_response", { value: cS(r) }), a);
+      return (r && Object.defineProperty(a, "_response", { value: uS(r) }), a);
     }
   },
-  dS;
+  pS;
 (function (e) {
   ((e[(e.ERROR = 1)] = `ERROR`),
     (e[(e.INFO = 3)] = `INFO`),
     (e[(e.OFF = 0)] = `OFF`),
     (e[(e.WARNING = 2)] = `WARNING`));
-})((dS ||= {}));
-var fS = {
+})((pS ||= {}));
+var mS = {
     log(e, t) {},
     shouldLog(e) {
       return !1;
     },
   },
-  pS = `RequestPolicyFactoryPolicy`;
-function mS(e) {
+  hS = `RequestPolicyFactoryPolicy`;
+function gS(e) {
   let t = e.slice().reverse();
   return {
-    name: pS,
+    name: hS,
     async sendRequest(e, n) {
       let r = {
         async sendRequest(e) {
-          return cS(await n(nS(e)), { createProxy: !0 });
+          return uS(await n(iS(e)), { createProxy: !0 });
         },
       };
-      for (let e of t) r = e.create(r, fS);
-      let i = rS(e, { createProxy: !0 });
-      return lS(await r.sendRequest(i));
+      for (let e of t) r = e.create(r, mS);
+      let i = aS(e, { createProxy: !0 });
+      return dS(await r.sendRequest(i));
     },
   };
 }
-function hS(e) {
-  return { sendRequest: async (t) => lS(await e.sendRequest(rS(t, { createProxy: !0 }))) };
+function _S(e) {
+  return { sendRequest: async (t) => dS(await e.sendRequest(aS(t, { createProxy: !0 }))) };
 }
-var gS = `:A-Za-z_\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD`,
-  _S = gS + `\\-.\\d\\u00B7\\u0300-\\u036F\\u203F-\\u2040`;
-`` + gS + _S;
-var vS = RegExp(
+var vS = `:A-Za-z_\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD`,
+  yS = vS + `\\-.\\d\\u00B7\\u0300-\\u036F\\u203F-\\u2040`;
+`` + vS + yS;
+var bS = RegExp(
   `^[:A-Za-z_\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD][:A-Za-z_\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD\\-.\\d\\u00B7\\u0300-\\u036F\\u203F-\\u2040]*$`,
 );
-function yS(e, t) {
+function xS(e, t) {
   let n = [],
     r = t.exec(e);
   for (; r;) {
@@ -32672,13 +32718,13 @@ function yS(e, t) {
   }
   return n;
 }
-var bS = function (e) {
-  return vS.exec(e) != null;
+var SS = function (e) {
+  return bS.exec(e) != null;
 };
-function xS(e) {
+function CS(e) {
   return e !== void 0;
 }
-var SS = [
+var wS = [
     `hasOwnProperty`,
     `toString`,
     `valueOf`,
@@ -32687,21 +32733,21 @@ var SS = [
     `__lookupGetter__`,
     `__lookupSetter__`,
   ],
-  CS = [`__proto__`, `constructor`, `prototype`],
-  wS = { allowBooleanAttributes: !1, unpairedTags: [] };
-function TS(e, t) {
-  t = Object.assign({}, wS, t);
+  TS = [`__proto__`, `constructor`, `prototype`],
+  ES = { allowBooleanAttributes: !1, unpairedTags: [] };
+function DS(e, t) {
+  t = Object.assign({}, ES, t);
   let n = [],
     r = !1,
     i = !1;
   e[0] === `﻿` && (e = e.substr(1));
   for (let a = 0; a < e.length; a++)
     if (e[a] === `<` && e[a + 1] === `?`) {
-      if (((a += 2), (a = DS(e, a)), a.err)) return a;
+      if (((a += 2), (a = kS(e, a)), a.err)) return a;
     } else if (e[a] === `<`) {
       let o = a;
       if ((a++, e[a] === `!`)) {
-        a = OS(e, a);
+        a = AS(e, a);
         continue;
       }
       {
@@ -32724,7 +32770,7 @@ function TS(e, t) {
         if (
           ((c = c.trim()),
           c[c.length - 1] === `/` && ((c = c.substring(0, c.length - 1)), a--),
-          !RS(c))
+          !BS(c))
         ) {
           let t;
           return (
@@ -32732,39 +32778,39 @@ function TS(e, t) {
               c.trim().length === 0
                 ? `Invalid space after '<'.`
                 : `Tag '` + c + `' is an invalid name.`),
-            IS(`InvalidTag`, t, zS(e, a))
+            RS(`InvalidTag`, t, VS(e, a))
           );
         }
-        let l = jS(e, a);
+        let l = NS(e, a);
         if (l === !1)
-          return IS(`InvalidAttr`, `Attributes for '` + c + `' have open quote.`, zS(e, a));
+          return RS(`InvalidAttr`, `Attributes for '` + c + `' have open quote.`, VS(e, a));
         let u = l.value;
         if (((a = l.index), u[u.length - 1] === `/`)) {
           let n = a - u.length;
           u = u.substring(0, u.length - 1);
-          let i = NS(u, t);
+          let i = FS(u, t);
           if (i === !0) r = !0;
-          else return IS(i.err.code, i.err.msg, zS(e, n + i.err.line));
+          else return RS(i.err.code, i.err.msg, VS(e, n + i.err.line));
         } else if (s) {
           if (!l.tagClosed)
-            return IS(
+            return RS(
               `InvalidTag`,
               `Closing tag '` + c + `' doesn't have proper closing.`,
-              zS(e, a),
+              VS(e, a),
             );
           if (u.trim().length > 0)
-            return IS(
+            return RS(
               `InvalidTag`,
               `Closing tag '` + c + `' can't have attributes or invalid starting.`,
-              zS(e, o),
+              VS(e, o),
             );
           if (n.length === 0)
-            return IS(`InvalidTag`, `Closing tag '` + c + `' has not been opened.`, zS(e, o));
+            return RS(`InvalidTag`, `Closing tag '` + c + `' has not been opened.`, VS(e, o));
           {
             let t = n.pop();
             if (c !== t.tagName) {
-              let n = zS(e, t.tagStartPos);
-              return IS(
+              let n = VS(e, t.tagStartPos);
+              return RS(
                 `InvalidTag`,
                 `Expected closing tag '` +
                   t.tagName +
@@ -32775,43 +32821,43 @@ function TS(e, t) {
                   `) instead of closing tag '` +
                   c +
                   `'.`,
-                zS(e, o),
+                VS(e, o),
               );
             }
             n.length == 0 && (i = !0);
           }
         } else {
-          let s = NS(u, t);
-          if (s !== !0) return IS(s.err.code, s.err.msg, zS(e, a - u.length + s.err.line));
-          if (i === !0) return IS(`InvalidXml`, `Multiple possible root nodes found.`, zS(e, a));
+          let s = FS(u, t);
+          if (s !== !0) return RS(s.err.code, s.err.msg, VS(e, a - u.length + s.err.line));
+          if (i === !0) return RS(`InvalidXml`, `Multiple possible root nodes found.`, VS(e, a));
           (t.unpairedTags.indexOf(c) !== -1 || n.push({ tagName: c, tagStartPos: o }), (r = !0));
         }
         for (a++; a < e.length; a++)
           if (e[a] === `<`) {
             if (e[a + 1] === `!`) {
-              (a++, (a = OS(e, a)));
+              (a++, (a = AS(e, a)));
               continue;
             }
             if (e[a + 1] === `?`) {
-              if (((a = DS(e, ++a)), a.err)) return a;
+              if (((a = kS(e, ++a)), a.err)) return a;
             } else break;
           } else if (e[a] === `&`) {
-            let t = FS(e, a);
-            if (t == -1) return IS(`InvalidChar`, `char '&' is not expected.`, zS(e, a));
+            let t = LS(e, a);
+            if (t == -1) return RS(`InvalidChar`, `char '&' is not expected.`, VS(e, a));
             a = t;
-          } else if (i === !0 && !ES(e[a]))
-            return IS(`InvalidXml`, `Extra text at the end`, zS(e, a));
+          } else if (i === !0 && !OS(e[a]))
+            return RS(`InvalidXml`, `Extra text at the end`, VS(e, a));
         e[a] === `<` && a--;
       }
     } else {
-      if (ES(e[a])) continue;
-      return IS(`InvalidChar`, `char '` + e[a] + `' is not expected.`, zS(e, a));
+      if (OS(e[a])) continue;
+      return RS(`InvalidChar`, `char '` + e[a] + `' is not expected.`, VS(e, a));
     }
   return r
     ? n.length == 1
-      ? IS(`InvalidTag`, `Unclosed tag '` + n[0].tagName + `'.`, zS(e, n[0].tagStartPos))
+      ? RS(`InvalidTag`, `Unclosed tag '` + n[0].tagName + `'.`, VS(e, n[0].tagStartPos))
       : n.length > 0
-        ? IS(
+        ? RS(
             `InvalidXml`,
             `Invalid '` +
               JSON.stringify(
@@ -32823,9 +32869,9 @@ function TS(e, t) {
             { line: 1, col: 1 },
           )
         : !0
-    : IS(`InvalidXml`, `Start tag expected.`, 1);
+    : RS(`InvalidXml`, `Start tag expected.`, 1);
 }
-function ES(e) {
+function OS(e) {
   return (
     e === ` ` ||
     e === `	` ||
@@ -32835,16 +32881,16 @@ function ES(e) {
     e === `\r`
   );
 }
-function DS(e, t) {
+function kS(e, t) {
   let n = t;
   for (; t < e.length; t++)
     if (e[t] == `?` || e[t] == ` `) {
       let r = e.substr(n, t - n);
       if (t > 5 && r === `xml`)
-        return IS(
+        return RS(
           `InvalidXml`,
           `XML declaration allowed only at the start of the document.`,
-          zS(e, t),
+          VS(e, t),
         );
       if (e[t] == `?` && e[t + 1] == `>`) {
         t++;
@@ -32854,7 +32900,7 @@ function DS(e, t) {
     }
   return t;
 }
-function OS(e, t) {
+function AS(e, t) {
   if (e.length > t + 5 && e[t + 1] === `-` && e[t + 2] === `-`) {
     for (t += 3; t < e.length; t++)
       if (e[t] === `-` && e[t + 1] === `-` && e[t + 2] === `>`) {
@@ -32893,14 +32939,14 @@ function OS(e, t) {
   }
   return t;
 }
-var kS = `"`,
-  AS = `'`;
-function jS(e, t) {
+var jS = `"`,
+  MS = `'`;
+function NS(e, t) {
   let n = ``,
     r = ``,
     i = !1;
   for (; t < e.length; t++) {
-    if (e[t] === kS || e[t] === AS) r === `` ? (r = e[t]) : r !== e[t] || (r = ``);
+    if (e[t] === jS || e[t] === MS) r === `` ? (r = e[t]) : r !== e[t] || (r = ``);
     else if (e[t] === `>` && r === ``) {
       i = !0;
       break;
@@ -32909,13 +32955,13 @@ function jS(e, t) {
   }
   return r === `` && { value: n, index: t, tagClosed: i };
 }
-function MS(e) {
+function PS(e) {
   let t = [],
     n = e.length,
     r = 0;
   for (; r < n;) {
     let i = r;
-    for (; r < n && ES(e[r]);) r++;
+    for (; r < n && OS(e[r]);) r++;
     if (r >= n) break;
     if (e[r] === `=`) {
       r = i + 1;
@@ -32923,16 +32969,16 @@ function MS(e) {
     }
     let a = e.slice(i, r),
       o = r;
-    for (; r < n && !ES(e[r]) && e[r] !== `=`;) r++;
+    for (; r < n && !OS(e[r]) && e[r] !== `=`;) r++;
     let s = e.slice(o, r),
       c,
       l = r;
-    for (; l < n && ES(e[l]);) l++;
+    for (; l < n && OS(e[l]);) l++;
     l < n && e[l] === `=` && ((c = e.slice(r, l + 1)), (r = l + 1));
     let u,
       d,
       f = r;
-    for (; f < n && ES(e[f]);) f++;
+    for (; f < n && OS(e[f]);) f++;
     if (f < n && (e[f] === `"` || e[f] === `'`)) {
       let t = f + 1,
         n = e.indexOf(e[f], t);
@@ -32949,24 +32995,24 @@ function MS(e) {
   }
   return t;
 }
-function NS(e, t) {
-  let n = MS(e),
+function FS(e, t) {
+  let n = PS(e),
     r = {};
   for (let e = 0; e < n.length; e++) {
     if (n[e][1].length === 0)
-      return IS(`InvalidAttr`, `Attribute '` + n[e][2] + `' has no space in starting.`, BS(n[e]));
+      return RS(`InvalidAttr`, `Attribute '` + n[e][2] + `' has no space in starting.`, HS(n[e]));
     if (n[e][3] !== void 0 && n[e][4] === void 0)
-      return IS(`InvalidAttr`, `Attribute '` + n[e][2] + `' is without value.`, BS(n[e]));
+      return RS(`InvalidAttr`, `Attribute '` + n[e][2] + `' is without value.`, HS(n[e]));
     if (n[e][3] === void 0 && !t.allowBooleanAttributes)
-      return IS(`InvalidAttr`, `boolean attribute '` + n[e][2] + `' is not allowed.`, BS(n[e]));
+      return RS(`InvalidAttr`, `boolean attribute '` + n[e][2] + `' is not allowed.`, HS(n[e]));
     let i = n[e][2];
-    if (!LS(i)) return IS(`InvalidAttr`, `Attribute '` + i + `' is an invalid name.`, BS(n[e]));
+    if (!zS(i)) return RS(`InvalidAttr`, `Attribute '` + i + `' is an invalid name.`, HS(n[e]));
     if (!Object.prototype.hasOwnProperty.call(r, i)) r[i] = 1;
-    else return IS(`InvalidAttr`, `Attribute '` + i + `' is repeated.`, BS(n[e]));
+    else return RS(`InvalidAttr`, `Attribute '` + i + `' is repeated.`, HS(n[e]));
   }
   return !0;
 }
-function PS(e, t) {
+function IS(e, t) {
   let n = /\d/;
   for (e[t] === `x` && (t++, (n = /[\da-fA-F]/)); t < e.length; t++) {
     if (e[t] === `;`) return t;
@@ -32974,9 +33020,9 @@ function PS(e, t) {
   }
   return -1;
 }
-function FS(e, t) {
+function LS(e, t) {
   if ((t++, e[t] === `;`)) return -1;
-  if (e[t] === `#`) return (t++, PS(e, t));
+  if (e[t] === `#`) return (t++, IS(e, t));
   let n = 0;
   for (; t < e.length; t++, n++)
     if (!(e[t].match(/\w/) && n < 20)) {
@@ -32985,23 +33031,23 @@ function FS(e, t) {
     }
   return t;
 }
-function IS(e, t, n) {
+function RS(e, t, n) {
   return { err: { code: e, msg: t, line: n.line || n, col: n.col } };
 }
-function LS(e) {
-  return bS(e);
+function zS(e) {
+  return SS(e);
 }
-function RS(e) {
-  return bS(e);
+function BS(e) {
+  return SS(e);
 }
-function zS(e, t) {
+function VS(e, t) {
   let n = e.substring(0, t).split(/\r?\n/);
   return { line: n.length, col: n[n.length - 1].length + 1 };
 }
-function BS(e) {
+function HS(e) {
   return e.startIndex + e[1].length;
 }
-var VS = {
+var US = {
     cent: `¢`,
     pound: `£`,
     curren: `¤`,
@@ -33018,8 +33064,8 @@ var VS = {
     yuan: `¥`,
     cedil: `¸`,
   },
-  HS = { amp: `&`, apos: `'`, gt: `>`, lt: `<`, quot: `"` },
-  US = {
+  WS = { amp: `&`, apos: `'`, gt: `>`, lt: `<`, quot: `"` },
+  GS = {
     nbsp: `\xA0`,
     copy: `©`,
     reg: `®`,
@@ -33041,15 +33087,15 @@ var VS = {
     frac14: `¼`,
     frac34: `¾`,
   },
-  WS = Object.freeze({ ALLOW: `allow`, BLOCK: `block`, THROW: `throw` }),
-  GS = new Set(`!?\\\\/[]$%{}^&*()<>|+`);
-function KS(e) {
+  KS = Object.freeze({ ALLOW: `allow`, BLOCK: `block`, THROW: `throw` }),
+  qS = new Set(`!?\\\\/[]$%{}^&*()<>|+`);
+function JS(e) {
   if (e[0] === `#`) throw Error(`[EntityReplacer] Invalid character '#' in entity name: "${e}"`);
   for (let t of e)
-    if (GS.has(t)) throw Error(`[EntityReplacer] Invalid character '${t}' in entity name: "${e}"`);
+    if (qS.has(t)) throw Error(`[EntityReplacer] Invalid character '${t}' in entity name: "${e}"`);
   return e;
 }
-function qS(...e) {
+function YS(...e) {
   let t = Object.create(null);
   for (let n of e)
     if (n)
@@ -33063,45 +33109,45 @@ function qS(...e) {
       }
   return t;
 }
-var JS = `external`,
-  YS = `base`,
-  XS = `all`;
-function ZS(e) {
-  return !e || e === JS
-    ? new Set([JS])
-    : e === XS
-      ? new Set([XS])
-      : e === YS
-        ? new Set([YS])
+var XS = `external`,
+  ZS = `base`,
+  QS = `all`;
+function $S(e) {
+  return !e || e === XS
+    ? new Set([XS])
+    : e === QS
+      ? new Set([QS])
+      : e === ZS
+        ? new Set([ZS])
         : Array.isArray(e)
           ? new Set(e)
-          : new Set([JS]);
+          : new Set([XS]);
 }
-var QS = Object.freeze({ allow: 0, leave: 1, remove: 2, throw: 3 }),
-  $S = new Set([9, 10, 13]);
-function eC(e) {
-  if (!e) return { xmlVersion: 1, onLevel: QS.allow, nullLevel: QS.remove };
+var eC = Object.freeze({ allow: 0, leave: 1, remove: 2, throw: 3 }),
+  tC = new Set([9, 10, 13]);
+function nC(e) {
+  if (!e) return { xmlVersion: 1, onLevel: eC.allow, nullLevel: eC.remove };
   let t = e.xmlVersion === 1.1 ? 1.1 : 1,
-    n = QS[e.onNCR] ?? QS.allow,
-    r = QS[e.nullNCR] ?? QS.remove;
-  return { xmlVersion: t, onLevel: n, nullLevel: Math.max(r, QS.remove) };
+    n = eC[e.onNCR] ?? eC.allow,
+    r = eC[e.nullNCR] ?? eC.remove;
+  return { xmlVersion: t, onLevel: n, nullLevel: Math.max(r, eC.remove) };
 }
-var tC = class {
+var rC = class {
     constructor(e = {}) {
       ((this._limit = e.limit || {}),
         (this._maxTotalExpansions = this._limit.maxTotalExpansions || 0),
         (this._maxExpandedLength = this._limit.maxExpandedLength || 0),
         (this._postCheck = typeof e.postCheck == `function` ? e.postCheck : (e) => e),
-        (this._limitTiers = ZS(this._limit.applyLimitsTo ?? JS)),
+        (this._limitTiers = $S(this._limit.applyLimitsTo ?? XS)),
         (this._numericAllowed = e.numericAllowed ?? !0),
-        (this._baseMap = qS(HS, e.namedEntities || null)),
+        (this._baseMap = YS(WS, e.namedEntities || null)),
         (this._externalMap = Object.create(null)),
         (this._inputMap = Object.create(null)),
         (this._totalExpansions = 0),
         (this._expandedLength = 0),
         (this._removeSet = new Set(e.remove && Array.isArray(e.remove) ? e.remove : [])),
         (this._leaveSet = new Set(e.leave && Array.isArray(e.leave) ? e.leave : [])));
-      let t = eC(e.ncr);
+      let t = nC(e.ncr);
       ((this._ncrXmlVersion = t.xmlVersion),
         (this._ncrOnLevel = t.onLevel),
         (this._ncrNullLevel = t.nullLevel),
@@ -33112,25 +33158,25 @@ var tC = class {
     _applyRegistrationHook(e, t, n, r) {
       if (!e) return !0;
       let i = e(t, n);
-      if (i === WS.BLOCK) return !1;
-      if (i === WS.THROW)
+      if (i === KS.BLOCK) return !1;
+      if (i === KS.THROW)
         throw Error(`[EntityDecoder] Registration of ${r} entity "&${t};" was rejected by hook`);
       return !0;
     }
     setExternalEntities(e) {
-      if (e) for (let t of Object.keys(e)) KS(t);
+      if (e) for (let t of Object.keys(e)) JS(t);
       if (!this._onExternalEntity) {
-        this._externalMap = qS(e);
+        this._externalMap = YS(e);
         return;
       }
-      let t = qS(e),
+      let t = YS(e),
         n = Object.create(null);
       for (let [e, r] of Object.entries(t))
         this._applyRegistrationHook(this._onExternalEntity, e, r, `external`) && (n[e] = r);
       this._externalMap = n;
     }
     addExternalEntity(e, t) {
-      (KS(e),
+      (JS(e),
         typeof t == `string` &&
           t.indexOf(`&`) === -1 &&
           this._applyRegistrationHook(this._onExternalEntity, e, t, `external`) &&
@@ -33138,10 +33184,10 @@ var tC = class {
     }
     addInputEntities(e) {
       if (((this._totalExpansions = 0), (this._expandedLength = 0), !this._onInputEntity)) {
-        this._inputMap = qS(e);
+        this._inputMap = YS(e);
         return;
       }
-      let t = qS(e),
+      let t = YS(e),
         n = Object.create(null);
       for (let [e, r] of Object.entries(t))
         this._applyRegistrationHook(this._onInputEntity, e, r, `input`) && (n[e] = r);
@@ -33185,7 +33231,7 @@ var tC = class {
           continue;
         }
         let u, d;
-        if (this._removeSet.has(l)) ((u = ``), d === void 0 && (d = JS));
+        if (this._removeSet.has(l)) ((u = ``), d === void 0 && (d = XS));
         else if (this._leaveSet.has(l)) {
           a++;
           continue;
@@ -33195,7 +33241,7 @@ var tC = class {
             a++;
             continue;
           }
-          ((u = e), (d = YS));
+          ((u = e), (d = ZS));
         } else {
           let e = this._resolveName(l);
           ((u = e?.value), (d = e?.tier));
@@ -33232,30 +33278,30 @@ var tC = class {
       return this._postCheck(l, t);
     }
     _tierCounts(e) {
-      return this._limitTiers.has(XS) ? !0 : this._limitTiers.has(e);
+      return this._limitTiers.has(QS) ? !0 : this._limitTiers.has(e);
     }
     _resolveName(e) {
-      if (e in this._inputMap) return { value: this._inputMap[e], tier: JS };
-      if (e in this._externalMap) return { value: this._externalMap[e], tier: JS };
-      if (e in this._baseMap) return { value: this._baseMap[e], tier: YS };
+      if (e in this._inputMap) return { value: this._inputMap[e], tier: XS };
+      if (e in this._externalMap) return { value: this._externalMap[e], tier: XS };
+      if (e in this._baseMap) return { value: this._baseMap[e], tier: ZS };
     }
     _classifyNCR(e) {
       return e === 0
         ? this._ncrNullLevel
         : (e >= 55296 && e <= 57343) ||
-            (this._ncrXmlVersion === 1 && e >= 1 && e <= 31 && !$S.has(e))
-          ? QS.remove
+            (this._ncrXmlVersion === 1 && e >= 1 && e <= 31 && !tC.has(e))
+          ? eC.remove
           : -1;
     }
     _applyNCRAction(e, t, n) {
       switch (e) {
-        case QS.allow:
+        case eC.allow:
           return String.fromCodePoint(n);
-        case QS.remove:
+        case eC.remove:
           return ``;
-        case QS.leave:
+        case eC.leave:
           return;
-        case QS.throw:
+        case eC.throw:
           throw Error(
             `[EntityDecoder] Prohibited numeric character reference &${t}; (U+${n.toString(16).toUpperCase().padStart(4, `0`)})`,
           );
@@ -33272,13 +33318,13 @@ var tC = class {
       )
         return;
       let r = this._classifyNCR(n);
-      if (!this._numericAllowed && r < QS.remove) return;
+      if (!this._numericAllowed && r < eC.remove) return;
       let i = r === -1 ? this._ncrOnLevel : Math.max(this._ncrOnLevel, r);
       return this._applyNCRAction(i, e, n);
     }
   },
-  nC = (e) => (SS.includes(e) ? `__` + e : e),
-  rC = {
+  iC = (e) => (wS.includes(e) ? `__` + e : e),
+  aC = {
     preserveOrder: !1,
     attributeNamePrefix: `@_`,
     attributesGroupName: !1,
@@ -33316,17 +33362,17 @@ var tC = class {
     maxNestedTags: 100,
     strictReservedNames: !0,
     jPath: !0,
-    onDangerousProperty: nC,
+    onDangerousProperty: iC,
   };
-function iC(e, t) {
+function oC(e, t) {
   if (typeof e != `string`) return;
   let n = e.toLowerCase();
-  if (SS.some((e) => n === e.toLowerCase()) || CS.some((e) => n === e.toLowerCase()))
+  if (wS.some((e) => n === e.toLowerCase()) || TS.some((e) => n === e.toLowerCase()))
     throw Error(
       `[SECURITY] Invalid ${t}: "${e}" is a reserved JavaScript keyword that could cause prototype pollution`,
     );
 }
-function aC(e, t) {
+function sC(e, t) {
   return typeof e == `boolean`
     ? {
         enabled: e,
@@ -33351,10 +33397,10 @@ function aC(e, t) {
           tagFilter: e.tagFilter ?? null,
           appliesTo: e.appliesTo ?? `all`,
         }
-      : aC(!0);
+      : sC(!0);
 }
-var oC = function (e) {
-    let t = Object.assign({}, rC, e),
+var cC = function (e) {
+    let t = Object.assign({}, aC, e),
       n = [
         { value: t.attributeNamePrefix, name: `attributeNamePrefix` },
         { value: t.attributesGroupName, name: `attributesGroupName` },
@@ -33362,10 +33408,10 @@ var oC = function (e) {
         { value: t.cdataPropName, name: `cdataPropName` },
         { value: t.commentPropName, name: `commentPropName` },
       ];
-    for (let { value: e, name: t } of n) e && iC(e, t);
+    for (let { value: e, name: t } of n) e && oC(e, t);
     return (
-      t.onDangerousProperty === null && (t.onDangerousProperty = nC),
-      (t.processEntities = aC(t.processEntities, t.htmlEntities)),
+      t.onDangerousProperty === null && (t.onDangerousProperty = iC),
+      (t.processEntities = sC(t.processEntities, t.htmlEntities)),
       (t.unpairedTagsSet = new Set(t.unpairedTags)),
       t.stopNodes &&
         Array.isArray(t.stopNodes) &&
@@ -33375,8 +33421,8 @@ var oC = function (e) {
       t
     );
   },
-  sC = typeof Symbol == `function` ? Symbol(`XML Node Metadata`) : `@@xmlMetadata`,
-  cC = class {
+  lC = typeof Symbol == `function` ? Symbol(`XML Node Metadata`) : `@@xmlMetadata`,
+  uC = class {
     constructor(e) {
       ((this.tagname = e), (this.child = []), (this[`:@`] = Object.create(null)));
     }
@@ -33391,21 +33437,21 @@ var oC = function (e) {
         this.addStartIndex(t));
     }
     addStartIndex(e) {
-      e !== void 0 && (this.child[this.child.length - 1][sC] = { startIndex: e });
+      e !== void 0 && (this.child[this.child.length - 1][lC] = { startIndex: e });
     }
     addEndIndex(e) {
       let t = this.child[this.child.length - 1];
-      t !== void 0 && t[sC] !== void 0 && t[sC].endIndex === void 0 && (t[sC].endIndex = e);
+      t !== void 0 && t[lC] !== void 0 && t[lC].endIndex === void 0 && (t[lC].endIndex = e);
     }
     static getMetaDataSymbol() {
-      return sC;
+      return lC;
     }
   },
-  lC = `:A-Za-z_À-ÖØ-öø-˿Ͱ-ͽͿ-҆҈-῿‌-‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�`,
-  uC = lC + `\\-\\.\\d·̀-ͯ‿-⁀`,
-  dC = `:A-Za-z_À-˿Ͱ-ͽͿ-҆҈-῿‌-‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�𐀀-󯿿`,
-  fC = dC + `\\-\\.\\d·̀-ͯ҇‿-⁀`,
-  pC = (e, t, n = ``) => {
+  dC = `:A-Za-z_À-ÖØ-öø-˿Ͱ-ͽͿ-҆҈-῿‌-‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�`,
+  fC = dC + `\\-\\.\\d·̀-ͯ‿-⁀`,
+  pC = `:A-Za-z_À-˿Ͱ-ͽͿ-҆҈-῿‌-‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�𐀀-󯿿`,
+  mC = pC + `\\-\\.\\d·̀-ͯ҇‿-⁀`,
+  hC = (e, t, n = ``) => {
     let r = `[${e.replace(`:`, ``)}][${t.replace(`:`, ``)}]*`;
     return {
       name: RegExp(`^[${e}][${t}]*$`, n),
@@ -33415,16 +33461,16 @@ var oC = function (e) {
       nmTokens: RegExp(`^[${t}]+(?:\\s+[${t}]+)*$`, n),
     };
   },
-  mC = pC(lC, uC),
-  hC = pC(dC, fC, `u`),
-  gC = pC(`:A-Za-z_`, `:A-Za-z_\\-\\.\\d`),
-  _C = (e = `1.0`, t = !1) => (t ? gC : e === `1.1` ? hC : mC),
-  vC = (e, { xmlVersion: t = `1.0`, asciiOnly: n = !1 } = {}) => _C(t, n).qName.test(e),
-  yC = [`name`, `ncName`, `qName`, `nmToken`, `nmTokens`],
-  bC = (e, { xmlVersion: t = `1.0`, asciiOnly: n = !1, maxCacheSize: r = 2048 } = {}) => {
-    if (!yC.includes(e))
-      throw TypeError(`Unknown production "${e}". Must be one of: ${yC.join(`, `)}`);
-    let i = _C(t, n)[e],
+  gC = hC(dC, fC),
+  _C = hC(pC, mC, `u`),
+  vC = hC(`:A-Za-z_`, `:A-Za-z_\\-\\.\\d`),
+  yC = (e = `1.0`, t = !1) => (t ? vC : e === `1.1` ? _C : gC),
+  bC = (e, { xmlVersion: t = `1.0`, asciiOnly: n = !1 } = {}) => yC(t, n).qName.test(e),
+  xC = [`name`, `ncName`, `qName`, `nmToken`, `nmTokens`],
+  SC = (e, { xmlVersion: t = `1.0`, asciiOnly: n = !1, maxCacheSize: r = 2048 } = {}) => {
+    if (!xC.includes(e))
+      throw TypeError(`Unknown production "${e}". Must be one of: ${xC.join(`, `)}`);
+    let i = yC(t, n)[e],
       a = new Map(),
       o = (e) => {
         let t = a.get(e);
@@ -33439,7 +33485,7 @@ var oC = function (e) {
       o
     );
   },
-  xC = class {
+  CC = class {
     constructor(e, t) {
       ((this.suppressValidationErr = !e), (this.options = e), (this.xmlVersion = t || 1));
     }
@@ -33473,7 +33519,7 @@ var oC = function (e) {
             continue;
           }
           if (e[t] === `<` && !o) {
-            if (a && CC(e, `!ENTITY`, t)) {
+            if (a && TC(e, `!ENTITY`, t)) {
               t += 7;
               let i, a;
               if (
@@ -33490,16 +33536,16 @@ var oC = function (e) {
                   );
                 ((n[i] = a), r++);
               }
-            } else if (a && CC(e, `!ELEMENT`, t)) {
+            } else if (a && TC(e, `!ELEMENT`, t)) {
               t += 8;
               let { index: n } = this.readElementExp(e, t + 1);
               t = n;
-            } else if (a && CC(e, `!ATTLIST`, t)) t += 8;
-            else if (a && CC(e, `!NOTATION`, t)) {
+            } else if (a && TC(e, `!ATTLIST`, t)) t += 8;
+            else if (a && TC(e, `!NOTATION`, t)) {
               t += 9;
               let { index: n } = this.readNotationExp(e, t + 1, this.suppressValidationErr);
               t = n;
-            } else if (CC(e, `!--`, t)) o = !0;
+            } else if (TC(e, `!--`, t)) o = !0;
             else throw Error(`Invalid DOCTYPE`);
             (i++, (c = ``));
           } else if (e[t] === `>`) {
@@ -33511,11 +33557,11 @@ var oC = function (e) {
       return { entities: n, i: t };
     }
     readEntityExp(e, t) {
-      t = SC(e, t);
+      t = wC(e, t);
       let n = t;
       for (; t < e.length && !/\s/.test(e[t]) && e[t] !== `"` && e[t] !== `'`;) t++;
       let r = e.substring(n, t);
-      if ((wC(r, { xmlVersion: this.xmlVersion }), (t = SC(e, t)), !this.suppressValidationErr)) {
+      if ((EC(r, { xmlVersion: this.xmlVersion }), (t = wC(e, t)), !this.suppressValidationErr)) {
         if (e.substring(t, t + 6).toUpperCase() === `SYSTEM`)
           throw Error(`External entities are not supported`);
         if (e[t] === `%`) throw Error(`Parameter entities are not supported`);
@@ -33533,20 +33579,20 @@ var oC = function (e) {
       return (t--, [r, i, t]);
     }
     readNotationExp(e, t) {
-      t = SC(e, t);
+      t = wC(e, t);
       let n = t;
       for (; t < e.length && !/\s/.test(e[t]);) t++;
       let r = e.substring(n, t);
-      (!this.suppressValidationErr && wC(r, { xmlVersion: this.xmlVersion }), (t = SC(e, t)));
+      (!this.suppressValidationErr && EC(r, { xmlVersion: this.xmlVersion }), (t = wC(e, t)));
       let i = e.substring(t, t + 6).toUpperCase();
       if (!this.suppressValidationErr && i !== `SYSTEM` && i !== `PUBLIC`)
         throw Error(`Expected SYSTEM or PUBLIC, found "${i}"`);
-      ((t += i.length), (t = SC(e, t)));
+      ((t += i.length), (t = wC(e, t)));
       let a = null,
         o = null;
       if (i === `PUBLIC`)
         (([t, a] = this.readIdentifierVal(e, t, `publicIdentifier`)),
-          (t = SC(e, t)),
+          (t = wC(e, t)),
           (e[t] === `"` || e[t] === `'`) &&
             ([t, o] = this.readIdentifierVal(e, t, `systemIdentifier`)));
       else if (
@@ -33568,16 +33614,16 @@ var oC = function (e) {
       return (t++, [t, r]);
     }
     readElementExp(e, t) {
-      t = SC(e, t);
+      t = wC(e, t);
       let n = t;
       for (; t < e.length && !/\s/.test(e[t]);) t++;
       let r = e.substring(n, t);
-      if (!this.suppressValidationErr && !vC(r, { xmlVersion: this.xmlVersion }))
+      if (!this.suppressValidationErr && !bC(r, { xmlVersion: this.xmlVersion }))
         throw Error(`Invalid element name: "${r}"`);
-      t = SC(e, t);
+      t = wC(e, t);
       let i = ``;
-      if (e[t] === `E` && CC(e, `MPTY`, t)) t += 4;
-      else if (e[t] === `A` && CC(e, `NY`, t)) t += 2;
+      if (e[t] === `E` && TC(e, `MPTY`, t)) t += 4;
+      else if (e[t] === `A` && TC(e, `NY`, t)) t += 2;
       else if (e[t] === `(`) {
         t++;
         let n = t;
@@ -33588,21 +33634,21 @@ var oC = function (e) {
       return { elementName: r, contentModel: i.trim(), index: t };
     }
     readAttlistExp(e, t) {
-      t = SC(e, t);
+      t = wC(e, t);
       let n = t;
       for (; t < e.length && !/\s/.test(e[t]);) t++;
       let r = e.substring(n, t);
       for (
-        wC(r, { xmlVersion: this.xmlVersion }), t = SC(e, t), n = t;
+        EC(r, { xmlVersion: this.xmlVersion }), t = wC(e, t), n = t;
         t < e.length && !/\s/.test(e[t]);
       )
         t++;
       let i = e.substring(n, t);
-      if (!wC(i, { xmlVersion: this.xmlVersion })) throw Error(`Invalid attribute name: "${i}"`);
-      t = SC(e, t);
+      if (!EC(i, { xmlVersion: this.xmlVersion })) throw Error(`Invalid attribute name: "${i}"`);
+      t = wC(e, t);
       let a = ``;
       if (e.substring(t, t + 8).toUpperCase() === `NOTATION`) {
-        if (((a = `NOTATION`), (t += 8), (t = SC(e, t)), e[t] !== `(`))
+        if (((a = `NOTATION`), (t += 8), (t = wC(e, t)), e[t] !== `(`))
           throw Error(`Expected '(', found "${e[t]}"`);
         t++;
         let n = [];
@@ -33610,9 +33656,9 @@ var oC = function (e) {
           let r = t;
           for (; t < e.length && e[t] !== `|` && e[t] !== `)`;) t++;
           let i = e.substring(r, t);
-          if (((i = i.trim()), !wC(i, { xmlVersion: this.xmlVersion })))
+          if (((i = i.trim()), !EC(i, { xmlVersion: this.xmlVersion })))
             throw Error(`Invalid notation name: "${i}"`);
-          (n.push(i), e[t] === `|` && (t++, (t = SC(e, t))));
+          (n.push(i), e[t] === `|` && (t++, (t = wC(e, t))));
         }
         if (e[t] !== `)`) throw Error(`Unterminated list of notations`);
         (t++, (a += ` (` + n.join(`|`) + `)`));
@@ -33635,7 +33681,7 @@ var oC = function (e) {
         )
           throw Error(`Invalid attribute type: "${a}"`);
       }
-      t = SC(e, t);
+      t = wC(e, t);
       let o = ``;
       return (
         e.substring(t, t + 8).toUpperCase() === `#REQUIRED`
@@ -33647,48 +33693,48 @@ var oC = function (e) {
       );
     }
   },
-  SC = (e, t) => {
+  wC = (e, t) => {
     for (; t < e.length && /\s/.test(e[t]);) t++;
     return t;
   };
-function CC(e, t, n) {
+function TC(e, t, n) {
   for (let r = 0; r < t.length; r++) if (t[r] !== e[n + r + 1]) return !1;
   return !0;
 }
-function wC(e, t) {
-  if (vC(e, { xmlVersion: t })) return e;
+function EC(e, t) {
+  if (bC(e, { xmlVersion: t })) return e;
   throw Error(`Invalid entity name ${e}`);
 }
-var TC = [
+var DC = [
     48, 1632, 1776, 2406, 2534, 2662, 2790, 2918, 3046, 3174, 3302, 3430, 3558, 3664, 3792, 3872,
     4160, 4240, 6112, 6160, 6470, 6608, 6784, 6800, 6992, 7088, 7232, 7248, 65296, 120782, 120792,
     120802, 120812, 120822, 66720, 68912, 69734, 69872, 69942, 70096, 70384, 70736, 70864, 71248,
     71360, 71472, 71904, 72016, 72688, 72784, 73040, 73120, 73552, 92768, 92864, 93008, 123200,
     123632, 124144, 125264, 130032,
   ],
-  EC = new Map(),
-  DC = 65535,
-  OC = 1632,
-  kC = new Uint8Array(63904).fill(255);
-for (let e of TC)
+  OC = new Map(),
+  kC = 65535,
+  AC = 1632,
+  jC = new Uint8Array(63904).fill(255);
+for (let e of DC)
   for (let t = 0; t < 10; t++) {
     let n = e + t;
-    n <= DC ? (kC[n - OC] = t) : EC.set(n, t);
+    n <= kC ? (jC[n - AC] = t) : OC.set(n, t);
   }
-var AC = 48,
-  jC = 57,
-  MC = 45,
-  NC = new Set([8722, 65293, 65123]);
-function PC(e) {
+var MC = 48,
+  NC = 57,
+  PC = 45,
+  FC = new Set([8722, 65293, 65123]);
+function IC(e) {
   if (typeof e != `string`) return e;
   let t = e.length;
   if (t === 0) return e;
   let n = -1;
   for (let r = 0; r < t; r++) {
     let i = e.charCodeAt(r);
-    if (!((i >= AC && i <= jC) || i === MC)) {
+    if (!((i >= MC && i <= NC) || i === PC)) {
       if (i < 1632) {
-        if (NC.has(i)) {
+        if (FC.has(i)) {
           n = r;
           break;
         }
@@ -33699,7 +33745,7 @@ function PC(e) {
           let t = e.charCodeAt(r + 1);
           if (t >= 56320 && t <= 57343) {
             let e = 65536 + ((i - 55296) << 10) + (t - 56320);
-            if (EC.has(e)) {
+            if (OC.has(e)) {
               n = r;
               break;
             }
@@ -33707,7 +33753,7 @@ function PC(e) {
         }
         continue;
       }
-      if (kC[i - 1632] !== 255 || NC.has(i)) {
+      if (jC[i - 1632] !== 255 || FC.has(i)) {
         n = r;
         break;
       }
@@ -33718,12 +33764,12 @@ function PC(e) {
   n > 0 && r.push(e.slice(0, n));
   for (let i = n; i < t; i++) {
     let n = e.charCodeAt(i);
-    if ((n >= AC && n <= jC) || n === MC) {
+    if ((n >= MC && n <= NC) || n === PC) {
       r.push(e[i]);
       continue;
     }
     if (n < 1632) {
-      r.push(NC.has(n) ? `-` : e[i]);
+      r.push(FC.has(n) ? `-` : e[i]);
       continue;
     }
     if (n >= 55296 && n <= 56319) {
@@ -33731,7 +33777,7 @@ function PC(e) {
         let t = e.charCodeAt(i + 1);
         if (t >= 56320 && t <= 57343) {
           let e = 65536 + ((n - 55296) << 10) + (t - 56320),
-            a = EC.get(e);
+            a = OC.get(e);
           if (a !== void 0) {
             (r.push(String.fromCharCode(a + 48)), i++);
             continue;
@@ -33741,20 +33787,20 @@ function PC(e) {
       r.push(e[i]);
       continue;
     }
-    if (NC.has(n)) {
+    if (FC.has(n)) {
       r.push(`-`);
       continue;
     }
-    let a = kC[n - OC];
+    let a = jC[n - AC];
     r.push(a === 255 ? e[i] : String.fromCharCode(a + 48));
   }
   return r.join(``);
 }
-var FC = /^[-+]?0x[a-fA-F0-9]+$/,
-  IC = /^0b[01]+$/,
-  LC = /^0o[0-7]+$/,
-  RC = /^([\-\+])?(0*)([0-9]*(\.[0-9]*)?)$/,
-  zC = {
+var LC = /^[-+]?0x[a-fA-F0-9]+$/,
+  RC = /^0b[01]+$/,
+  zC = /^0o[0-7]+$/,
+  BC = /^([\-\+])?(0*)([0-9]*(\.[0-9]*)?)$/,
+  VC = {
     hex: !0,
     binary: !1,
     octal: !1,
@@ -33764,22 +33810,22 @@ var FC = /^[-+]?0x[a-fA-F0-9]+$/,
     infinity: `original`,
     unicode: !1,
   };
-function BC(e, t = {}) {
-  if (((t = Object.assign({}, zC, t)), !e || typeof e != `string`)) return e;
+function HC(e, t = {}) {
+  if (((t = Object.assign({}, VC, t)), !e || typeof e != `string`)) return e;
   let n = e.trim();
   if (n.length === 0 || (t.skipLike !== void 0 && t.skipLike.test(n))) return e;
-  if (n === `0` || (t.unicode && ((n = PC(n)), n === `0`))) return 0;
-  if (t.hex && FC.test(n)) return WC(n, 16);
-  if (t.binary && IC.test(n)) return WC(n, 2);
-  if (t.octal && LC.test(n)) return WC(n, 8);
-  if (!isFinite(n)) return GC(e, Number(n), t);
-  if (n.includes(`e`) || n.includes(`E`)) return HC(e, n, t);
+  if (n === `0` || (t.unicode && ((n = IC(n)), n === `0`))) return 0;
+  if (t.hex && LC.test(n)) return KC(n, 16);
+  if (t.binary && RC.test(n)) return KC(n, 2);
+  if (t.octal && zC.test(n)) return KC(n, 8);
+  if (!isFinite(n)) return qC(e, Number(n), t);
+  if (n.includes(`e`) || n.includes(`E`)) return WC(e, n, t);
   {
-    let r = RC.exec(n);
+    let r = BC.exec(n);
     if (r) {
       let i = r[1] || ``,
         a = r[2],
-        o = UC(r[3]),
+        o = GC(r[3]),
         s = i ? e[a.length + 1] === `.` : e[a.length] === `.`;
       if (!t.leadingZeros && (a.length > 1 || (a.length === 1 && !s))) return e;
       {
@@ -33795,10 +33841,10 @@ function BC(e, t = {}) {
     return e;
   }
 }
-var VC = /^([-+])?(0*)(\d*(\.\d*)?[eE][-\+]?\d+)$/;
-function HC(e, t, n) {
+var UC = /^([-+])?(0*)(\d*(\.\d*)?[eE][-\+]?\d+)$/;
+function WC(e, t, n) {
   if (!n.eNotation) return e;
-  let r = t.match(VC);
+  let r = t.match(UC);
   if (r) {
     let i = r[1] || ``,
       a = r[3].indexOf(`e`) === -1 ? `E` : `e`,
@@ -33816,7 +33862,7 @@ function HC(e, t, n) {
   }
   return e;
 }
-function UC(e) {
+function GC(e) {
   if (e && e.indexOf(`.`) !== -1) {
     let t = e.length;
     for (; t > 0 && e.charCodeAt(t - 1) === 48;) t--;
@@ -33832,14 +33878,14 @@ function UC(e) {
   }
   return e;
 }
-function WC(e, t) {
+function KC(e, t) {
   let n = e.trim();
   if (((t === 2 || t === 8) && (e = n.substring(2)), parseInt)) return parseInt(e, t);
   if (Number.parseInt) return Number.parseInt(e, t);
   if (window && window.parseInt) return window.parseInt(e, t);
   throw Error(`parseInt, Number.parseInt, window.parseInt are not supported`);
 }
-function GC(e, t, n) {
+function qC(e, t, n) {
   let r = t === 1 / 0;
   switch (n.infinity.toLowerCase()) {
     case `null`:
@@ -33852,7 +33898,7 @@ function GC(e, t, n) {
       return e;
   }
 }
-function KC(e) {
+function JC(e) {
   return typeof e == `function`
     ? e
     : Array.isArray(e)
@@ -33862,7 +33908,7 @@ function KC(e) {
         }
       : () => !1;
 }
-var qC = class {
+var YC = class {
     constructor(e, t = {}, n) {
       ((this.pattern = e),
         (this.separator = t.separator || `.`),
@@ -33941,7 +33987,7 @@ var qC = class {
       return this.pattern;
     }
   },
-  JC = class {
+  XC = class {
     constructor() {
       ((this._byDepthAndTag = new Map()),
         (this._wildcardByDepth = new Map()),
@@ -34017,7 +34063,7 @@ var qC = class {
       return null;
     }
   },
-  YC = class {
+  ZC = class {
     constructor(e) {
       this._matcher = e;
     }
@@ -34075,13 +34121,13 @@ var qC = class {
       return e.matchesAny(this._matcher);
     }
   },
-  XC = class {
+  QC = class {
     constructor(e = {}) {
       ((this.separator = e.separator || `.`),
         (this.path = []),
         (this.siblingStacks = []),
         (this._pathStringCache = null),
-        (this._view = new YC(this)),
+        (this._view = new ZC(this)),
         (this._keptAttrs = []));
     }
     push(e, t = null, n = null, r = null) {
@@ -34258,7 +34304,7 @@ var qC = class {
       return this._view;
     }
   },
-  ZC = [
+  $C = [
     { id: `html-script-open`, description: `<script opening tag`, pattern: /<script[\s>/]/i },
     { id: `html-script-close`, description: `<\/script closing tag`, pattern: /<\/script[\s>]/i },
     {
@@ -34334,7 +34380,7 @@ var qC = class {
       pattern: /<form[\s>/]/i,
     },
   ],
-  QC = [
+  ew = [
     {
       id: `xml-cdata-injection`,
       description: `CDATA section injection: <![CDATA[ breaks out of text node context`,
@@ -34392,7 +34438,7 @@ var qC = class {
       pattern: /\?>/,
     },
   ],
-  $C = [
+  tw = [
     {
       id: `svg-script-element`,
       description: `<script element inside SVG executes JavaScript`,
@@ -34460,7 +34506,7 @@ var qC = class {
       pattern: /style\s*=[\s\S]{0,60}javascript\s*:/i,
     },
   ],
-  ew = [
+  nw = [
     {
       id: `sql-block-comment-open`,
       description: `SQL block comment open: /* ... */ — unusual in legitimate user text`,
@@ -34537,7 +34583,7 @@ var qC = class {
       pattern: /\bINFORMATION_SCHEMA\b/i,
     },
   ],
-  tw = [
+  rw = [
     {
       id: `shell-path-traversal-unix`,
       description: `Unix path traversal: ../  — climbing the directory tree`,
@@ -34605,7 +34651,7 @@ var qC = class {
       pattern: /\b(?:curl|wget)\s+(?:https?:\/\/|ftp:\/\/|-)/i,
     },
   ],
-  nw = [
+  iw = [
     {
       id: `redos-nested-quantifier-plus`,
       description: `Nested + quantifier inside a group with outer quantifier: (a+)+, (.+b)*, etc.`,
@@ -34647,72 +34693,72 @@ var qC = class {
       pattern: /\([^)]{0,200}(?:\|[^|)]{0,50}){9,}\)/,
     },
   ],
-  rw = `["'\\s]*:`,
-  iw = [
+  aw = `["'\\s]*:`,
+  ow = [
     {
       id: `nosql-where-operator`,
       description: `$where — executes arbitrary JavaScript server-side in MongoDB`,
-      pattern: RegExp(`\\$where${rw}`, `i`),
+      pattern: RegExp(`\\$where${aw}`, `i`),
     },
     {
       id: `nosql-ne-operator`,
       description: `$ne — "not equal" operator used to bypass equality checks`,
-      pattern: RegExp(`\\$ne${rw}`, `i`),
+      pattern: RegExp(`\\$ne${aw}`, `i`),
     },
     {
       id: `nosql-gt-operator`,
       description: `$gt — "greater than" used to bypass password/value checks`,
-      pattern: RegExp(`\\$gte?${rw}`, `i`),
+      pattern: RegExp(`\\$gte?${aw}`, `i`),
     },
     {
       id: `nosql-lt-operator`,
       description: `$lt / $lte — "less than" bypass variants`,
-      pattern: RegExp(`\\$lte?${rw}`, `i`),
+      pattern: RegExp(`\\$lte?${aw}`, `i`),
     },
     {
       id: `nosql-regex-operator`,
       description: `$regex — can be used to extract data character by character (blind injection)`,
-      pattern: RegExp(`\\$regex${rw}`, `i`),
+      pattern: RegExp(`\\$regex${aw}`, `i`),
     },
     {
       id: `nosql-or-operator`,
       description: `$or — logical OR; used to create always-true conditions`,
-      pattern: RegExp(`\\$or${rw}\\s*\\[`, `i`),
+      pattern: RegExp(`\\$or${aw}\\s*\\[`, `i`),
     },
     {
       id: `nosql-and-operator`,
       description: `$and — logical AND operator injection`,
-      pattern: RegExp(`\\$and${rw}\\s*\\[`, `i`),
+      pattern: RegExp(`\\$and${aw}\\s*\\[`, `i`),
     },
     {
       id: `nosql-nor-operator`,
       description: `$nor — logical NOR operator injection`,
-      pattern: RegExp(`\\$nor${rw}\\s*\\[`, `i`),
+      pattern: RegExp(`\\$nor${aw}\\s*\\[`, `i`),
     },
     {
       id: `nosql-exists-operator`,
       description: `$exists — can enumerate fields to determine schema`,
-      pattern: RegExp(`\\$exists${rw}`, `i`),
+      pattern: RegExp(`\\$exists${aw}`, `i`),
     },
     {
       id: `nosql-in-operator`,
       description: `$in — matches any value in a list; can enumerate values`,
-      pattern: RegExp(`\\$in${rw}\\s*\\[`, `i`),
+      pattern: RegExp(`\\$in${aw}\\s*\\[`, `i`),
     },
     {
       id: `nosql-expr-operator`,
       description: `$expr — allows aggregation expressions in queries (MongoDB 3.6+)`,
-      pattern: RegExp(`\\$expr${rw}`, `i`),
+      pattern: RegExp(`\\$expr${aw}`, `i`),
     },
     {
       id: `nosql-function-operator`,
       description: `$function — executes arbitrary JavaScript in MongoDB 4.4+`,
-      pattern: RegExp(`\\$function${rw}`, `i`),
+      pattern: RegExp(`\\$function${aw}`, `i`),
     },
     {
       id: `nosql-accumulator-operator`,
       description: `$accumulator — custom aggregation with arbitrary JS execution`,
-      pattern: RegExp(`\\$accumulator${rw}`, `i`),
+      pattern: RegExp(`\\$accumulator${aw}`, `i`),
     },
     {
       id: `nosql-proto-pollution`,
@@ -34730,7 +34776,7 @@ var qC = class {
       pattern: /\[["']__proto__["']\]/,
     },
   ],
-  aw = [
+  sw = [
     {
       id: `log-crlf-injection`,
       description: `CRLF injection: literal \\r or \\n embeds fake log lines`,
@@ -34794,7 +34840,7 @@ var qC = class {
       pattern: /\x1b\[/,
     },
   ],
-  ow = [
+  cw = [
     {
       id: `sql-line-comment`,
       description: `SQL line comment: -- followed by whitespace or end of string`,
@@ -34811,32 +34857,32 @@ var qC = class {
       pattern: /\b0x[0-9a-f]{4,}/i,
     },
   ],
-  sw = [...ew, ...ow];
-((ZC.label = `HTML`),
-  (QC.label = `XML`),
-  ($C.label = `SVG`),
-  (ew.label = `SQL`),
-  (sw.label = `SQL-STRICT`),
-  (tw.label = `SHELL`),
-  (nw.label = `REDOS`),
-  (iw.label = `NOSQL`),
-  (aw.label = `LOG`),
+  lw = [...nw, ...cw];
+(($C.label = `HTML`),
+  (ew.label = `XML`),
+  (tw.label = `SVG`),
+  (nw.label = `SQL`),
+  (lw.label = `SQL-STRICT`),
+  (rw.label = `SHELL`),
+  (iw.label = `REDOS`),
+  (ow.label = `NOSQL`),
+  (sw.label = `LOG`),
   Object.freeze({
-    HTML: ZC,
-    XML: QC,
-    SVG: $C,
-    SQL: ew,
-    "SQL-STRICT": sw,
-    SHELL: tw,
-    REDOS: nw,
-    NOSQL: iw,
-    LOG: aw,
+    HTML: $C,
+    XML: ew,
+    SVG: tw,
+    SQL: nw,
+    "SQL-STRICT": lw,
+    SHELL: rw,
+    REDOS: iw,
+    NOSQL: ow,
+    LOG: sw,
   }));
-function cw(e) {
+function uw(e) {
   if (typeof e != `string`)
     throw TypeError(`is-unsafe: first argument must be a string, got ${typeof e}`);
 }
-function lw(e) {
+function dw(e) {
   if (!(e instanceof RegExp)) {
     if (Array.isArray(e)) {
       if (e.length === 0) throw TypeError(`is-unsafe: context must not be an empty array`);
@@ -34854,28 +34900,28 @@ function lw(e) {
     );
   }
 }
-function uw(e) {
+function fw(e) {
   return e instanceof RegExp
     ? { lists: null, regex: e }
     : Array.isArray(e[0])
       ? { lists: e, regex: null }
       : { lists: [e], regex: null };
 }
-function dw(e, t) {
+function pw(e, t) {
   let n = t.label ?? `CUSTOM`;
   for (let r of t)
     if (r.pattern.test(e))
       return { context: n, id: r.id, description: r.description, pattern: r.pattern };
   return null;
 }
-function fw(e, t) {
-  (cw(e), lw(t));
-  let { lists: n, regex: r } = uw(t);
+function mw(e, t) {
+  (uw(e), dw(t));
+  let { lists: n, regex: r } = fw(t);
   if (r) return r.test(e);
-  for (let t of n) if (dw(e, t) !== null) return !0;
+  for (let t of n) if (pw(e, t) !== null) return !0;
   return !1;
 }
-function pw(e, t) {
+function hw(e, t) {
   if (!e) return {};
   let n = t.attributesGroupName ? e[t.attributesGroupName] : e;
   if (!n) return {};
@@ -34887,7 +34933,7 @@ function pw(e, t) {
     } else r[e] = n[e];
   return r;
 }
-function mw(e) {
+function gw(e) {
   if (!e || typeof e != `string`) return;
   let t = e.indexOf(`:`);
   if (t !== -1 && t > 0) {
@@ -34895,31 +34941,31 @@ function mw(e) {
     if (n !== `xmlns`) return n;
   }
 }
-var hw = class {
+var _w = class {
   constructor(e, t) {
     ((this.options = e),
       (this.currentNode = null),
       (this.tagsNodeStack = []),
-      (this.parseXml = bw),
-      (this.parseTextData = gw),
-      (this.resolveNameSpace = _w),
-      (this.buildAttributesMap = yw),
-      (this.isItStopNode = ww),
-      (this.replaceEntitiesValue = Sw),
-      (this.readStopNodeData = kw),
-      (this.saveTextToParentTag = Cw),
-      (this.addChild = xw),
-      (this.ignoreAttributesFn = KC(this.options.ignoreAttributes)),
+      (this.parseXml = Sw),
+      (this.parseTextData = vw),
+      (this.resolveNameSpace = yw),
+      (this.buildAttributesMap = xw),
+      (this.isItStopNode = Ew),
+      (this.replaceEntitiesValue = ww),
+      (this.readStopNodeData = jw),
+      (this.saveTextToParentTag = Tw),
+      (this.addChild = Cw),
+      (this.ignoreAttributesFn = JC(this.options.ignoreAttributes)),
       (this.entityExpansionCount = 0),
       (this.currentExpandedLength = 0),
       (this.doctypefound = !1));
-    let n = { ...HS };
+    let n = { ...WS };
     (this.options.entityDecoder
       ? (this.entityDecoder = this.options.entityDecoder)
       : (typeof this.options.htmlEntities == `object`
           ? (n = this.options.htmlEntities)
-          : this.options.htmlEntities === !0 && (n = { ...US, ...VS }),
-        (this.entityDecoder = new tC({
+          : this.options.htmlEntities === !0 && (n = { ...GS, ...US }),
+        (this.entityDecoder = new rC({
           namedEntities: { ...n, ...t },
           numericAllowed: this.options.htmlEntities,
           limit: {
@@ -34927,25 +34973,25 @@ var hw = class {
             maxExpandedLength: this.options.processEntities.maxExpandedLength,
             applyLimitsTo: this.options.processEntities.appliesTo,
           },
-          onInputEntity: (e, t) => (fw(t, [ZC, QC]) ? WS.BLOCK : WS.ALLOW),
+          onInputEntity: (e, t) => (mw(t, [$C, ew]) ? KS.BLOCK : KS.ALLOW),
         }))),
-      (this.matcher = new XC()),
+      (this.matcher = new QC()),
       (this.readonlyMatcher = this.matcher.readOnly()),
       (this.isCurrentNodeStopNode = !1),
-      (this.stopNodeExpressionsSet = new JC()));
+      (this.stopNodeExpressionsSet = new XC()));
     let r = this.options.stopNodes;
     if (r && r.length > 0) {
       for (let e = 0; e < r.length; e++) {
         let t = r[e];
         typeof t == `string`
-          ? this.stopNodeExpressionsSet.add(new qC(t))
-          : t instanceof qC && this.stopNodeExpressionsSet.add(t);
+          ? this.stopNodeExpressionsSet.add(new YC(t))
+          : t instanceof YC && this.stopNodeExpressionsSet.add(t);
       }
       this.stopNodeExpressionsSet.seal();
     }
   }
 };
-function gw(e, t, n, r, i, a, o) {
+function vw(e, t, n, r, i, a, o) {
   let s = this.options;
   if (e !== void 0 && (s.trimValues && !r && (e = e.trim()), e.length > 0)) {
     o || (e = this.replaceEntitiesValue(e, t, n));
@@ -34956,11 +35002,11 @@ function gw(e, t, n, r, i, a, o) {
       : typeof c != typeof e || c !== e
         ? c
         : s.trimValues || e.trim() === e
-          ? Aw(e, s.parseTagValue, s.numberParseOptions)
+          ? Mw(e, s.parseTagValue, s.numberParseOptions)
           : e;
   }
 }
-function _w(e) {
+function yw(e) {
   if (this.options.removeNSPrefix) {
     let t = e.split(`:`),
       n = e.charAt(0) === `/` ? `/` : ``;
@@ -34969,11 +35015,11 @@ function _w(e) {
   }
   return e;
 }
-var vw = RegExp(`([^\\s=]+)\\s*(=\\s*(['"])([\\s\\S]*?)\\3)?`, `gm`);
-function yw(e, t, n, r = !1) {
+var bw = RegExp(`([^\\s=]+)\\s*(=\\s*(['"])([\\s\\S]*?)\\3)?`, `gm`);
+function xw(e, t, n, r = !1) {
   let i = this.options;
   if (r === !0 || (i.ignoreAttributes !== !0 && typeof e == `string`)) {
-    let r = yS(e, vw),
+    let r = xS(e, bw),
       a = r.length,
       o = {},
       s = Array(a),
@@ -35001,7 +35047,7 @@ function yw(e, t, n, r = !1) {
       if (t.length) {
         if (
           (i.transformAttributeName && (n = i.transformAttributeName(n)),
-          (n = Mw(n, i)),
+          (n = Pw(n, i)),
           r[e][4] !== void 0)
         ) {
           let r = s[e],
@@ -35010,7 +35056,7 @@ function yw(e, t, n, r = !1) {
             ? (o[n] = r)
             : typeof a != typeof r || a !== r
               ? (o[n] = a)
-              : (o[n] = Aw(r, i.parseAttributeValue, i.numberParseOptions)),
+              : (o[n] = Mw(r, i.parseAttributeValue, i.numberParseOptions)),
             (d = !0));
         } else i.allowBooleanAttributes && ((o[n] = !0), (d = !0));
       }
@@ -35023,13 +35069,13 @@ function yw(e, t, n, r = !1) {
     return o;
   }
 }
-var bw = function (e) {
+var Sw = function (e) {
   e = e.replace(
     /\r\n?/g,
     `
 `,
   );
-  let t = new cC(`!xml`),
+  let t = new uC(`!xml`),
     n = t,
     r = ``;
   (this.matcher.reset(),
@@ -35038,19 +35084,19 @@ var bw = function (e) {
     (this.currentExpandedLength = 0),
     (this.doctypefound = !1));
   let i = this.options,
-    a = new xC(i.processEntities),
+    a = new CC(i.processEntities),
     o = e.length;
   for (let s = 0; s < o; s++)
     if (e[s] === `<`) {
       let c = e.charCodeAt(s + 1);
       if (c === 47) {
-        let a = Ew(e, `>`, s, `Closing Tag is not closed.`),
+        let a = Ow(e, `>`, s, `Closing Tag is not closed.`),
           o = e.substring(s + 2, a).trim();
         if (i.removeNSPrefix) {
           let e = o.indexOf(`:`);
           e !== -1 && (o = o.substr(e + 1));
         }
-        ((o = jw(i.transformTagName, o, ``, i).tagName),
+        ((o = Nw(i.transformTagName, o, ``, i).tagName),
           n && (r = this.saveTextToParentTag(r, n, this.readonlyMatcher)));
         let c = this.matcher.getCurrentTag();
         if (o && i.unpairedTagsSet.has(o))
@@ -35063,7 +35109,7 @@ var bw = function (e) {
           (r = ``),
           (s = a));
       } else if (c === 63) {
-        let t = Ow(e, s, !1, `?>`);
+        let t = Aw(e, s, !1, `?>`);
         if (!t) throw Error(`Pi Tag is not closed.`);
         r = this.saveTextToParentTag(r, n, this.readonlyMatcher);
         let o = this.buildAttributesMap(t.tagExp, this.matcher, t.tagName, !0);
@@ -35072,7 +35118,7 @@ var bw = function (e) {
           (this.entityDecoder.setXmlVersion(Number(e) || 1), a.setXmlVersion(Number(e) || 1));
         }
         if (!((i.ignoreDeclaration && t.tagName === `?xml`) || i.ignorePiTags)) {
-          let e = new cC(t.tagName);
+          let e = new uC(t.tagName);
           (e.add(i.textNodeName, ``),
             t.tagName !== t.tagExp &&
               t.attrExpPresent &&
@@ -35083,7 +35129,7 @@ var bw = function (e) {
         }
         s = t.closeIndex + 1;
       } else if (c === 33 && e.charCodeAt(s + 2) === 45 && e.charCodeAt(s + 3) === 45) {
-        let t = Ew(e, `-->`, s + 4, `Comment is not closed.`);
+        let t = Ow(e, `-->`, s + 4, `Comment is not closed.`);
         if (i.commentPropName) {
           let a = e.substring(s + 4, t - 2);
           ((r = this.saveTextToParentTag(r, n, this.readonlyMatcher)),
@@ -35096,7 +35142,7 @@ var bw = function (e) {
         let t = a.readDocType(e, s);
         (this.entityDecoder.addInputEntities(t.entities), (s = t.i));
       } else if (c === 33 && e.charCodeAt(s + 2) === 91) {
-        let t = Ew(e, `]]>`, s, `CDATA is not closed.`) - 2,
+        let t = Ow(e, `]]>`, s, `CDATA is not closed.`) - 2,
           a = e.substring(s + 9, t);
         r = this.saveTextToParentTag(r, n, this.readonlyMatcher);
         let o = this.parseTextData(a, n.tagname, this.readonlyMatcher, !0, !1, !0, !0);
@@ -35106,7 +35152,7 @@ var bw = function (e) {
             : n.add(i.textNodeName, o),
           (s = t + 2));
       } else {
-        let a = Ow(e, s, i.removeNSPrefix);
+        let a = Aw(e, s, i.removeNSPrefix);
         if (!a) {
           let t = e.substring(Math.max(0, s - 50), Math.min(o, s + 50));
           throw Error(`readTagExp returned undefined at position ${s}. Context: "${t}"`);
@@ -35117,7 +35163,7 @@ var bw = function (e) {
           d = a.attrExpPresent,
           f = a.closeIndex;
         if (
-          (({ tagName: c, tagExp: u } = jw(i.transformTagName, c, u, i)),
+          (({ tagName: c, tagExp: u } = Nw(i.transformTagName, c, u, i)),
           i.strictReservedNames &&
             (c === i.commentPropName ||
               c === i.cdataPropName ||
@@ -35143,9 +35189,9 @@ var bw = function (e) {
           (d = c !== u));
         let h = null,
           g;
-        ((g = mw(l)),
+        ((g = gw(l)),
           c !== t.tagname && this.matcher.push(c, {}, g),
-          c !== u && d && ((h = this.buildAttributesMap(u, this.matcher, c)), h && pw(h, i)),
+          c !== u && d && ((h = this.buildAttributesMap(u, this.matcher, c)), h && hw(h, i)),
           c !== t.tagname && (this.isCurrentNodeStopNode = this.isItStopNode()));
         let _ = s;
         if (this.isCurrentNodeStopNode) {
@@ -35157,7 +35203,7 @@ var bw = function (e) {
             if (!n) throw Error(`Unexpected end of ${l}`);
             ((s = n.i), (t = n.tagContent));
           }
-          let r = new cC(c);
+          let r = new uC(c);
           (h && (r[`:@`] = h),
             r.add(i.textNodeName, t),
             this.matcher.pop(),
@@ -35166,15 +35212,15 @@ var bw = function (e) {
             i.captureMetaData && n.addEndIndex(s + 1));
         } else {
           if (m) {
-            ({ tagName: c, tagExp: u } = jw(i.transformTagName, c, u, i));
-            let e = new cC(c);
+            ({ tagName: c, tagExp: u } = Nw(i.transformTagName, c, u, i));
+            let e = new uC(c);
             (h && (e[`:@`] = h),
               this.addChild(n, e, this.readonlyMatcher, _),
               i.captureMetaData && n.addEndIndex(f + 1),
               this.matcher.pop(),
               (this.isCurrentNodeStopNode = !1));
           } else if (i.unpairedTagsSet.has(c)) {
-            let e = new cC(c);
+            let e = new uC(c);
             (h && (e[`:@`] = h),
               this.addChild(n, e, this.readonlyMatcher, _),
               i.captureMetaData && n.addEndIndex(a.closeIndex + 1),
@@ -35183,7 +35229,7 @@ var bw = function (e) {
               (s = a.closeIndex));
             continue;
           } else {
-            let e = new cC(c);
+            let e = new uC(c);
             if (this.tagsNodeStack.length > i.maxNestedTags)
               throw Error(`Maximum nested tags exceeded`);
             (this.tagsNodeStack.push(n),
@@ -35197,13 +35243,13 @@ var bw = function (e) {
     } else r += e[s];
   return t.child;
 };
-function xw(e, t, n, r) {
+function Cw(e, t, n, r) {
   this.options.captureMetaData || (r = void 0);
   let i = this.options.jPath ? n.toString() : n,
     a = this.options.updateTag(t.tagname, i, t[`:@`]);
   a === !1 || (typeof a == `string` && (t.tagname = a), e.addChild(t, r));
 }
-function Sw(e, t, n) {
+function ww(e, t, n) {
   let r = this.options.processEntities;
   if (!r || !r.enabled) return e;
   if (r.allowedTags) {
@@ -35216,7 +35262,7 @@ function Sw(e, t, n) {
   }
   return this.entityDecoder.decode(e);
 }
-function Cw(e, t, n, r) {
+function Tw(e, t, n, r) {
   return (
     (e &&=
       (r === void 0 && (r = t.child.length === 0),
@@ -35233,12 +35279,12 @@ function Cw(e, t, n, r) {
     e
   );
 }
-function ww() {
+function Ew() {
   return (
     this.stopNodeExpressionsSet.size !== 0 && this.matcher.matchesAny(this.stopNodeExpressionsSet)
   );
 }
-function Tw(e, t, n = `>`) {
+function Dw(e, t, n = `>`) {
   let r = 0,
     i = e.length,
     a = n.charCodeAt(0),
@@ -35256,18 +35302,18 @@ function Tw(e, t, n = `>`) {
     } else t === 9 && !r && ((s += e.substring(c, n) + ` `), (c = n + 1));
   }
 }
-function Ew(e, t, n, r) {
+function Ow(e, t, n, r) {
   let i = e.indexOf(t, n);
   if (i === -1) throw Error(r);
   return i + t.length - 1;
 }
-function Dw(e, t, n, r) {
+function kw(e, t, n, r) {
   let i = e.indexOf(t, n);
   if (i === -1) throw Error(r);
   return i;
 }
-function Ow(e, t, n, r = `>`) {
-  let i = Tw(e, t + 1, r);
+function Aw(e, t, n, r = `>`) {
+  let i = Dw(e, t + 1, r);
   if (!i) return;
   let a = i.data,
     o = i.index,
@@ -35282,7 +35328,7 @@ function Ow(e, t, n, r = `>`) {
   }
   return { tagName: c, tagExp: a, closeIndex: o, attrExpPresent: l, rawTagName: u };
 }
-function kw(e, t, n) {
+function jw(e, t, n) {
   let r = n,
     i = 1,
     a = e.length;
@@ -35290,46 +35336,46 @@ function kw(e, t, n) {
     if (e[n] === `<`) {
       let a = e.charCodeAt(n + 1);
       if (a === 47) {
-        let a = Dw(e, `>`, n, `${t} is not closed`);
+        let a = kw(e, `>`, n, `${t} is not closed`);
         if (e.substring(n + 2, a).trim() === t && (i--, i === 0))
           return { tagContent: e.substring(r, n), i: a };
         n = a;
-      } else if (a === 63) n = Ew(e, `?>`, n + 1, `StopNode is not closed.`);
+      } else if (a === 63) n = Ow(e, `?>`, n + 1, `StopNode is not closed.`);
       else if (a === 33 && e.charCodeAt(n + 2) === 45 && e.charCodeAt(n + 3) === 45)
-        n = Ew(e, `-->`, n + 3, `StopNode is not closed.`);
+        n = Ow(e, `-->`, n + 3, `StopNode is not closed.`);
       else if (a === 33 && e.charCodeAt(n + 2) === 91)
-        n = Ew(e, `]]>`, n, `StopNode is not closed.`) - 2;
+        n = Ow(e, `]]>`, n, `StopNode is not closed.`) - 2;
       else {
-        let r = Ow(e, n, !1);
+        let r = Aw(e, n, !1);
         r &&
           ((r && r.tagName) === t && r.tagExp[r.tagExp.length - 1] !== `/` && i++,
           (n = r.closeIndex));
       }
     }
 }
-function Aw(e, t, n) {
+function Mw(e, t, n) {
   if (t && typeof e == `string`) {
     let t = e.trim();
-    return t === `true` || (t !== `false` && BC(e, n));
+    return t === `true` || (t !== `false` && HC(e, n));
   }
-  return xS(e) ? e : ``;
+  return CS(e) ? e : ``;
 }
-function jw(e, t, n, r) {
+function Nw(e, t, n, r) {
   if (e) {
     let r = e(t);
     (n === t && (n = r), (t = r));
   }
-  return ((t = Mw(t, r)), { tagName: t, tagExp: n });
+  return ((t = Pw(t, r)), { tagName: t, tagExp: n });
 }
-function Mw(e, t) {
-  if (CS.includes(e))
+function Pw(e, t) {
+  if (TS.includes(e))
     throw Error(
       `[SECURITY] Invalid name: "${e}" is a reserved JavaScript keyword that could cause prototype pollution`,
     );
-  return SS.includes(e) ? t.onDangerousProperty(e) : e;
+  return wS.includes(e) ? t.onDangerousProperty(e) : e;
 }
-var Nw = cC.getMetaDataSymbol();
-function Pw(e, t) {
+var Fw = uC.getMetaDataSymbol();
+function Iw(e, t) {
   if (!e || typeof e != `object`) return {};
   if (!t) return e;
   let n = {};
@@ -35340,33 +35386,33 @@ function Pw(e, t) {
     } else n[r] = e[r];
   return n;
 }
-function Fw(e, t, n, r) {
-  return Iw(e, t, n, r);
+function Lw(e, t, n, r) {
+  return Rw(e, t, n, r);
 }
-function Iw(e, t, n, r) {
+function Rw(e, t, n, r) {
   let i,
     a = {};
   for (let o = 0; o < e.length; o++) {
     let s = e[o],
-      c = Lw(s);
+      c = zw(s);
     if (c !== void 0 && c !== t.textNodeName) {
-      let e = Pw(s[`:@`] || {}, t.attributeNamePrefix);
+      let e = Iw(s[`:@`] || {}, t.attributeNamePrefix);
       n.push(c, e);
     }
     if (c === t.textNodeName) i === void 0 ? (i = s[c]) : (i += `` + s[c]);
     else if (c === void 0) continue;
     else if (s[c]) {
-      let e = Iw(s[c], t, n, r),
-        i = zw(e, t);
+      let e = Rw(s[c], t, n, r),
+        i = Vw(e, t);
       if (
         (Object.keys(e).length === 0 && t.alwaysCreateTextNode && (e[t.textNodeName] = ``),
         s[`:@`]
-          ? Rw(e, s[`:@`], r, t)
+          ? Bw(e, s[`:@`], r, t)
           : Object.keys(e).length === 1 && e[t.textNodeName] !== void 0 && !t.alwaysCreateTextNode
             ? (e = e[t.textNodeName])
             : Object.keys(e).length === 0 &&
               (t.alwaysCreateTextNode ? (e[t.textNodeName] = ``) : (e = ``)),
-        s[Nw] !== void 0 && typeof e == `object` && e && (e[Nw] = s[Nw]),
+        s[Fw] !== void 0 && typeof e == `object` && e && (e[Fw] = s[Fw]),
         a[c] !== void 0 && Object.prototype.hasOwnProperty.call(a, c))
       )
         (Array.isArray(a[c]) || (a[c] = [a[c]]), a[c].push(e));
@@ -35384,14 +35430,14 @@ function Iw(e, t, n, r) {
     a
   );
 }
-function Lw(e) {
+function zw(e) {
   let t = Object.keys(e);
   for (let e = 0; e < t.length; e++) {
     let n = t[e];
     if (n !== `:@`) return n;
   }
 }
-function Rw(e, t, n, r) {
+function Bw(e, t, n, r) {
   if (t) {
     let i = Object.keys(t),
       a = i.length;
@@ -35403,14 +35449,14 @@ function Rw(e, t, n, r) {
     }
   }
 }
-function zw(e, t) {
+function Vw(e, t) {
   let { textNodeName: n } = t,
     r = Object.keys(e).length;
   return !!(r === 0 || (r === 1 && (e[n] || typeof e[n] == `boolean` || e[n] === 0)));
 }
-var Bw = class {
+var Hw = class {
   constructor(e) {
-    ((this.externalEntities = {}), (this.options = oC(e)));
+    ((this.externalEntities = {}), (this.options = cC(e)));
   }
   parse(e, t) {
     if (typeof e != `string` && e.toString)
@@ -35421,14 +35467,14 @@ var Bw = class {
     else if (typeof e != `string`) throw Error(`XML data is accepted in String or Bytes[] form.`);
     if (t) {
       t === !0 && (t = {});
-      let n = TS(e, t);
+      let n = DS(e, t);
       if (n !== !0) throw Error(`${n.err.msg}:${n.err.line}:${n.err.col}`);
     }
-    let n = new hw(this.options, this.externalEntities),
+    let n = new _w(this.options, this.externalEntities),
       r = n.parseXml(e);
     return this.options.preserveOrder || r === void 0
       ? r
-      : Fw(r, this.options, n.matcher, n.readonlyMatcher);
+      : Lw(r, this.options, n.matcher, n.readonlyMatcher);
   }
   addEntity(e, t) {
     if (t.indexOf(`&`) !== -1) throw Error(`Entity value can't have '&'`);
@@ -35438,27 +35484,27 @@ var Bw = class {
     this.externalEntities[e] = t;
   }
   static getMetaDataSymbol() {
-    return cC.getMetaDataSymbol();
+    return uC.getMetaDataSymbol();
   }
 };
-function Vw(e) {
+function Uw(e) {
   return typeof e == `number` && Object.is(e, -0) ? `-0` : String(e);
 }
-function Hw(e) {
-  return Vw(e).replace(/--/g, `- -`).replace(/--/g, `- -`).replace(/-$/, `- `);
-}
-function Uw(e) {
-  return Vw(e).replace(/\]\]>/g, `]]]]><![CDATA[>`);
-}
 function Ww(e) {
-  return Vw(e).replace(/"/g, `&quot;`).replace(/'/g, `&apos;`);
+  return Uw(e).replace(/--/g, `- -`).replace(/--/g, `- -`).replace(/-$/, `- `);
 }
-var Gw = `
+function Gw(e) {
+  return Uw(e).replace(/\]\]>/g, `]]]]><![CDATA[>`);
+}
+function Kw(e) {
+  return Uw(e).replace(/"/g, `&quot;`).replace(/'/g, `&apos;`);
+}
+var qw = `
 `;
-function Kw(e, t) {
+function Jw(e, t) {
   if (!Array.isArray(e) || e.length === 0) return `1.0`;
   let n = e[0];
-  if ($w(n) === `?xml`) {
+  if (tT(n) === `?xml`) {
     let e = n[`:@`];
     if (e) {
       let n = t.attributeNamePrefix + `version`;
@@ -35467,49 +35513,49 @@ function Kw(e, t) {
   }
   return `1.0`;
 }
-function qw(e, t, n, r, i) {
+function Yw(e, t, n, r, i) {
   return !n.sanitizeName || i(e) ? e : n.sanitizeName(e, { isAttribute: t, matcher: r.readOnly() });
 }
-function Jw(e, t) {
+function Xw(e, t) {
   let n = ``;
-  t.format && (n = Gw);
+  t.format && (n = qw);
   let r = [];
   if (t.stopNodes && Array.isArray(t.stopNodes))
     for (let e = 0; e < t.stopNodes.length; e++) {
       let n = t.stopNodes[e];
-      typeof n == `string` ? r.push(new qC(n)) : n instanceof qC && r.push(n);
+      typeof n == `string` ? r.push(new YC(n)) : n instanceof YC && r.push(n);
     }
-  let i = bC(`qName`, { xmlVersion: Kw(e, t) }),
-    a = new XC();
-  return Yw(e, t, n, a, r, i);
+  let i = SC(`qName`, { xmlVersion: Jw(e, t) }),
+    a = new QC();
+  return Zw(e, t, n, a, r, i);
 }
-function Yw(e, t, n, r, i, a) {
+function Zw(e, t, n, r, i, a) {
   let o = ``,
     s = !1;
   if (t.maxNestedTags && r.getDepth() > t.maxNestedTags)
     throw Error(`Maximum nested tags exceeded`);
   if (!Array.isArray(e)) {
     if (e != null) {
-      let n = Vw(e);
-      return ((n = nT(n, t)), n);
+      let n = Uw(e);
+      return ((n = iT(n, t)), n);
     }
     return ``;
   }
   for (let c = 0; c < e.length; c++) {
     let l = e[c],
-      u = $w(l);
+      u = tT(l);
     if (u === void 0) continue;
     let d =
         u === t.textNodeName || u === t.cdataPropName || u === t.commentPropName || u[0] === `?`
           ? u
-          : qw(u, !1, t, r, a),
-      f = Xw(l[`:@`], t);
+          : Yw(u, !1, t, r, a),
+      f = Qw(l[`:@`], t);
     r.push(d, f);
-    let p = tT(r, i);
+    let p = rT(r, i);
     if (d === t.textNodeName) {
       let e = l[u];
-      (p || ((e = t.tagValueProcessor(d, e)), (e = nT(e, t))),
-        (e = Vw(e)),
+      (p || ((e = t.tagValueProcessor(d, e)), (e = iT(e, t))),
+        (e = Uw(e)),
         s && (o += n),
         (o += e),
         (s = !1),
@@ -35519,26 +35565,26 @@ function Yw(e, t, n, r, i, a) {
     if (d === t.cdataPropName) {
       s && (o += n);
       let e = l[u][0][t.textNodeName],
-        i = Uw(e);
+        i = Gw(e);
       ((o += `<![CDATA[${i}]]>`), (s = !1), r.pop());
       continue;
     }
     if (d === t.commentPropName) {
       let e = l[u][0][t.textNodeName],
-        i = Hw(e);
+        i = Ww(e);
       ((o += n + `<!--${i}-->`), (s = !0), r.pop());
       continue;
     }
     if (d[0] === `?`) {
-      let e = eT(l[`:@`], t, p, r, a);
+      let e = nT(l[`:@`], t, p, r, a);
       ((o += (d === `?xml` ? `` : n) + `<${d}${e}?>`), (s = !0), r.pop());
       continue;
     }
     let m = n;
     m !== `` && (m += t.indentBy);
-    let h = n + `<${d}${eT(l[`:@`], t, p, r, a)}`,
+    let h = n + `<${d}${nT(l[`:@`], t, p, r, a)}`,
       g;
-    ((g = p ? Zw(l[u], t) : Yw(l[u], t, m, r, i, a)),
+    ((g = p ? $w(l[u], t) : Zw(l[u], t, m, r, i, a)),
       t.unpairedTags.indexOf(d) === -1
         ? (!g || g.length === 0) && t.suppressEmptyNode
           ? (o += h + `/>`)
@@ -35557,36 +35603,36 @@ function Yw(e, t, n, r, i, a) {
   }
   return o;
 }
-function Xw(e, t) {
+function Qw(e, t) {
   if (!e || t.ignoreAttributes) return null;
   let n = {},
     r = !1;
   for (let i in e) {
     if (!Object.prototype.hasOwnProperty.call(e, i)) continue;
     let a = i.startsWith(t.attributeNamePrefix) ? i.substr(t.attributeNamePrefix.length) : i;
-    ((n[a] = Ww(e[i])), (r = !0));
+    ((n[a] = Kw(e[i])), (r = !0));
   }
   return r ? n : null;
 }
-function Zw(e, t) {
-  if (!Array.isArray(e)) return e == null ? `` : Vw(e);
+function $w(e, t) {
+  if (!Array.isArray(e)) return e == null ? `` : Uw(e);
   let n = ``;
   for (let r = 0; r < e.length; r++) {
     let i = e[r],
-      a = $w(i);
-    if (a === t.textNodeName) n += Vw(i[a]);
+      a = tT(i);
+    if (a === t.textNodeName) n += Uw(i[a]);
     else if (a === t.cdataPropName) n += i[a][0][t.textNodeName];
     else if (a === t.commentPropName) n += i[a][0][t.textNodeName];
     else if (a && a[0] === `?`) continue;
     else if (a) {
-      let e = Qw(i[`:@`], t),
-        r = Zw(i[a], t);
+      let e = eT(i[`:@`], t),
+        r = $w(i[a], t);
       !r || r.length === 0 ? (n += `<${a}${e}/>`) : (n += `<${a}${e}>${r}</${a}>`);
     }
   }
   return n;
 }
-function Qw(e, t) {
+function eT(e, t) {
   let n = ``;
   if (e && !t.ignoreAttributes)
     for (let r in e) {
@@ -35594,36 +35640,36 @@ function Qw(e, t) {
       let i = e[r];
       i === !0 && t.suppressBooleanAttributes
         ? (n += ` ${r.substr(t.attributeNamePrefix.length)}`)
-        : (n += ` ${r.substr(t.attributeNamePrefix.length)}="${Ww(i)}"`);
+        : (n += ` ${r.substr(t.attributeNamePrefix.length)}="${Kw(i)}"`);
     }
   return n;
 }
-function $w(e) {
+function tT(e) {
   let t = Object.keys(e);
   for (let n = 0; n < t.length; n++) {
     let r = t[n];
     if (Object.prototype.hasOwnProperty.call(e, r) && r !== `:@`) return r;
   }
 }
-function eT(e, t, n, r, i) {
+function nT(e, t, n, r, i) {
   let a = ``;
   if (e && !t.ignoreAttributes)
     for (let o in e) {
       if (!Object.prototype.hasOwnProperty.call(e, o)) continue;
       let s = o.substr(t.attributeNamePrefix.length),
-        c = n ? s : qw(s, !0, t, r, i),
+        c = n ? s : Yw(s, !0, t, r, i),
         l;
-      (n ? (l = e[o]) : ((l = t.attributeValueProcessor(o, e[o])), (l = nT(l, t))),
-        l === !0 && t.suppressBooleanAttributes ? (a += ` ${c}`) : (a += ` ${c}="${Ww(l)}"`));
+      (n ? (l = e[o]) : ((l = t.attributeValueProcessor(o, e[o])), (l = iT(l, t))),
+        l === !0 && t.suppressBooleanAttributes ? (a += ` ${c}`) : (a += ` ${c}="${Kw(l)}"`));
     }
   return a;
 }
-function tT(e, t) {
+function rT(e, t) {
   if (!t || t.length === 0) return !1;
   for (let n = 0; n < t.length; n++) if (e.matches(t[n])) return !0;
   return !1;
 }
-function nT(e, t) {
+function iT(e, t) {
   if (e && e.length > 0 && t.processEntities)
     for (let n = 0; n < t.entities.length; n++) {
       let r = t.entities[n];
@@ -35631,7 +35677,7 @@ function nT(e, t) {
     }
   return e;
 }
-function rT(e) {
+function aT(e) {
   return typeof e == `function`
     ? e
     : Array.isArray(e)
@@ -35641,7 +35687,7 @@ function rT(e) {
         }
       : () => !1;
 }
-var iT = {
+var oT = {
   attributeNamePrefix: `@_`,
   attributesGroupName: !1,
   textNodeName: `#text`,
@@ -35675,9 +35721,9 @@ var iT = {
   jPath: !0,
   sanitizeName: !1,
 };
-function aT(e) {
+function sT(e) {
   if (
-    ((this.options = Object.assign({}, iT, e)),
+    ((this.options = Object.assign({}, oT, e)),
     this.options.stopNodes &&
       Array.isArray(this.options.stopNodes) &&
       (this.options.stopNodes = this.options.stopNodes.map((e) =>
@@ -35689,19 +35735,19 @@ function aT(e) {
     for (let e = 0; e < this.options.stopNodes.length; e++) {
       let t = this.options.stopNodes[e];
       typeof t == `string`
-        ? this.stopNodeExpressions.push(new qC(t))
-        : t instanceof qC && this.stopNodeExpressions.push(t);
+        ? this.stopNodeExpressions.push(new YC(t))
+        : t instanceof YC && this.stopNodeExpressions.push(t);
     }
   (this.options.ignoreAttributes === !0 || this.options.attributesGroupName
     ? (this.isAttribute = function () {
         return !1;
       })
-    : ((this.ignoreAttributesFn = rT(this.options.ignoreAttributes)),
+    : ((this.ignoreAttributesFn = aT(this.options.ignoreAttributes)),
       (this.attrPrefixLen = this.options.attributeNamePrefix.length),
-      (this.isAttribute = uT)),
-    (this.processTextOrObjNode = cT),
+      (this.isAttribute = fT)),
+    (this.processTextOrObjNode = uT),
     this.options.format
-      ? ((this.indentate = lT),
+      ? ((this.indentate = dT),
         (this.tagEndChar = `>
 `),
         (this.newLine = `
@@ -35712,7 +35758,7 @@ function aT(e) {
         (this.tagEndChar = `>`),
         (this.newLine = ``)));
 }
-function oT(e, t) {
+function cT(e, t) {
   let n = e[`?xml`];
   if (n && typeof n == `object`) {
     if (t.attributesGroupName && n[t.attributesGroupName]) {
@@ -35724,22 +35770,22 @@ function oT(e, t) {
   }
   return `1.0`;
 }
-function sT(e, t, n, r, i) {
+function lT(e, t, n, r, i) {
   return !n.sanitizeName || i(e) ? e : n.sanitizeName(e, { isAttribute: t, matcher: r.readOnly() });
 }
-((aT.prototype.build = function (e) {
-  if (this.options.preserveOrder) return Jw(e, this.options);
+((sT.prototype.build = function (e) {
+  if (this.options.preserveOrder) return Xw(e, this.options);
   {
     Array.isArray(e) &&
       this.options.arrayNodeName &&
       this.options.arrayNodeName.length > 1 &&
       (e = { [this.options.arrayNodeName]: e });
-    let t = new XC(),
-      n = bC(`qName`, { xmlVersion: oT(e, this.options) });
+    let t = new QC(),
+      n = SC(`qName`, { xmlVersion: cT(e, this.options) });
     return this.j2x(e, 0, t, n).val;
   }
 }),
-  (aT.prototype.j2x = function (e, t, n, r) {
+  (sT.prototype.j2x = function (e, t, n, r) {
     let i = ``,
       a = ``;
     if (this.options.maxNestedTags && n.getDepth() >= this.options.maxNestedTags)
@@ -35756,7 +35802,7 @@ function sT(e, t, n, r, i) {
         this.isAttribute(c) ||
         c[0] === `?`
           ? c
-          : sT(c, !1, this.options, n, r);
+          : lT(c, !1, this.options, n, r);
       if (e[c] === void 0) this.isAttribute(c) && (a += ``);
       else if (e[c] === null)
         this.isAttribute(c) ||
@@ -35770,17 +35816,17 @@ function sT(e, t, n, r, i) {
       else if (typeof e[c] != `object`) {
         let u = this.isAttribute(c);
         if (u && !this.ignoreAttributesFn(u, o)) {
-          let t = sT(u, !0, this.options, n, r);
-          i += this.buildAttrPairStr(t, Vw(e[c]), s);
+          let t = lT(u, !0, this.options, n, r);
+          i += this.buildAttrPairStr(t, Uw(e[c]), s);
         } else if (!u) {
           if (c === this.options.textNodeName) {
-            let t = this.options.tagValueProcessor(c, Vw(e[c]));
+            let t = this.options.tagValueProcessor(c, Uw(e[c]));
             a += this.replaceEntitiesValue(t);
           } else {
             n.push(l);
             let r = this.checkStopNode(n);
             if ((n.pop(), r)) {
-              let n = Vw(e[c]);
+              let n = Uw(e[c]);
               a +=
                 n === ``
                   ? this.indentate(t) + `<` + l + this.closeTag(l) + this.tagEndChar
@@ -35811,12 +35857,12 @@ function sT(e, t, n, r, i) {
               } else o += this.processTextOrObjNode(i, l, t, n, r);
             } else if (this.options.oneListGroup) {
               let e = this.options.tagValueProcessor(l, i);
-              ((e = this.replaceEntitiesValue(e)), (e = Vw(e)), (o += e));
+              ((e = this.replaceEntitiesValue(e)), (e = Uw(e)), (o += e));
             } else {
               n.push(l);
               let e = this.checkStopNode(n);
               if ((n.pop(), e)) {
-                let e = Vw(i);
+                let e = Uw(i);
                 o +=
                   e === ``
                     ? this.indentate(t) + `<` + l + this.closeTag(l) + this.tagEndChar
@@ -35830,23 +35876,23 @@ function sT(e, t, n, r, i) {
         let t = Object.keys(e[c]),
           a = t.length;
         for (let o = 0; o < a; o++) {
-          let a = sT(t[o], !0, this.options, n, r);
-          i += this.buildAttrPairStr(a, Vw(e[c][t[o]]), s);
+          let a = lT(t[o], !0, this.options, n, r);
+          i += this.buildAttrPairStr(a, Uw(e[c][t[o]]), s);
         }
       } else a += this.processTextOrObjNode(e[c], l, t, n, r);
     }
     return { attrStr: i, val: a };
   }),
-  (aT.prototype.buildAttrPairStr = function (e, t, n) {
+  (sT.prototype.buildAttrPairStr = function (e, t, n) {
     return (
       n ||
-        ((t = this.options.attributeValueProcessor(e, Vw(t))), (t = this.replaceEntitiesValue(t))),
+        ((t = this.options.attributeValueProcessor(e, Uw(t))), (t = this.replaceEntitiesValue(t))),
       this.options.suppressBooleanAttributes && t === `true`
         ? ` ` + e
-        : ` ` + e + `="` + Ww(t) + `"`
+        : ` ` + e + `="` + Kw(t) + `"`
     );
   }));
-function cT(e, t, n, r, i) {
+function uT(e, t, n, r, i) {
   let a = this.extractAttributes(e);
   if ((r.push(t, a), this.checkStopNode(r))) {
     let i = this.buildRawContent(e),
@@ -35863,7 +35909,7 @@ function cT(e, t, n, r, i) {
         : this.buildObjectNode(o.val, t, o.attrStr, n)
   );
 }
-((aT.prototype.extractAttributes = function (e) {
+((sT.prototype.extractAttributes = function (e) {
   if (!e || typeof e != `object`) return null;
   let t = {},
     n = !1;
@@ -35874,17 +35920,17 @@ function cT(e, t, n, r, i) {
       let i = e.startsWith(this.options.attributeNamePrefix)
         ? e.substring(this.options.attributeNamePrefix.length)
         : e;
-      ((t[i] = Ww(r[e])), (n = !0));
+      ((t[i] = Kw(r[e])), (n = !0));
     }
   } else
     for (let r in e) {
       if (!Object.prototype.hasOwnProperty.call(e, r)) continue;
       let i = this.isAttribute(r);
-      i && ((t[i] = Ww(e[r])), (n = !0));
+      i && ((t[i] = Kw(e[r])), (n = !0));
     }
   return n ? t : null;
 }),
-  (aT.prototype.buildRawContent = function (e) {
+  (sT.prototype.buildRawContent = function (e) {
     if (typeof e == `string`) return e;
     if (typeof e != `object` || !e) return String(e);
     if (e[this.options.textNodeName] !== void 0) return e[this.options.textNodeName];
@@ -35914,7 +35960,7 @@ function cT(e, t, n, r, i) {
     }
     return t;
   }),
-  (aT.prototype.buildAttributesForStopNode = function (e) {
+  (sT.prototype.buildAttributesForStopNode = function (e) {
     if (!e || typeof e != `object`) return ``;
     let t = ``;
     if (this.options.attributesGroupName && e[this.options.attributesGroupName]) {
@@ -35927,7 +35973,7 @@ function cT(e, t, n, r, i) {
           i = n[e];
         i === !0 && this.options.suppressBooleanAttributes
           ? (t += ` ` + r)
-          : (t += ` ` + r + `="` + Ww(i) + `"`);
+          : (t += ` ` + r + `="` + Kw(i) + `"`);
       }
     } else
       for (let n in e) {
@@ -35937,12 +35983,12 @@ function cT(e, t, n, r, i) {
           let i = e[n];
           i === !0 && this.options.suppressBooleanAttributes
             ? (t += ` ` + r)
-            : (t += ` ` + r + `="` + Ww(i) + `"`);
+            : (t += ` ` + r + `="` + Kw(i) + `"`);
         }
       }
     return t;
   }),
-  (aT.prototype.buildObjectNode = function (e, t, n, r) {
+  (sT.prototype.buildObjectNode = function (e, t, n, r) {
     if (e === ``)
       return t[0] === `?`
         ? this.indentate(r) + `<` + t + n + `?` + this.tagEndChar
@@ -35958,12 +36004,12 @@ function cT(e, t, n, r, i) {
           : this.options.commentPropName !== !1 &&
               t === this.options.commentPropName &&
               a.length === 0
-            ? this.indentate(r) + `<!--${Hw(e)}-->` + this.newLine
+            ? this.indentate(r) + `<!--${Ww(e)}-->` + this.newLine
             : this.indentate(r) + `<` + t + n + a + this.tagEndChar + e + this.indentate(r) + i
       );
     }
   }),
-  (aT.prototype.closeTag = function (e) {
+  (sT.prototype.closeTag = function (e) {
     let t = ``;
     return (
       this.options.unpairedTags.indexOf(e) === -1
@@ -35972,19 +36018,19 @@ function cT(e, t, n, r, i) {
       t
     );
   }),
-  (aT.prototype.checkStopNode = function (e) {
+  (sT.prototype.checkStopNode = function (e) {
     if (!this.stopNodeExpressions || this.stopNodeExpressions.length === 0) return !1;
     for (let t = 0; t < this.stopNodeExpressions.length; t++)
       if (e.matches(this.stopNodeExpressions[t])) return !0;
     return !1;
   }),
-  (aT.prototype.buildTextValNode = function (e, t, n, r, i) {
+  (sT.prototype.buildTextValNode = function (e, t, n, r, i) {
     if (this.options.cdataPropName !== !1 && t === this.options.cdataPropName) {
-      let t = Uw(e);
+      let t = Gw(e);
       return this.indentate(r) + `<![CDATA[${t}]]>` + this.newLine;
     }
     if (this.options.commentPropName !== !1 && t === this.options.commentPropName) {
-      let t = Hw(e);
+      let t = Ww(e);
       return this.indentate(r) + `<!--${t}-->` + this.newLine;
     }
     if (t[0] === `?`) return this.indentate(r) + `<` + t + n + `?` + this.tagEndChar;
@@ -35992,14 +36038,14 @@ function cT(e, t, n, r, i) {
       let i = this.options.tagValueProcessor(t, e);
       return (
         (i = this.replaceEntitiesValue(i)),
-        (i = Vw(i)),
+        (i = Uw(i)),
         i === ``
           ? this.indentate(r) + `<` + t + n + this.closeTag(t) + this.tagEndChar
           : this.indentate(r) + `<` + t + n + `>` + i + `</` + t + this.tagEndChar
       );
     }
   }),
-  (aT.prototype.replaceEntitiesValue = function (e) {
+  (sT.prototype.replaceEntitiesValue = function (e) {
     if (e && e.length > 0 && this.options.processEntities)
       for (let t = 0; t < this.options.entities.length; t++) {
         let n = this.options.entities[t];
@@ -36007,17 +36053,17 @@ function cT(e, t, n, r, i) {
       }
     return e;
   }));
-function lT(e) {
+function dT(e) {
   return this.options.indentBy.repeat(e);
 }
-function uT(e) {
+function fT(e) {
   return e.startsWith(this.options.attributeNamePrefix) && e !== this.options.textNodeName
     ? e.substr(this.attrPrefixLen)
     : !1;
 }
-var dT = aT,
-  fT = { validate: TS };
-function pT(e) {
+var pT = sT,
+  mT = { validate: DS };
+function hT(e) {
   return {
     attributesGroupName: `$`,
     textNodeName: e.xmlCharKey ?? `_`,
@@ -36025,9 +36071,9 @@ function pT(e) {
     suppressBooleanAttributes: !1,
   };
 }
-function mT(e = {}) {
+function gT(e = {}) {
   return {
-    ...pT(e),
+    ...hT(e),
     attributeNamePrefix: `@_`,
     format: !0,
     suppressEmptyNode: !0,
@@ -36036,9 +36082,9 @@ function mT(e = {}) {
     cdataPropName: e.cdataPropName ?? `__cdata`,
   };
 }
-function hT(e = {}) {
+function _T(e = {}) {
   return {
-    ...pT(e),
+    ...hT(e),
     parseAttributeValue: !1,
     parseTagValue: !1,
     attributeNamePrefix: ``,
@@ -36047,17 +36093,17 @@ function hT(e = {}) {
     trimValues: !1,
   };
 }
-function gT(e, t = {}) {
-  let n = mT(t),
-    r = new dT(n),
+function vT(e, t = {}) {
+  let n = gT(t),
+    r = new pT(n),
     i = { [n.rootNodeName]: e };
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>${r.build(i)}`.replace(/\n/g, ``);
 }
-async function _T(e, t = {}) {
+async function yT(e, t = {}) {
   if (!e) throw Error(`Document is empty`);
-  let n = fT.validate(e);
+  let n = mT.validate(e);
   if (n !== !0) throw n;
-  let r = new Bw(hT(t)).parse(e);
+  let r = new Hw(_T(t)).parse(e);
   if ((r[`?xml`] && delete r[`?xml`], !t.includeRoot)) {
     let e = Object.keys(r)[0];
     if (e !== void 0) {
@@ -36067,8 +36113,8 @@ async function _T(e, t = {}) {
   }
   return r;
 }
-var vT = Qv(`storage-blob`),
-  yT = class extends b {
+var bT = ey(`storage-blob`),
+  xT = class extends b {
     buffers;
     byteLength;
     byteOffsetInCurrentBuffer;
@@ -36116,8 +36162,8 @@ var vT = Qv(`storage-blob`),
       t.length > 1 ? this.push(Buffer.concat(t)) : t.length === 1 && this.push(t[0]);
     }
   },
-  bT = S.constants.MAX_LENGTH,
-  xT = class {
+  ST = S.constants.MAX_LENGTH,
+  CT = class {
     buffers = [];
     capacity;
     _size;
@@ -36126,10 +36172,10 @@ var vT = Qv(`storage-blob`),
     }
     constructor(e, t, n) {
       ((this.capacity = e), (this._size = 0));
-      let r = Math.ceil(e / bT);
+      let r = Math.ceil(e / ST);
       for (let t = 0; t < r; t++) {
-        let n = t === r - 1 ? e % bT : bT;
-        (n === 0 && (n = bT), this.buffers.push(Buffer.allocUnsafe(n)));
+        let n = t === r - 1 ? e % ST : ST;
+        (n === 0 && (n = ST), this.buffers.push(Buffer.allocUnsafe(n)));
       }
       t && this.fill(t, n);
     }
@@ -36153,10 +36199,10 @@ var vT = Qv(`storage-blob`),
       (e.splice(0, n), e.length > 0 && (e[0] = e[0].slice(a)));
     }
     getReadableStream() {
-      return new yT(this.buffers, this.size);
+      return new xT(this.buffers, this.size);
     }
   },
-  ST = class {
+  wT = class {
     bufferSize;
     maxBuffers;
     readable;
@@ -36224,7 +36270,7 @@ var vT = Qv(`storage-blob`),
       return (
         e
           ? e.fill(this.unresolvedDataArray, this.unresolvedLength)
-          : (e = new xT(this.bufferSize, this.unresolvedDataArray, this.unresolvedLength)),
+          : (e = new CT(this.bufferSize, this.unresolvedDataArray, this.unresolvedLength)),
         (this.unresolvedLength -= e.size),
         e
       );
@@ -36264,11 +36310,11 @@ var vT = Qv(`storage-blob`),
         !this.isError && this.resolveData() && !this.isStreamEnd && this.readable.resume());
     }
   },
-  CT = a_;
-function wT(e) {
-  return o_(e);
+  TT = s_;
+function ET(e) {
+  return c_(e);
 }
-function TT(e) {
+function DT(e) {
   if (e instanceof AbortSignal) return { abortSignal: e };
   if (e.aborted) return { abortSignal: AbortSignal.abort(`reason` in e ? e.reason : void 0) };
   let t = new AbortController(),
@@ -36281,11 +36327,11 @@ function TT(e) {
   }
   return (e.addEventListener(`abort`, i), { abortSignal: t.signal, cleanup: r });
 }
-function ET() {
-  let e = x_();
+function OT() {
+  let e = C_();
   return {
     async sendRequest(t) {
-      let { abortSignal: n, cleanup: r } = t.abortSignal ? TT(t.abortSignal) : {};
+      let { abortSignal: n, cleanup: r } = t.abortSignal ? DT(t.abortSignal) : {};
       try {
         return ((t.abortSignal = n), await e.sendRequest(t));
       } finally {
@@ -36294,11 +36340,11 @@ function ET() {
     },
   };
 }
-var DT;
-function OT() {
-  return ((DT ||= ET()), DT);
+var kT;
+function AT() {
+  return ((kT ||= OT()), kT);
 }
-var kT = class {
+var jT = class {
     _nextPolicy;
     _options;
     constructor(e, t) {
@@ -36311,7 +36357,7 @@ var kT = class {
       this._options.log(e, t);
     }
   },
-  AT = class extends kT {
+  MT = class extends jT {
     constructor(e, t) {
       super(e, t);
     }
@@ -36319,12 +36365,12 @@ var kT = class {
       return this._nextPolicy.sendRequest(e);
     }
   },
-  jT = class {
+  NT = class {
     create(e, t) {
-      return new AT(e, t);
+      return new MT(e, t);
     }
   },
-  MT = class extends kT {
+  PT = class extends jT {
     sendRequest(e) {
       return this._nextPolicy.sendRequest(this.signRequest(e));
     }
@@ -36332,22 +36378,22 @@ var kT = class {
       return e;
     }
   },
-  NT = class extends MT {
+  FT = class extends PT {
     constructor(e, t) {
       super(e, t);
     }
   },
-  PT = class {
+  IT = class {
     create(e, t) {
       throw Error(`Method should be implemented in children classes.`);
     }
   },
-  FT = class extends PT {
+  LT = class extends IT {
     create(e, t) {
-      return new NT(e, t);
+      return new FT(e, t);
     }
   },
-  IT = {
+  RT = {
     Parameters: {
       FORCE_BROWSER_NO_CACHE: `_`,
       SIGNATURE: `sig`,
@@ -36356,7 +36402,7 @@ var kT = class {
       TIMEOUT: `timeout`,
     },
   },
-  LT = {
+  zT = {
     AUTHORIZATION: `Authorization`,
     AUTHORIZATION_SCHEME: `Bearer`,
     CONTENT_ENCODING: `Content-Encoding`,
@@ -36382,7 +36428,7 @@ var kT = class {
     X_MS_VERSION: `x-ms-version`,
     X_MS_CopySourceErrorCode: `x-ms-copy-source-error-code`,
   };
-function RT(e, t, n) {
+function BT(e, t, n) {
   let r = new URL(e),
     i = encodeURIComponent(t),
     a = n ? encodeURIComponent(n) : void 0,
@@ -36395,18 +36441,18 @@ function RT(e, t, n) {
     }
   return (a && s.push(`${i}=${a}`), (r.search = s.length ? `?${s.join(`&`)}` : ``), r.toString());
 }
-function zT(e, t) {
+function VT(e, t) {
   let n = new URL(e);
   return ((n.hostname = t), n.toString());
 }
-function BT(e) {
+function HT(e) {
   try {
     return new URL(e).pathname;
   } catch {
     return;
   }
 }
-function VT(e) {
+function UT(e) {
   let t = new URL(e).search;
   if (!t) return {};
   ((t = t.trim()), (t = t.startsWith(`?`) ? t.substring(1) : t));
@@ -36424,7 +36470,7 @@ function VT(e) {
   }
   return r;
 }
-async function HT(e, t, n) {
+async function WT(e, t, n) {
   return new Promise((r, i) => {
     let a,
       o = () => {
@@ -36436,7 +36482,7 @@ async function HT(e, t, n) {
       t !== void 0 && t.addEventListener(`abort`, o));
   });
 }
-var UT = new Uint32Array([
+var GT = new Uint32Array([
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 1820, 0, 1823, 1825, 1827, 1829, 0, 0, 0, 1837, 2051, 0, 0, 1843, 0, 3331, 3354, 3356, 3358,
     3360, 3362, 3364, 3366, 3368, 3370, 0, 0, 0, 0, 0, 0, 0, 3586, 3593, 3594, 3610, 3617, 3619,
@@ -36445,25 +36491,25 @@ var UT = new Uint32Array([
     3628, 3634, 3637, 3638, 3656, 3665, 3696, 3708, 3710, 3721, 3722, 3729, 3737, 3743, 3746, 3748,
     3750, 3751, 3753, 0, 1868, 0, 1872, 0,
   ]),
-  WT = new Uint32Array([
+  KT = new Uint32Array([
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18,
     18, 18, 18, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0,
   ]),
-  GT = new Uint32Array([
+  qT = new Uint32Array([
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 32786, 0, 0, 0, 0, 0, 33298, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0,
   ]);
-function KT(e, t) {
-  return qT(e, t) ? -1 : 1;
+function JT(e, t) {
+  return YT(e, t) ? -1 : 1;
 }
-function qT(e, t) {
-  let n = [UT, WT, GT],
+function YT(e, t) {
+  let n = [GT, KT, qT],
     r = 0,
     i = 0,
     a = 0;
@@ -36479,31 +36525,31 @@ function qT(e, t) {
   }
   return !1;
 }
-var JT = class extends MT {
+var XT = class extends PT {
     factory;
     constructor(e, t, n) {
       (super(e, t), (this.factory = n));
     }
     signRequest(e) {
-      (e.headers.set(LT.X_MS_DATE, new Date().toUTCString()),
+      (e.headers.set(zT.X_MS_DATE, new Date().toUTCString()),
         e.body &&
           (typeof e.body == `string` || e.body !== void 0) &&
           e.body.length > 0 &&
-          e.headers.set(LT.CONTENT_LENGTH, Buffer.byteLength(e.body)));
+          e.headers.set(zT.CONTENT_LENGTH, Buffer.byteLength(e.body)));
       let t =
           [
             e.method.toUpperCase(),
-            this.getHeaderValueToSign(e, LT.CONTENT_LANGUAGE),
-            this.getHeaderValueToSign(e, LT.CONTENT_ENCODING),
-            this.getHeaderValueToSign(e, LT.CONTENT_LENGTH),
-            this.getHeaderValueToSign(e, LT.CONTENT_MD5),
-            this.getHeaderValueToSign(e, LT.CONTENT_TYPE),
-            this.getHeaderValueToSign(e, LT.DATE),
-            this.getHeaderValueToSign(e, LT.IF_MODIFIED_SINCE),
-            this.getHeaderValueToSign(e, LT.IF_MATCH),
-            this.getHeaderValueToSign(e, LT.IF_NONE_MATCH),
-            this.getHeaderValueToSign(e, LT.IF_UNMODIFIED_SINCE),
-            this.getHeaderValueToSign(e, LT.RANGE),
+            this.getHeaderValueToSign(e, zT.CONTENT_LANGUAGE),
+            this.getHeaderValueToSign(e, zT.CONTENT_ENCODING),
+            this.getHeaderValueToSign(e, zT.CONTENT_LENGTH),
+            this.getHeaderValueToSign(e, zT.CONTENT_MD5),
+            this.getHeaderValueToSign(e, zT.CONTENT_TYPE),
+            this.getHeaderValueToSign(e, zT.DATE),
+            this.getHeaderValueToSign(e, zT.IF_MODIFIED_SINCE),
+            this.getHeaderValueToSign(e, zT.IF_MATCH),
+            this.getHeaderValueToSign(e, zT.IF_NONE_MATCH),
+            this.getHeaderValueToSign(e, zT.IF_UNMODIFIED_SINCE),
+            this.getHeaderValueToSign(e, zT.RANGE),
           ].join(`
 `) +
           `
@@ -36511,17 +36557,17 @@ var JT = class extends MT {
           this.getCanonicalizedHeadersString(e) +
           this.getCanonicalizedResourceString(e),
         n = this.factory.computeHMACSHA256(t);
-      return (e.headers.set(LT.AUTHORIZATION, `SharedKey ${this.factory.accountName}:${n}`), e);
+      return (e.headers.set(zT.AUTHORIZATION, `SharedKey ${this.factory.accountName}:${n}`), e);
     }
     getHeaderValueToSign(e, t) {
       let n = e.headers.get(t);
-      return !n || (t === LT.CONTENT_LENGTH && n === `0`) ? `` : n;
+      return !n || (t === zT.CONTENT_LENGTH && n === `0`) ? `` : n;
     }
     getCanonicalizedHeadersString(e) {
       let t = e.headers
         .headersArray()
-        .filter((e) => e.name.toLowerCase().startsWith(LT.PREFIX_FOR_STORAGE));
-      (t.sort((e, t) => KT(e.name.toLowerCase(), t.name.toLowerCase())),
+        .filter((e) => e.name.toLowerCase().startsWith(zT.PREFIX_FOR_STORAGE));
+      (t.sort((e, t) => JT(e.name.toLowerCase(), t.name.toLowerCase())),
         (t = t.filter(
           (e, t, n) => !(t > 0 && e.name.toLowerCase() === n[t - 1].name.toLowerCase()),
         )));
@@ -36534,10 +36580,10 @@ var JT = class extends MT {
       );
     }
     getCanonicalizedResourceString(e) {
-      let t = BT(e.url) || `/`,
+      let t = HT(e.url) || `/`,
         n = ``;
       n += `/${this.factory.accountName}${t}`;
-      let r = VT(e.url),
+      let r = UT(e.url),
         i = {};
       if (r) {
         let e = [];
@@ -36552,54 +36598,54 @@ var JT = class extends MT {
       return n;
     }
   },
-  YT = class extends PT {
+  ZT = class extends IT {
     accountName;
     accountKey;
     constructor(e, t) {
       (super(), (this.accountName = e), (this.accountKey = Buffer.from(t, `base64`)));
     }
     create(e, t) {
-      return new JT(e, t, this);
+      return new XT(e, t, this);
     }
     computeHMACSHA256(e) {
       return E(`sha256`, this.accountKey).update(e, `utf8`).digest(`base64`);
     }
   },
-  XT = Qv(`storage-common`),
-  ZT;
+  QT = ey(`storage-common`),
+  $T;
 (function (e) {
   ((e[(e.EXPONENTIAL = 0)] = `EXPONENTIAL`), (e[(e.FIXED = 1)] = `FIXED`));
-})((ZT ||= {}));
-var QT = {
+})(($T ||= {}));
+var eE = {
     maxRetryDelayInMs: 12e4,
     maxTries: 4,
     retryDelayInMs: 4e3,
-    retryPolicyType: ZT.EXPONENTIAL,
+    retryPolicyType: $T.EXPONENTIAL,
     secondaryHost: ``,
     tryTimeoutInMs: void 0,
   },
-  $T = new fy(`The operation was aborted.`),
-  eE = class extends kT {
+  tE = new my(`The operation was aborted.`),
+  nE = class extends jT {
     retryOptions;
-    constructor(e, t, n = QT) {
+    constructor(e, t, n = eE) {
       (super(e, t),
         (this.retryOptions = {
-          retryPolicyType: n.retryPolicyType ? n.retryPolicyType : QT.retryPolicyType,
-          maxTries: n.maxTries && n.maxTries >= 1 ? Math.floor(n.maxTries) : QT.maxTries,
+          retryPolicyType: n.retryPolicyType ? n.retryPolicyType : eE.retryPolicyType,
+          maxTries: n.maxTries && n.maxTries >= 1 ? Math.floor(n.maxTries) : eE.maxTries,
           tryTimeoutInMs:
-            n.tryTimeoutInMs && n.tryTimeoutInMs >= 0 ? n.tryTimeoutInMs : QT.tryTimeoutInMs,
+            n.tryTimeoutInMs && n.tryTimeoutInMs >= 0 ? n.tryTimeoutInMs : eE.tryTimeoutInMs,
           retryDelayInMs:
             n.retryDelayInMs && n.retryDelayInMs >= 0
               ? Math.min(
                   n.retryDelayInMs,
-                  n.maxRetryDelayInMs ? n.maxRetryDelayInMs : QT.maxRetryDelayInMs,
+                  n.maxRetryDelayInMs ? n.maxRetryDelayInMs : eE.maxRetryDelayInMs,
                 )
-              : QT.retryDelayInMs,
+              : eE.retryDelayInMs,
           maxRetryDelayInMs:
             n.maxRetryDelayInMs && n.maxRetryDelayInMs >= 0
               ? n.maxRetryDelayInMs
-              : QT.maxRetryDelayInMs,
-          secondaryHost: n.secondaryHost ? n.secondaryHost : QT.secondaryHost,
+              : eE.maxRetryDelayInMs,
+          secondaryHost: n.secondaryHost ? n.secondaryHost : eE.secondaryHost,
         }));
     }
     async sendRequest(e) {
@@ -36612,17 +36658,17 @@ var QT = {
           !this.retryOptions.secondaryHost ||
           (e.method !== `GET` && e.method !== `HEAD` && e.method !== `OPTIONS`) ||
           n % 2 == 1;
-      (i || (r.url = zT(r.url, this.retryOptions.secondaryHost)),
+      (i || (r.url = VT(r.url, this.retryOptions.secondaryHost)),
         this.retryOptions.tryTimeoutInMs &&
-          (r.url = RT(
+          (r.url = BT(
             r.url,
-            IT.Parameters.TIMEOUT,
+            RT.Parameters.TIMEOUT,
             Math.floor(this.retryOptions.tryTimeoutInMs / 1e3).toString(),
           )));
       let a;
       try {
         if (
-          (XT.info(`RetryPolicy: =====> Try=${n} ${i ? `Primary` : `Secondary`}`),
+          (QT.info(`RetryPolicy: =====> Try=${n} ${i ? `Primary` : `Secondary`}`),
           (a = await this._nextPolicy.sendRequest(r)),
           !this.shouldRetry(i, n, a))
         )
@@ -36630,7 +36676,7 @@ var QT = {
         t ||= !i && a.status === 404;
       } catch (e) {
         if (
-          (XT.error(`RetryPolicy: Caught error, message: ${e.message}, code: ${e.code}`),
+          (QT.error(`RetryPolicy: Caught error, message: ${e.message}, code: ${e.code}`),
           !this.shouldRetry(i, n, a, e))
         )
           throw e;
@@ -36640,7 +36686,7 @@ var QT = {
     shouldRetry(e, t, n, r) {
       if (t >= this.retryOptions.maxTries)
         return (
-          XT.info(
+          QT.info(
             `RetryPolicy: Attempt(s) ${t} >= maxTries ${this.retryOptions.maxTries}, no further try.`,
           ),
           !1
@@ -36663,17 +36709,17 @@ var QT = {
             r.message.toUpperCase().includes(e) ||
             (r.code && r.code.toString().toUpperCase() === e)
           )
-            return (XT.info(`RetryPolicy: Network error ${e} found, will retry.`), !0);
+            return (QT.info(`RetryPolicy: Network error ${e} found, will retry.`), !0);
       }
       if (n || r) {
         let t = n ? n.status : r ? r.statusCode : 0;
         if (!e && t === 404)
-          return (XT.info(`RetryPolicy: Secondary access with 404, will retry.`), !0);
+          return (QT.info(`RetryPolicy: Secondary access with 404, will retry.`), !0);
         if (t === 503 || t === 500)
-          return (XT.info(`RetryPolicy: Will retry for status code ${t}.`), !0);
+          return (QT.info(`RetryPolicy: Will retry for status code ${t}.`), !0);
       }
       if (n && n?.status >= 400) {
-        let e = n.headers.get(LT.X_MS_CopySourceErrorCode);
+        let e = n.headers.get(zT.X_MS_CopySourceErrorCode);
         if (e !== void 0)
           switch (e) {
             case `InternalError`:
@@ -36683,7 +36729,7 @@ var QT = {
           }
       }
       return r?.code === `PARSE_ERROR` && r?.message.startsWith(`Error "Error: Unclosed root tag`)
-        ? (XT.info(
+        ? (QT.info(
             `RetryPolicy: Incomplete XML response likely due to service timeout, will retry.`,
           ),
           !0)
@@ -36693,62 +36739,62 @@ var QT = {
       let r = 0;
       if (e)
         switch (this.retryOptions.retryPolicyType) {
-          case ZT.EXPONENTIAL:
+          case $T.EXPONENTIAL:
             r = Math.min(
               (2 ** (t - 1) - 1) * this.retryOptions.retryDelayInMs,
               this.retryOptions.maxRetryDelayInMs,
             );
             break;
-          case ZT.FIXED:
+          case $T.FIXED:
             r = this.retryOptions.retryDelayInMs;
         }
       else r = Math.random() * 1e3;
-      return (XT.info(`RetryPolicy: Delay for ${r}ms`), HT(r, n, $T));
+      return (QT.info(`RetryPolicy: Delay for ${r}ms`), WT(r, n, tE));
     }
   },
-  tE = class {
+  rE = class {
     retryOptions;
     constructor(e) {
       this.retryOptions = e;
     }
     create(e, t) {
-      return new eE(e, t, this.retryOptions);
+      return new nE(e, t, this.retryOptions);
     }
   },
-  nE = `storageBrowserPolicy`;
-function rE() {
+  iE = `storageBrowserPolicy`;
+function aE() {
   return {
-    name: nE,
+    name: iE,
     async sendRequest(e, t) {
       return t(e);
     },
   };
 }
-var iE = `StorageCorrectContentLengthPolicy`;
-function aE() {
+var oE = `StorageCorrectContentLengthPolicy`;
+function sE() {
   function e(e) {
     e.body &&
       (typeof e.body == `string` || Buffer.isBuffer(e.body)) &&
       e.body.length > 0 &&
-      e.headers.set(LT.CONTENT_LENGTH, Buffer.byteLength(e.body));
+      e.headers.set(zT.CONTENT_LENGTH, Buffer.byteLength(e.body));
   }
   return {
-    name: iE,
+    name: oE,
     async sendRequest(t, n) {
       return (e(t), n(t));
     },
   };
 }
-var oE = `storageRetryPolicy`,
-  sE = {
+var cE = `storageRetryPolicy`,
+  lE = {
     maxRetryDelayInMs: 12e4,
     maxTries: 4,
     retryDelayInMs: 4e3,
-    retryPolicyType: ZT.EXPONENTIAL,
+    retryPolicyType: $T.EXPONENTIAL,
     secondaryHost: ``,
     tryTimeoutInMs: void 0,
   },
-  cE = [
+  uE = [
     `ETIMEDOUT`,
     `ESOCKETTIMEDOUT`,
     `ECONNREFUSED`,
@@ -36759,28 +36805,28 @@ var oE = `storageRetryPolicy`,
     `EPIPE`,
     `REQUEST_SEND_ERROR`,
   ],
-  lE = new fy(`The operation was aborted.`);
-function uE(e = {}) {
-  let t = e.retryPolicyType ?? sE.retryPolicyType,
-    n = e.maxTries ?? sE.maxTries,
-    r = e.retryDelayInMs ?? sE.retryDelayInMs,
-    i = e.maxRetryDelayInMs ?? sE.maxRetryDelayInMs,
-    a = e.secondaryHost ?? sE.secondaryHost,
-    o = e.tryTimeoutInMs ?? sE.tryTimeoutInMs;
+  dE = new my(`The operation was aborted.`);
+function fE(e = {}) {
+  let t = e.retryPolicyType ?? lE.retryPolicyType,
+    n = e.maxTries ?? lE.maxTries,
+    r = e.retryDelayInMs ?? lE.retryDelayInMs,
+    i = e.maxRetryDelayInMs ?? lE.maxRetryDelayInMs,
+    a = e.secondaryHost ?? lE.secondaryHost,
+    o = e.tryTimeoutInMs ?? lE.tryTimeoutInMs;
   function s({ isPrimaryRetry: e, attempt: t, response: r, error: i }) {
     if (t >= n)
-      return (XT.info(`RetryPolicy: Attempt(s) ${t} >= maxTries ${n}, no further try.`), !1);
+      return (QT.info(`RetryPolicy: Attempt(s) ${t} >= maxTries ${n}, no further try.`), !1);
     if (i) {
-      for (let e of cE)
+      for (let e of uE)
         if (
           i.name.toUpperCase().includes(e) ||
           i.message.toUpperCase().includes(e) ||
           (i.code && i.code.toString().toUpperCase() === e)
         )
-          return (XT.info(`RetryPolicy: Network error ${e} found, will retry.`), !0);
+          return (QT.info(`RetryPolicy: Network error ${e} found, will retry.`), !0);
       if (i?.code === `PARSE_ERROR` && i?.message.startsWith(`Error "Error: Unclosed root tag`))
         return (
-          XT.info(
+          QT.info(
             `RetryPolicy: Incomplete XML response likely due to service timeout, will retry.`,
           ),
           !0
@@ -36789,12 +36835,12 @@ function uE(e = {}) {
     if (r || i) {
       let t = r?.status ?? i?.statusCode ?? 0;
       if (!e && t === 404)
-        return (XT.info(`RetryPolicy: Secondary access with 404, will retry.`), !0);
+        return (QT.info(`RetryPolicy: Secondary access with 404, will retry.`), !0);
       if (t === 503 || t === 500)
-        return (XT.info(`RetryPolicy: Will retry for status code ${t}.`), !0);
+        return (QT.info(`RetryPolicy: Will retry for status code ${t}.`), !0);
     }
     if (r && r?.status >= 400) {
-      let e = r.headers.get(LT.X_MS_CopySourceErrorCode);
+      let e = r.headers.get(zT.X_MS_CopySourceErrorCode);
       if (e !== void 0)
         switch (e) {
           case `InternalError`:
@@ -36809,21 +36855,21 @@ function uE(e = {}) {
     let a = 0;
     if (e)
       switch (t) {
-        case ZT.EXPONENTIAL:
+        case $T.EXPONENTIAL:
           a = Math.min((2 ** (n - 1) - 1) * r, i);
           break;
-        case ZT.FIXED:
+        case $T.FIXED:
           a = r;
       }
     else a = Math.random() * 1e3;
-    return (XT.info(`RetryPolicy: Delay for ${a}ms`), a);
+    return (QT.info(`RetryPolicy: Delay for ${a}ms`), a);
   }
   return {
-    name: oE,
+    name: cE,
     async sendRequest(e, t) {
-      o && (e.url = RT(e.url, IT.Parameters.TIMEOUT, String(Math.floor(o / 1e3))));
+      o && (e.url = BT(e.url, RT.Parameters.TIMEOUT, String(Math.floor(o / 1e3))));
       let n = e.url,
-        r = a ? zT(e.url, a) : void 0,
+        r = a ? VT(e.url, a) : void 0,
         i = !1,
         l = 1,
         u = !0,
@@ -36833,46 +36879,46 @@ function uE(e = {}) {
         let a = i || !r || ![`GET`, `HEAD`, `OPTIONS`].includes(e.method) || l % 2 == 1;
         ((e.url = a ? n : r), (d = void 0), (f = void 0));
         try {
-          (XT.info(`RetryPolicy: =====> Try=${l} ${a ? `Primary` : `Secondary`}`),
+          (QT.info(`RetryPolicy: =====> Try=${l} ${a ? `Primary` : `Secondary`}`),
             (d = await t(e)),
             (i ||= !a && d.status === 404));
         } catch (e) {
-          if (wT(e))
-            (XT.error(`RetryPolicy: Caught error, message: ${e.message}, code: ${e.code}`),
+          if (ET(e))
+            (QT.error(`RetryPolicy: Caught error, message: ${e.message}, code: ${e.code}`),
               (f = e));
-          else throw (XT.error(`RetryPolicy: Caught error, message: ${gy(e)}`), e);
+          else throw (QT.error(`RetryPolicy: Caught error, message: ${vy(e)}`), e);
         }
         ((u = s({ isPrimaryRetry: a, attempt: l, response: d, error: f })),
-          u && (await HT(c(a, l), e.abortSignal, lE)),
+          u && (await WT(c(a, l), e.abortSignal, dE)),
           l++);
       }
       if (d) return d;
-      throw f ?? new CT(`RetryPolicy failed without known error.`);
+      throw f ?? new TT(`RetryPolicy failed without known error.`);
     },
   };
 }
-var dE = `storageSharedKeyCredentialPolicy`;
-function fE(e) {
+var pE = `storageSharedKeyCredentialPolicy`;
+function mE(e) {
   function t(t) {
-    (t.headers.set(LT.X_MS_DATE, new Date().toUTCString()),
+    (t.headers.set(zT.X_MS_DATE, new Date().toUTCString()),
       t.body &&
         (typeof t.body == `string` || Buffer.isBuffer(t.body)) &&
         t.body.length > 0 &&
-        t.headers.set(LT.CONTENT_LENGTH, Buffer.byteLength(t.body)));
+        t.headers.set(zT.CONTENT_LENGTH, Buffer.byteLength(t.body)));
     let a =
         [
           t.method.toUpperCase(),
-          n(t, LT.CONTENT_LANGUAGE),
-          n(t, LT.CONTENT_ENCODING),
-          n(t, LT.CONTENT_LENGTH),
-          n(t, LT.CONTENT_MD5),
-          n(t, LT.CONTENT_TYPE),
-          n(t, LT.DATE),
-          n(t, LT.IF_MODIFIED_SINCE),
-          n(t, LT.IF_MATCH),
-          n(t, LT.IF_NONE_MATCH),
-          n(t, LT.IF_UNMODIFIED_SINCE),
-          n(t, LT.RANGE),
+          n(t, zT.CONTENT_LANGUAGE),
+          n(t, zT.CONTENT_ENCODING),
+          n(t, zT.CONTENT_LENGTH),
+          n(t, zT.CONTENT_MD5),
+          n(t, zT.CONTENT_TYPE),
+          n(t, zT.DATE),
+          n(t, zT.IF_MODIFIED_SINCE),
+          n(t, zT.IF_MATCH),
+          n(t, zT.IF_NONE_MATCH),
+          n(t, zT.IF_UNMODIFIED_SINCE),
+          n(t, zT.RANGE),
         ].join(`
 `) +
         `
@@ -36880,17 +36926,17 @@ function fE(e) {
         r(t) +
         i(t),
       o = E(`sha256`, e.accountKey).update(a, `utf8`).digest(`base64`);
-    t.headers.set(LT.AUTHORIZATION, `SharedKey ${e.accountName}:${o}`);
+    t.headers.set(zT.AUTHORIZATION, `SharedKey ${e.accountName}:${o}`);
   }
   function n(e, t) {
     let n = e.headers.get(t);
-    return !n || (t === LT.CONTENT_LENGTH && n === `0`) ? `` : n;
+    return !n || (t === zT.CONTENT_LENGTH && n === `0`) ? `` : n;
   }
   function r(e) {
     let t = [];
     for (let [n, r] of e.headers)
-      n.toLowerCase().startsWith(LT.PREFIX_FOR_STORAGE) && t.push({ name: n, value: r });
-    (t.sort((e, t) => KT(e.name.toLowerCase(), t.name.toLowerCase())),
+      n.toLowerCase().startsWith(zT.PREFIX_FOR_STORAGE) && t.push({ name: n, value: r });
+    (t.sort((e, t) => JT(e.name.toLowerCase(), t.name.toLowerCase())),
       (t = t.filter(
         (e, t, n) => !(t > 0 && e.name.toLowerCase() === n[t - 1].name.toLowerCase()),
       )));
@@ -36903,10 +36949,10 @@ function fE(e) {
     );
   }
   function i(t) {
-    let n = BT(t.url) || `/`,
+    let n = HT(t.url) || `/`,
       r = ``;
     r += `/${e.accountName}${n}`;
-    let i = VT(t.url),
+    let i = UT(t.url),
       a = {};
     if (i) {
       let e = [];
@@ -36921,16 +36967,16 @@ function fE(e) {
     return r;
   }
   return {
-    name: dE,
+    name: pE,
     async sendRequest(e, n) {
       return (t(e), n(e));
     },
   };
 }
-var pE = `storageRequestFailureDetailsParserPolicy`;
-function mE() {
+var hE = `storageRequestFailureDetailsParserPolicy`;
+function gE() {
   return {
-    name: pE,
+    name: hE,
     async sendRequest(e, t) {
       try {
         let n = await t(e);
@@ -36960,7 +37006,7 @@ function mE() {
     },
   };
 }
-var hE = class {
+var _E = class {
     accountName;
     userDelegationKey;
     key;
@@ -36973,15 +37019,15 @@ var hE = class {
       return E(`sha256`, this.key).update(e, `utf8`).digest(`base64`);
     }
   },
-  gE = `12.31.0`,
-  _E = `2026-02-06`,
-  vE = 268435456,
-  yE = 4194304e3,
-  bE = 5e4,
-  xE = 8388608,
-  SE = 4194304,
-  CE = 1e5,
-  wE = {
+  vE = `12.31.0`,
+  yE = `2026-02-06`,
+  bE = 268435456,
+  xE = 4194304e3,
+  SE = 5e4,
+  CE = 8388608,
+  wE = 4194304,
+  TE = 1e5,
+  EE = {
     Parameters: {
       FORCE_BROWSER_NO_CACHE: `_`,
       SIGNATURE: `sig`,
@@ -36990,17 +37036,17 @@ var hE = class {
       TIMEOUT: `timeout`,
     },
   },
-  TE = `AES256`,
-  EE = `DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;`,
-  DE =
+  DE = `AES256`,
+  OE = `DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;`,
+  kE =
     `Access-Control-Allow-Origin.Cache-Control.Content-Length.Content-Type.Date.Request-Id.traceparent.Transfer-Encoding.User-Agent.x-ms-client-request-id.x-ms-date.x-ms-error-code.x-ms-request-id.x-ms-return-client-request-id.x-ms-version.Accept-Ranges.Content-Disposition.Content-Encoding.Content-Language.Content-MD5.Content-Range.ETag.Last-Modified.Server.Vary.x-ms-content-crc64.x-ms-copy-action.x-ms-copy-completion-time.x-ms-copy-id.x-ms-copy-progress.x-ms-copy-status.x-ms-has-immutability-policy.x-ms-has-legal-hold.x-ms-lease-state.x-ms-lease-status.x-ms-range.x-ms-request-server-encrypted.x-ms-server-encrypted.x-ms-snapshot.x-ms-source-range.If-Match.If-Modified-Since.If-None-Match.If-Unmodified-Since.x-ms-access-tier.x-ms-access-tier-change-time.x-ms-access-tier-inferred.x-ms-account-kind.x-ms-archive-status.x-ms-blob-append-offset.x-ms-blob-cache-control.x-ms-blob-committed-block-count.x-ms-blob-condition-appendpos.x-ms-blob-condition-maxsize.x-ms-blob-content-disposition.x-ms-blob-content-encoding.x-ms-blob-content-language.x-ms-blob-content-length.x-ms-blob-content-md5.x-ms-blob-content-type.x-ms-blob-public-access.x-ms-blob-sequence-number.x-ms-blob-type.x-ms-copy-destination-snapshot.x-ms-creation-time.x-ms-default-encryption-scope.x-ms-delete-snapshots.x-ms-delete-type-permanent.x-ms-deny-encryption-scope-override.x-ms-encryption-algorithm.x-ms-if-sequence-number-eq.x-ms-if-sequence-number-le.x-ms-if-sequence-number-lt.x-ms-incremental-copy.x-ms-lease-action.x-ms-lease-break-period.x-ms-lease-duration.x-ms-lease-id.x-ms-lease-time.x-ms-page-write.x-ms-proposed-lease-id.x-ms-range-get-content-md5.x-ms-rehydrate-priority.x-ms-sequence-number-action.x-ms-sku-name.x-ms-source-content-md5.x-ms-source-if-match.x-ms-source-if-modified-since.x-ms-source-if-none-match.x-ms-source-if-unmodified-since.x-ms-tag-count.x-ms-encryption-key-sha256.x-ms-copy-source-error-code.x-ms-copy-source-status-code.x-ms-if-tags.x-ms-source-if-tags`.split(
       `.`,
     ),
-  OE =
+  AE =
     `comp.maxresults.rscc.rscd.rsce.rscl.rsct.se.si.sip.sp.spr.sr.srt.ss.st.sv.include.marker.prefix.copyid.restype.blockid.blocklisttype.delimiter.prevsnapshot.ske.skoid.sks.skt.sktid.skv.snapshot`.split(
       `.`,
     ),
-  kE = [
+  jE = [
     `10000`,
     `10001`,
     `10002`,
@@ -37022,7 +37068,7 @@ var hE = class {
     `11103`,
     `11104`,
   ];
-function AE(e) {
+function ME(e) {
   if (!e || typeof e != `object`) return !1;
   let t = e;
   return (
@@ -37031,7 +37077,7 @@ function AE(e) {
     typeof t.toServiceClientOptions == `function`
   );
 }
-var jE = class {
+var NE = class {
   factories;
   options;
   constructor(e, t = {}) {
@@ -37041,99 +37087,99 @@ var jE = class {
     return { httpClient: this.options.httpClient, requestPolicyFactories: this.factories };
   }
 };
-function ME(e, t = {}) {
-  e ||= new FT();
-  let n = new jE([], t);
+function PE(e, t = {}) {
+  e ||= new LT();
+  let n = new NE([], t);
   return ((n._credential = e), n);
 }
-function NE(e) {
-  let t = [LE, IE, RE, zE, BE, VE, UE];
+function FE(e) {
+  let t = [zE, RE, BE, VE, HE, UE, GE];
   if (e.factories.length) {
     let n = e.factories.filter((e) => !t.some((t) => t(e)));
     if (n.length) {
-      let e = n.some((e) => HE(e));
-      return { wrappedPolicies: mS(n), afterRetry: e };
+      let e = n.some((e) => WE(e));
+      return { wrappedPolicies: gS(n), afterRetry: e };
     }
   }
 }
-function PE(e) {
+function IE(e) {
   let { httpClient: t, ...n } = e.options,
     r = e._coreHttpClient;
-  r || ((r = t ? hS(t) : OT()), (e._coreHttpClient = r));
+  r || ((r = t ? _S(t) : AT()), (e._coreHttpClient = r));
   let i = e._corePipeline;
   if (!i) {
-    let t = `azsdk-js-azure-storage-blob/${gE}`,
+    let t = `azsdk-js-azure-storage-blob/${vE}`,
       r =
         n.userAgentOptions && n.userAgentOptions.userAgentPrefix
           ? `${n.userAgentOptions.userAgentPrefix} ${t}`
           : `${t}`;
-    ((i = kx({
+    ((i = jx({
       ...n,
       loggingOptions: {
-        additionalAllowedHeaderNames: DE,
-        additionalAllowedQueryParameters: OE,
-        logger: vT.info,
+        additionalAllowedHeaderNames: kE,
+        additionalAllowedQueryParameters: AE,
+        logger: bT.info,
       },
       userAgentOptions: { userAgentPrefix: r },
-      serializationOptions: { stringifyXML: gT, serializerOptions: { xml: { xmlCharKey: `#` } } },
-      deserializationOptions: { parseXML: _T, serializerOptions: { xml: { xmlCharKey: `#` } } },
+      serializationOptions: { stringifyXML: vT, serializerOptions: { xml: { xmlCharKey: `#` } } },
+      deserializationOptions: { parseXML: yT, serializerOptions: { xml: { xmlCharKey: `#` } } },
     })),
       i.removePolicy({ phase: `Retry` }),
-      i.removePolicy({ name: Dy }),
-      i.addPolicy(aE()),
-      i.addPolicy(uE(n.retryOptions), { phase: `Retry` }),
-      i.addPolicy(mE()),
-      i.addPolicy(rE()));
-    let a = NE(e);
+      i.removePolicy({ name: ky }),
+      i.addPolicy(sE()),
+      i.addPolicy(fE(n.retryOptions), { phase: `Retry` }),
+      i.addPolicy(gE()),
+      i.addPolicy(aE()));
+    let a = FE(e);
     a && i.addPolicy(a.wrappedPolicies, a.afterRetry ? { afterPhase: `Retry` } : void 0);
-    let o = FE(e);
-    (_b(o)
+    let o = LE(e);
+    (yb(o)
       ? i.addPolicy(
-          mb({
+          gb({
             credential: o,
             scopes: n.audience ?? `https://storage.azure.com/.default`,
-            challengeCallbacks: { authorizeRequestOnChallenge: qx },
+            challengeCallbacks: { authorizeRequestOnChallenge: Yx },
           }),
           { phase: `Sign` },
         )
-      : o instanceof YT &&
-        i.addPolicy(fE({ accountName: o.accountName, accountKey: o.accountKey }), {
+      : o instanceof ZT &&
+        i.addPolicy(mE({ accountName: o.accountName, accountKey: o.accountKey }), {
           phase: `Sign`,
         }),
       (e._corePipeline = i));
   }
   return { ...n, allowInsecureConnection: !0, httpClient: r, pipeline: i };
 }
-function FE(e) {
+function LE(e) {
   if (e._credential) return e._credential;
-  let t = new FT();
+  let t = new LT();
   for (let n of e.factories)
-    if (_b(n.credential)) t = n.credential;
-    else if (IE(n)) return n;
+    if (yb(n.credential)) t = n.credential;
+    else if (RE(n)) return n;
   return t;
 }
-function IE(e) {
-  return e instanceof YT || e.constructor.name === `StorageSharedKeyCredential`;
-}
-function LE(e) {
-  return e instanceof FT || e.constructor.name === `AnonymousCredential`;
-}
 function RE(e) {
-  return _b(e.credential);
+  return e instanceof ZT || e.constructor.name === `StorageSharedKeyCredential`;
 }
 function zE(e) {
-  return e instanceof jT || e.constructor.name === `StorageBrowserPolicyFactory`;
+  return e instanceof LT || e.constructor.name === `AnonymousCredential`;
 }
 function BE(e) {
-  return e instanceof tE || e.constructor.name === `StorageRetryPolicyFactory`;
+  return yb(e.credential);
 }
 function VE(e) {
-  return e.constructor.name === `TelemetryPolicyFactory`;
+  return e instanceof NT || e.constructor.name === `StorageBrowserPolicyFactory`;
 }
 function HE(e) {
-  return e.constructor.name === `InjectorPolicyFactory`;
+  return e instanceof rE || e.constructor.name === `StorageRetryPolicyFactory`;
 }
 function UE(e) {
+  return e.constructor.name === `TelemetryPolicyFactory`;
+}
+function WE(e) {
+  return e.constructor.name === `InjectorPolicyFactory`;
+}
+function GE(e) {
   let t = [
       `GenerateClientRequestIdPolicy`,
       `TracingPolicy`,
@@ -37154,188 +37200,188 @@ function UE(e) {
     ).constructor.name;
   return t.some((e) => n.startsWith(e));
 }
-var WE = De({
-    AccessPolicy: () => lD,
-    AppendBlobAppendBlockExceptionHeaders: () => Wk,
-    AppendBlobAppendBlockFromUrlExceptionHeaders: () => Kk,
-    AppendBlobAppendBlockFromUrlHeaders: () => Gk,
-    AppendBlobAppendBlockHeaders: () => Uk,
-    AppendBlobCreateExceptionHeaders: () => Hk,
-    AppendBlobCreateHeaders: () => Vk,
-    AppendBlobSealExceptionHeaders: () => Jk,
-    AppendBlobSealHeaders: () => qk,
-    ArrowConfiguration: () => kD,
-    ArrowField: () => AD,
-    BlobAbortCopyFromURLExceptionHeaders: () => fk,
-    BlobAbortCopyFromURLHeaders: () => dk,
-    BlobAcquireLeaseExceptionHeaders: () => XO,
-    BlobAcquireLeaseHeaders: () => YO,
-    BlobBreakLeaseExceptionHeaders: () => ik,
-    BlobBreakLeaseHeaders: () => rk,
-    BlobChangeLeaseExceptionHeaders: () => nk,
-    BlobChangeLeaseHeaders: () => tk,
-    BlobCopyFromURLExceptionHeaders: () => uk,
-    BlobCopyFromURLHeaders: () => lk,
-    BlobCreateSnapshotExceptionHeaders: () => ok,
-    BlobCreateSnapshotHeaders: () => ak,
-    BlobDeleteExceptionHeaders: () => PO,
-    BlobDeleteHeaders: () => NO,
-    BlobDeleteImmutabilityPolicyExceptionHeaders: () => WO,
-    BlobDeleteImmutabilityPolicyHeaders: () => UO,
-    BlobDownloadExceptionHeaders: () => AO,
-    BlobDownloadHeaders: () => kO,
-    BlobFlatListSegment: () => dD,
-    BlobGetAccountInfoExceptionHeaders: () => gk,
-    BlobGetAccountInfoHeaders: () => hk,
-    BlobGetPropertiesExceptionHeaders: () => MO,
-    BlobGetPropertiesHeaders: () => jO,
-    BlobGetTagsExceptionHeaders: () => bk,
-    BlobGetTagsHeaders: () => yk,
-    BlobHierarchyListSegment: () => gD,
-    BlobItemInternal: () => fD,
-    BlobName: () => pD,
-    BlobPrefix: () => _D,
-    BlobPropertiesInternal: () => mD,
-    BlobQueryExceptionHeaders: () => vk,
-    BlobQueryHeaders: () => _k,
-    BlobReleaseLeaseExceptionHeaders: () => QO,
-    BlobReleaseLeaseHeaders: () => ZO,
-    BlobRenewLeaseExceptionHeaders: () => ek,
-    BlobRenewLeaseHeaders: () => $O,
-    BlobServiceProperties: () => GE,
-    BlobServiceStatistics: () => ZE,
-    BlobSetExpiryExceptionHeaders: () => RO,
-    BlobSetExpiryHeaders: () => LO,
-    BlobSetHttpHeadersExceptionHeaders: () => BO,
-    BlobSetHttpHeadersHeaders: () => zO,
-    BlobSetImmutabilityPolicyExceptionHeaders: () => HO,
-    BlobSetImmutabilityPolicyHeaders: () => VO,
-    BlobSetLegalHoldExceptionHeaders: () => KO,
-    BlobSetLegalHoldHeaders: () => GO,
-    BlobSetMetadataExceptionHeaders: () => JO,
-    BlobSetMetadataHeaders: () => qO,
-    BlobSetTagsExceptionHeaders: () => Sk,
-    BlobSetTagsHeaders: () => xk,
-    BlobSetTierExceptionHeaders: () => mk,
-    BlobSetTierHeaders: () => pk,
-    BlobStartCopyFromURLExceptionHeaders: () => ck,
-    BlobStartCopyFromURLHeaders: () => sk,
-    BlobTag: () => sD,
-    BlobTags: () => oD,
-    BlobUndeleteExceptionHeaders: () => IO,
-    BlobUndeleteHeaders: () => FO,
-    Block: () => bD,
-    BlockBlobCommitBlockListExceptionHeaders: () => iA,
-    BlockBlobCommitBlockListHeaders: () => rA,
-    BlockBlobGetBlockListExceptionHeaders: () => oA,
-    BlockBlobGetBlockListHeaders: () => aA,
-    BlockBlobPutBlobFromUrlExceptionHeaders: () => Qk,
-    BlockBlobPutBlobFromUrlHeaders: () => Zk,
-    BlockBlobStageBlockExceptionHeaders: () => eA,
-    BlockBlobStageBlockFromURLExceptionHeaders: () => nA,
-    BlockBlobStageBlockFromURLHeaders: () => tA,
-    BlockBlobStageBlockHeaders: () => $k,
-    BlockBlobUploadExceptionHeaders: () => Xk,
-    BlockBlobUploadHeaders: () => Yk,
-    BlockList: () => yD,
-    BlockLookupList: () => vD,
-    ClearRange: () => CD,
-    ContainerAcquireLeaseExceptionHeaders: () => mO,
-    ContainerAcquireLeaseHeaders: () => pO,
-    ContainerBreakLeaseExceptionHeaders: () => bO,
-    ContainerBreakLeaseHeaders: () => yO,
-    ContainerChangeLeaseExceptionHeaders: () => SO,
-    ContainerChangeLeaseHeaders: () => xO,
-    ContainerCreateExceptionHeaders: () => JD,
-    ContainerCreateHeaders: () => qD,
-    ContainerDeleteExceptionHeaders: () => QD,
-    ContainerDeleteHeaders: () => ZD,
-    ContainerFilterBlobsExceptionHeaders: () => fO,
-    ContainerFilterBlobsHeaders: () => dO,
-    ContainerGetAccessPolicyExceptionHeaders: () => nO,
-    ContainerGetAccessPolicyHeaders: () => tO,
-    ContainerGetAccountInfoExceptionHeaders: () => OO,
-    ContainerGetAccountInfoHeaders: () => DO,
-    ContainerGetPropertiesExceptionHeaders: () => XD,
-    ContainerGetPropertiesHeaders: () => YD,
-    ContainerItem: () => eD,
-    ContainerListBlobFlatSegmentExceptionHeaders: () => wO,
-    ContainerListBlobFlatSegmentHeaders: () => CO,
-    ContainerListBlobHierarchySegmentExceptionHeaders: () => EO,
-    ContainerListBlobHierarchySegmentHeaders: () => TO,
-    ContainerProperties: () => tD,
-    ContainerReleaseLeaseExceptionHeaders: () => gO,
-    ContainerReleaseLeaseHeaders: () => hO,
-    ContainerRenameExceptionHeaders: () => cO,
-    ContainerRenameHeaders: () => sO,
-    ContainerRenewLeaseExceptionHeaders: () => vO,
-    ContainerRenewLeaseHeaders: () => _O,
-    ContainerRestoreExceptionHeaders: () => oO,
-    ContainerRestoreHeaders: () => aO,
-    ContainerSetAccessPolicyExceptionHeaders: () => iO,
-    ContainerSetAccessPolicyHeaders: () => rO,
-    ContainerSetMetadataExceptionHeaders: () => eO,
-    ContainerSetMetadataHeaders: () => $D,
-    ContainerSubmitBatchExceptionHeaders: () => uO,
-    ContainerSubmitBatchHeaders: () => lO,
-    CorsRule: () => YE,
-    DelimitedTextConfiguration: () => DD,
-    FilterBlobItem: () => aD,
-    FilterBlobSegment: () => iD,
-    GeoReplication: () => QE,
-    JsonTextConfiguration: () => OD,
-    KeyInfo: () => nD,
-    ListBlobsFlatSegmentResponse: () => uD,
-    ListBlobsHierarchySegmentResponse: () => hD,
-    ListContainersSegmentResponse: () => $E,
-    Logging: () => KE,
-    Metrics: () => JE,
-    PageBlobClearPagesExceptionHeaders: () => Ok,
-    PageBlobClearPagesHeaders: () => Dk,
-    PageBlobCopyIncrementalExceptionHeaders: () => Bk,
-    PageBlobCopyIncrementalHeaders: () => zk,
-    PageBlobCreateExceptionHeaders: () => wk,
-    PageBlobCreateHeaders: () => Ck,
-    PageBlobGetPageRangesDiffExceptionHeaders: () => Pk,
-    PageBlobGetPageRangesDiffHeaders: () => Nk,
-    PageBlobGetPageRangesExceptionHeaders: () => Mk,
-    PageBlobGetPageRangesHeaders: () => jk,
-    PageBlobResizeExceptionHeaders: () => Ik,
-    PageBlobResizeHeaders: () => Fk,
-    PageBlobUpdateSequenceNumberExceptionHeaders: () => Rk,
-    PageBlobUpdateSequenceNumberHeaders: () => Lk,
-    PageBlobUploadPagesExceptionHeaders: () => Ek,
-    PageBlobUploadPagesFromURLExceptionHeaders: () => Ak,
-    PageBlobUploadPagesFromURLHeaders: () => kk,
-    PageBlobUploadPagesHeaders: () => Tk,
-    PageList: () => xD,
-    PageRange: () => SD,
-    QueryFormat: () => ED,
-    QueryRequest: () => wD,
-    QuerySerialization: () => TD,
-    RetentionPolicy: () => qE,
-    ServiceFilterBlobsExceptionHeaders: () => KD,
-    ServiceFilterBlobsHeaders: () => GD,
-    ServiceGetAccountInfoExceptionHeaders: () => HD,
-    ServiceGetAccountInfoHeaders: () => VD,
-    ServiceGetPropertiesExceptionHeaders: () => PD,
-    ServiceGetPropertiesHeaders: () => ND,
-    ServiceGetStatisticsExceptionHeaders: () => ID,
-    ServiceGetStatisticsHeaders: () => FD,
-    ServiceGetUserDelegationKeyExceptionHeaders: () => BD,
-    ServiceGetUserDelegationKeyHeaders: () => zD,
-    ServiceListContainersSegmentExceptionHeaders: () => RD,
-    ServiceListContainersSegmentHeaders: () => LD,
-    ServiceSetPropertiesExceptionHeaders: () => MD,
-    ServiceSetPropertiesHeaders: () => jD,
-    ServiceSubmitBatchExceptionHeaders: () => WD,
-    ServiceSubmitBatchHeaders: () => UD,
-    SignedIdentifier: () => cD,
-    StaticWebsite: () => XE,
+var KE = De({
+    AccessPolicy: () => dD,
+    AppendBlobAppendBlockExceptionHeaders: () => Kk,
+    AppendBlobAppendBlockFromUrlExceptionHeaders: () => Jk,
+    AppendBlobAppendBlockFromUrlHeaders: () => qk,
+    AppendBlobAppendBlockHeaders: () => Gk,
+    AppendBlobCreateExceptionHeaders: () => Wk,
+    AppendBlobCreateHeaders: () => Uk,
+    AppendBlobSealExceptionHeaders: () => Xk,
+    AppendBlobSealHeaders: () => Yk,
+    ArrowConfiguration: () => jD,
+    ArrowField: () => MD,
+    BlobAbortCopyFromURLExceptionHeaders: () => mk,
+    BlobAbortCopyFromURLHeaders: () => pk,
+    BlobAcquireLeaseExceptionHeaders: () => QO,
+    BlobAcquireLeaseHeaders: () => ZO,
+    BlobBreakLeaseExceptionHeaders: () => ok,
+    BlobBreakLeaseHeaders: () => ak,
+    BlobChangeLeaseExceptionHeaders: () => ik,
+    BlobChangeLeaseHeaders: () => rk,
+    BlobCopyFromURLExceptionHeaders: () => fk,
+    BlobCopyFromURLHeaders: () => dk,
+    BlobCreateSnapshotExceptionHeaders: () => ck,
+    BlobCreateSnapshotHeaders: () => sk,
+    BlobDeleteExceptionHeaders: () => IO,
+    BlobDeleteHeaders: () => FO,
+    BlobDeleteImmutabilityPolicyExceptionHeaders: () => KO,
+    BlobDeleteImmutabilityPolicyHeaders: () => GO,
+    BlobDownloadExceptionHeaders: () => MO,
+    BlobDownloadHeaders: () => jO,
+    BlobFlatListSegment: () => pD,
+    BlobGetAccountInfoExceptionHeaders: () => vk,
+    BlobGetAccountInfoHeaders: () => _k,
+    BlobGetPropertiesExceptionHeaders: () => PO,
+    BlobGetPropertiesHeaders: () => NO,
+    BlobGetTagsExceptionHeaders: () => Sk,
+    BlobGetTagsHeaders: () => xk,
+    BlobHierarchyListSegment: () => vD,
+    BlobItemInternal: () => mD,
+    BlobName: () => hD,
+    BlobPrefix: () => yD,
+    BlobPropertiesInternal: () => gD,
+    BlobQueryExceptionHeaders: () => bk,
+    BlobQueryHeaders: () => yk,
+    BlobReleaseLeaseExceptionHeaders: () => ek,
+    BlobReleaseLeaseHeaders: () => $O,
+    BlobRenewLeaseExceptionHeaders: () => nk,
+    BlobRenewLeaseHeaders: () => tk,
+    BlobServiceProperties: () => qE,
+    BlobServiceStatistics: () => $E,
+    BlobSetExpiryExceptionHeaders: () => BO,
+    BlobSetExpiryHeaders: () => zO,
+    BlobSetHttpHeadersExceptionHeaders: () => HO,
+    BlobSetHttpHeadersHeaders: () => VO,
+    BlobSetImmutabilityPolicyExceptionHeaders: () => WO,
+    BlobSetImmutabilityPolicyHeaders: () => UO,
+    BlobSetLegalHoldExceptionHeaders: () => JO,
+    BlobSetLegalHoldHeaders: () => qO,
+    BlobSetMetadataExceptionHeaders: () => XO,
+    BlobSetMetadataHeaders: () => YO,
+    BlobSetTagsExceptionHeaders: () => wk,
+    BlobSetTagsHeaders: () => Ck,
+    BlobSetTierExceptionHeaders: () => gk,
+    BlobSetTierHeaders: () => hk,
+    BlobStartCopyFromURLExceptionHeaders: () => uk,
+    BlobStartCopyFromURLHeaders: () => lk,
+    BlobTag: () => lD,
+    BlobTags: () => cD,
+    BlobUndeleteExceptionHeaders: () => RO,
+    BlobUndeleteHeaders: () => LO,
+    Block: () => SD,
+    BlockBlobCommitBlockListExceptionHeaders: () => oA,
+    BlockBlobCommitBlockListHeaders: () => aA,
+    BlockBlobGetBlockListExceptionHeaders: () => cA,
+    BlockBlobGetBlockListHeaders: () => sA,
+    BlockBlobPutBlobFromUrlExceptionHeaders: () => eA,
+    BlockBlobPutBlobFromUrlHeaders: () => $k,
+    BlockBlobStageBlockExceptionHeaders: () => nA,
+    BlockBlobStageBlockFromURLExceptionHeaders: () => iA,
+    BlockBlobStageBlockFromURLHeaders: () => rA,
+    BlockBlobStageBlockHeaders: () => tA,
+    BlockBlobUploadExceptionHeaders: () => Qk,
+    BlockBlobUploadHeaders: () => Zk,
+    BlockList: () => xD,
+    BlockLookupList: () => bD,
+    ClearRange: () => TD,
+    ContainerAcquireLeaseExceptionHeaders: () => gO,
+    ContainerAcquireLeaseHeaders: () => hO,
+    ContainerBreakLeaseExceptionHeaders: () => SO,
+    ContainerBreakLeaseHeaders: () => xO,
+    ContainerChangeLeaseExceptionHeaders: () => wO,
+    ContainerChangeLeaseHeaders: () => CO,
+    ContainerCreateExceptionHeaders: () => XD,
+    ContainerCreateHeaders: () => YD,
+    ContainerDeleteExceptionHeaders: () => eO,
+    ContainerDeleteHeaders: () => $D,
+    ContainerFilterBlobsExceptionHeaders: () => mO,
+    ContainerFilterBlobsHeaders: () => pO,
+    ContainerGetAccessPolicyExceptionHeaders: () => iO,
+    ContainerGetAccessPolicyHeaders: () => rO,
+    ContainerGetAccountInfoExceptionHeaders: () => AO,
+    ContainerGetAccountInfoHeaders: () => kO,
+    ContainerGetPropertiesExceptionHeaders: () => QD,
+    ContainerGetPropertiesHeaders: () => ZD,
+    ContainerItem: () => nD,
+    ContainerListBlobFlatSegmentExceptionHeaders: () => EO,
+    ContainerListBlobFlatSegmentHeaders: () => TO,
+    ContainerListBlobHierarchySegmentExceptionHeaders: () => OO,
+    ContainerListBlobHierarchySegmentHeaders: () => DO,
+    ContainerProperties: () => rD,
+    ContainerReleaseLeaseExceptionHeaders: () => vO,
+    ContainerReleaseLeaseHeaders: () => _O,
+    ContainerRenameExceptionHeaders: () => uO,
+    ContainerRenameHeaders: () => lO,
+    ContainerRenewLeaseExceptionHeaders: () => bO,
+    ContainerRenewLeaseHeaders: () => yO,
+    ContainerRestoreExceptionHeaders: () => cO,
+    ContainerRestoreHeaders: () => sO,
+    ContainerSetAccessPolicyExceptionHeaders: () => oO,
+    ContainerSetAccessPolicyHeaders: () => aO,
+    ContainerSetMetadataExceptionHeaders: () => nO,
+    ContainerSetMetadataHeaders: () => tO,
+    ContainerSubmitBatchExceptionHeaders: () => fO,
+    ContainerSubmitBatchHeaders: () => dO,
+    CorsRule: () => ZE,
+    DelimitedTextConfiguration: () => kD,
+    FilterBlobItem: () => sD,
+    FilterBlobSegment: () => oD,
+    GeoReplication: () => eD,
+    JsonTextConfiguration: () => AD,
+    KeyInfo: () => iD,
+    ListBlobsFlatSegmentResponse: () => fD,
+    ListBlobsHierarchySegmentResponse: () => _D,
+    ListContainersSegmentResponse: () => tD,
+    Logging: () => JE,
+    Metrics: () => XE,
+    PageBlobClearPagesExceptionHeaders: () => Ak,
+    PageBlobClearPagesHeaders: () => kk,
+    PageBlobCopyIncrementalExceptionHeaders: () => Hk,
+    PageBlobCopyIncrementalHeaders: () => Vk,
+    PageBlobCreateExceptionHeaders: () => Ek,
+    PageBlobCreateHeaders: () => Tk,
+    PageBlobGetPageRangesDiffExceptionHeaders: () => Ik,
+    PageBlobGetPageRangesDiffHeaders: () => Fk,
+    PageBlobGetPageRangesExceptionHeaders: () => Pk,
+    PageBlobGetPageRangesHeaders: () => Nk,
+    PageBlobResizeExceptionHeaders: () => Rk,
+    PageBlobResizeHeaders: () => Lk,
+    PageBlobUpdateSequenceNumberExceptionHeaders: () => Bk,
+    PageBlobUpdateSequenceNumberHeaders: () => zk,
+    PageBlobUploadPagesExceptionHeaders: () => Ok,
+    PageBlobUploadPagesFromURLExceptionHeaders: () => Mk,
+    PageBlobUploadPagesFromURLHeaders: () => jk,
+    PageBlobUploadPagesHeaders: () => Dk,
+    PageList: () => CD,
+    PageRange: () => wD,
+    QueryFormat: () => OD,
+    QueryRequest: () => ED,
+    QuerySerialization: () => DD,
+    RetentionPolicy: () => YE,
+    ServiceFilterBlobsExceptionHeaders: () => JD,
+    ServiceFilterBlobsHeaders: () => qD,
+    ServiceGetAccountInfoExceptionHeaders: () => WD,
+    ServiceGetAccountInfoHeaders: () => UD,
+    ServiceGetPropertiesExceptionHeaders: () => ID,
+    ServiceGetPropertiesHeaders: () => FD,
+    ServiceGetStatisticsExceptionHeaders: () => RD,
+    ServiceGetStatisticsHeaders: () => LD,
+    ServiceGetUserDelegationKeyExceptionHeaders: () => HD,
+    ServiceGetUserDelegationKeyHeaders: () => VD,
+    ServiceListContainersSegmentExceptionHeaders: () => BD,
+    ServiceListContainersSegmentHeaders: () => zD,
+    ServiceSetPropertiesExceptionHeaders: () => PD,
+    ServiceSetPropertiesHeaders: () => ND,
+    ServiceSubmitBatchExceptionHeaders: () => KD,
+    ServiceSubmitBatchHeaders: () => GD,
+    SignedIdentifier: () => uD,
+    StaticWebsite: () => QE,
     StorageError: () => K,
-    UserDelegationKey: () => rD,
+    UserDelegationKey: () => aD,
   }),
-  GE = {
+  qE = {
     serializedName: `BlobServiceProperties`,
     xmlName: `StorageServiceProperties`,
     type: {
@@ -37385,7 +37431,7 @@ var WE = De({
       },
     },
   },
-  KE = {
+  JE = {
     serializedName: `Logging`,
     type: {
       name: `Composite`,
@@ -37418,7 +37464,7 @@ var WE = De({
       },
     },
   },
-  qE = {
+  YE = {
     serializedName: `RetentionPolicy`,
     type: {
       name: `Composite`,
@@ -37439,7 +37485,7 @@ var WE = De({
       },
     },
   },
-  JE = {
+  XE = {
     serializedName: `Metrics`,
     type: {
       name: `Composite`,
@@ -37465,7 +37511,7 @@ var WE = De({
       },
     },
   },
-  YE = {
+  ZE = {
     serializedName: `CorsRule`,
     type: {
       name: `Composite`,
@@ -37505,7 +37551,7 @@ var WE = De({
       },
     },
   },
-  XE = {
+  QE = {
     serializedName: `StaticWebsite`,
     type: {
       name: `Composite`,
@@ -37566,7 +37612,7 @@ var WE = De({
       },
     },
   },
-  ZE = {
+  $E = {
     serializedName: `BlobServiceStatistics`,
     xmlName: `StorageServiceStats`,
     type: {
@@ -37581,7 +37627,7 @@ var WE = De({
       },
     },
   },
-  QE = {
+  eD = {
     serializedName: `GeoReplication`,
     type: {
       name: `Composite`,
@@ -37602,7 +37648,7 @@ var WE = De({
       },
     },
   },
-  $E = {
+  tD = {
     serializedName: `ListContainersSegmentResponse`,
     xmlName: `EnumerationResults`,
     type: {
@@ -37642,7 +37688,7 @@ var WE = De({
       },
     },
   },
-  eD = {
+  nD = {
     serializedName: `ContainerItem`,
     xmlName: `Container`,
     type: {
@@ -37665,7 +37711,7 @@ var WE = De({
       },
     },
   },
-  tD = {
+  rD = {
     serializedName: `ContainerProperties`,
     type: {
       name: `Composite`,
@@ -37739,7 +37785,7 @@ var WE = De({
       },
     },
   },
-  nD = {
+  iD = {
     serializedName: `KeyInfo`,
     type: {
       name: `Composite`,
@@ -37760,7 +37806,7 @@ var WE = De({
       },
     },
   },
-  rD = {
+  aD = {
     serializedName: `UserDelegationKey`,
     type: {
       name: `Composite`,
@@ -37811,7 +37857,7 @@ var WE = De({
       },
     },
   },
-  iD = {
+  oD = {
     serializedName: `FilterBlobSegment`,
     xmlName: `EnumerationResults`,
     type: {
@@ -37850,7 +37896,7 @@ var WE = De({
       },
     },
   },
-  aD = {
+  sD = {
     serializedName: `FilterBlobItem`,
     xmlName: `Blob`,
     type: {
@@ -37872,7 +37918,7 @@ var WE = De({
       },
     },
   },
-  oD = {
+  cD = {
     serializedName: `BlobTags`,
     xmlName: `Tags`,
     type: {
@@ -37893,7 +37939,7 @@ var WE = De({
       },
     },
   },
-  sD = {
+  lD = {
     serializedName: `BlobTag`,
     xmlName: `Tag`,
     type: {
@@ -37910,7 +37956,7 @@ var WE = De({
       },
     },
   },
-  cD = {
+  uD = {
     serializedName: `SignedIdentifier`,
     xmlName: `SignedIdentifier`,
     type: {
@@ -37926,7 +37972,7 @@ var WE = De({
       },
     },
   },
-  lD = {
+  dD = {
     serializedName: `AccessPolicy`,
     type: {
       name: `Composite`,
@@ -37942,7 +37988,7 @@ var WE = De({
       },
     },
   },
-  uD = {
+  fD = {
     serializedName: `ListBlobsFlatSegmentResponse`,
     xmlName: `EnumerationResults`,
     type: {
@@ -37983,7 +38029,7 @@ var WE = De({
       },
     },
   },
-  dD = {
+  pD = {
     serializedName: `BlobFlatListSegment`,
     xmlName: `Blobs`,
     type: {
@@ -38003,7 +38049,7 @@ var WE = De({
       },
     },
   },
-  fD = {
+  mD = {
     serializedName: `BlobItemInternal`,
     xmlName: `Blob`,
     type: {
@@ -38061,7 +38107,7 @@ var WE = De({
       },
     },
   },
-  pD = {
+  hD = {
     serializedName: `BlobName`,
     type: {
       name: `Composite`,
@@ -38082,7 +38128,7 @@ var WE = De({
       },
     },
   },
-  mD = {
+  gD = {
     serializedName: `BlobPropertiesInternal`,
     xmlName: `Properties`,
     type: {
@@ -38302,7 +38348,7 @@ var WE = De({
       },
     },
   },
-  hD = {
+  _D = {
     serializedName: `ListBlobsHierarchySegmentResponse`,
     xmlName: `EnumerationResults`,
     type: {
@@ -38344,7 +38390,7 @@ var WE = De({
       },
     },
   },
-  gD = {
+  vD = {
     serializedName: `BlobHierarchyListSegment`,
     xmlName: `Blobs`,
     type: {
@@ -38373,7 +38419,7 @@ var WE = De({
       },
     },
   },
-  _D = {
+  yD = {
     serializedName: `BlobPrefix`,
     type: {
       name: `Composite`,
@@ -38387,7 +38433,7 @@ var WE = De({
       },
     },
   },
-  vD = {
+  bD = {
     serializedName: `BlockLookupList`,
     xmlName: `BlockList`,
     type: {
@@ -38415,7 +38461,7 @@ var WE = De({
       },
     },
   },
-  yD = {
+  xD = {
     serializedName: `BlockList`,
     type: {
       name: `Composite`,
@@ -38438,7 +38484,7 @@ var WE = De({
       },
     },
   },
-  bD = {
+  SD = {
     serializedName: `Block`,
     type: {
       name: `Composite`,
@@ -38449,7 +38495,7 @@ var WE = De({
       },
     },
   },
-  xD = {
+  CD = {
     serializedName: `PageList`,
     type: {
       name: `Composite`,
@@ -38481,7 +38527,7 @@ var WE = De({
       },
     },
   },
-  SD = {
+  wD = {
     serializedName: `PageRange`,
     xmlName: `PageRange`,
     type: {
@@ -38498,7 +38544,7 @@ var WE = De({
       },
     },
   },
-  CD = {
+  TD = {
     serializedName: `ClearRange`,
     xmlName: `ClearRange`,
     type: {
@@ -38515,7 +38561,7 @@ var WE = De({
       },
     },
   },
-  wD = {
+  ED = {
     serializedName: `QueryRequest`,
     xmlName: `QueryRequest`,
     type: {
@@ -38547,7 +38593,7 @@ var WE = De({
       },
     },
   },
-  TD = {
+  DD = {
     serializedName: `QuerySerialization`,
     type: {
       name: `Composite`,
@@ -38561,7 +38607,7 @@ var WE = De({
       },
     },
   },
-  ED = {
+  OD = {
     serializedName: `QueryFormat`,
     type: {
       name: `Composite`,
@@ -38596,7 +38642,7 @@ var WE = De({
       },
     },
   },
-  DD = {
+  kD = {
     serializedName: `DelimitedTextConfiguration`,
     xmlName: `DelimitedTextConfiguration`,
     type: {
@@ -38631,7 +38677,7 @@ var WE = De({
       },
     },
   },
-  OD = {
+  AD = {
     serializedName: `JsonTextConfiguration`,
     xmlName: `JsonTextConfiguration`,
     type: {
@@ -38646,7 +38692,7 @@ var WE = De({
       },
     },
   },
-  kD = {
+  jD = {
     serializedName: `ArrowConfiguration`,
     xmlName: `ArrowConfiguration`,
     type: {
@@ -38667,7 +38713,7 @@ var WE = De({
       },
     },
   },
-  AD = {
+  MD = {
     serializedName: `ArrowField`,
     xmlName: `Field`,
     type: {
@@ -38681,7 +38727,7 @@ var WE = De({
       },
     },
   },
-  jD = {
+  ND = {
     serializedName: `Service_setPropertiesHeaders`,
     type: {
       name: `Composite`,
@@ -38710,7 +38756,7 @@ var WE = De({
       },
     },
   },
-  MD = {
+  PD = {
     serializedName: `Service_setPropertiesExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -38724,7 +38770,7 @@ var WE = De({
       },
     },
   },
-  ND = {
+  FD = {
     serializedName: `Service_getPropertiesHeaders`,
     type: {
       name: `Composite`,
@@ -38753,7 +38799,7 @@ var WE = De({
       },
     },
   },
-  PD = {
+  ID = {
     serializedName: `Service_getPropertiesExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -38767,7 +38813,7 @@ var WE = De({
       },
     },
   },
-  FD = {
+  LD = {
     serializedName: `Service_getStatisticsHeaders`,
     type: {
       name: `Composite`,
@@ -38797,7 +38843,7 @@ var WE = De({
       },
     },
   },
-  ID = {
+  RD = {
     serializedName: `Service_getStatisticsExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -38811,7 +38857,7 @@ var WE = De({
       },
     },
   },
-  LD = {
+  zD = {
     serializedName: `Service_listContainersSegmentHeaders`,
     type: {
       name: `Composite`,
@@ -38840,7 +38886,7 @@ var WE = De({
       },
     },
   },
-  RD = {
+  BD = {
     serializedName: `Service_listContainersSegmentExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -38854,7 +38900,7 @@ var WE = De({
       },
     },
   },
-  zD = {
+  VD = {
     serializedName: `Service_getUserDelegationKeyHeaders`,
     type: {
       name: `Composite`,
@@ -38884,7 +38930,7 @@ var WE = De({
       },
     },
   },
-  BD = {
+  HD = {
     serializedName: `Service_getUserDelegationKeyExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -38898,7 +38944,7 @@ var WE = De({
       },
     },
   },
-  VD = {
+  UD = {
     serializedName: `Service_getAccountInfoHeaders`,
     type: {
       name: `Composite`,
@@ -38961,7 +39007,7 @@ var WE = De({
       },
     },
   },
-  HD = {
+  WD = {
     serializedName: `Service_getAccountInfoExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -38975,7 +39021,7 @@ var WE = De({
       },
     },
   },
-  UD = {
+  GD = {
     serializedName: `Service_submitBatchHeaders`,
     type: {
       name: `Composite`,
@@ -39009,7 +39055,7 @@ var WE = De({
       },
     },
   },
-  WD = {
+  KD = {
     serializedName: `Service_submitBatchExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -39023,7 +39069,7 @@ var WE = De({
       },
     },
   },
-  GD = {
+  qD = {
     serializedName: `Service_filterBlobsHeaders`,
     type: {
       name: `Composite`,
@@ -39053,7 +39099,7 @@ var WE = De({
       },
     },
   },
-  KD = {
+  JD = {
     serializedName: `Service_filterBlobsExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -39067,7 +39113,7 @@ var WE = De({
       },
     },
   },
-  qD = {
+  YD = {
     serializedName: `Container_createHeaders`,
     type: {
       name: `Composite`,
@@ -39103,7 +39149,7 @@ var WE = De({
       },
     },
   },
-  JD = {
+  XD = {
     serializedName: `Container_createExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -39117,7 +39163,7 @@ var WE = De({
       },
     },
   },
-  YD = {
+  ZD = {
     serializedName: `Container_getPropertiesHeaders`,
     type: {
       name: `Composite`,
@@ -39207,7 +39253,7 @@ var WE = De({
       },
     },
   },
-  XD = {
+  QD = {
     serializedName: `Container_getPropertiesExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -39221,7 +39267,7 @@ var WE = De({
       },
     },
   },
-  ZD = {
+  $D = {
     serializedName: `Container_deleteHeaders`,
     type: {
       name: `Composite`,
@@ -39251,7 +39297,7 @@ var WE = De({
       },
     },
   },
-  QD = {
+  eO = {
     serializedName: `Container_deleteExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -39265,7 +39311,7 @@ var WE = De({
       },
     },
   },
-  $D = {
+  tO = {
     serializedName: `Container_setMetadataHeaders`,
     type: {
       name: `Composite`,
@@ -39301,7 +39347,7 @@ var WE = De({
       },
     },
   },
-  eO = {
+  nO = {
     serializedName: `Container_setMetadataExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -39315,7 +39361,7 @@ var WE = De({
       },
     },
   },
-  tO = {
+  rO = {
     serializedName: `Container_getAccessPolicyHeaders`,
     type: {
       name: `Composite`,
@@ -39356,7 +39402,7 @@ var WE = De({
       },
     },
   },
-  nO = {
+  iO = {
     serializedName: `Container_getAccessPolicyExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -39370,7 +39416,7 @@ var WE = De({
       },
     },
   },
-  rO = {
+  aO = {
     serializedName: `Container_setAccessPolicyHeaders`,
     type: {
       name: `Composite`,
@@ -39406,7 +39452,7 @@ var WE = De({
       },
     },
   },
-  iO = {
+  oO = {
     serializedName: `Container_setAccessPolicyExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -39420,7 +39466,7 @@ var WE = De({
       },
     },
   },
-  aO = {
+  sO = {
     serializedName: `Container_restoreHeaders`,
     type: {
       name: `Composite`,
@@ -39450,7 +39496,7 @@ var WE = De({
       },
     },
   },
-  oO = {
+  cO = {
     serializedName: `Container_restoreExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -39464,7 +39510,7 @@ var WE = De({
       },
     },
   },
-  sO = {
+  lO = {
     serializedName: `Container_renameHeaders`,
     type: {
       name: `Composite`,
@@ -39494,7 +39540,7 @@ var WE = De({
       },
     },
   },
-  cO = {
+  uO = {
     serializedName: `Container_renameExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -39508,7 +39554,7 @@ var WE = De({
       },
     },
   },
-  lO = {
+  dO = {
     serializedName: `Container_submitBatchHeaders`,
     type: {
       name: `Composite`,
@@ -39532,7 +39578,7 @@ var WE = De({
       },
     },
   },
-  uO = {
+  fO = {
     serializedName: `Container_submitBatchExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -39546,7 +39592,7 @@ var WE = De({
       },
     },
   },
-  dO = {
+  pO = {
     serializedName: `Container_filterBlobsHeaders`,
     type: {
       name: `Composite`,
@@ -39571,7 +39617,7 @@ var WE = De({
       },
     },
   },
-  fO = {
+  mO = {
     serializedName: `Container_filterBlobsExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -39585,7 +39631,7 @@ var WE = De({
       },
     },
   },
-  pO = {
+  hO = {
     serializedName: `Container_acquireLeaseHeaders`,
     type: {
       name: `Composite`,
@@ -39621,7 +39667,7 @@ var WE = De({
       },
     },
   },
-  mO = {
+  gO = {
     serializedName: `Container_acquireLeaseExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -39635,7 +39681,7 @@ var WE = De({
       },
     },
   },
-  hO = {
+  _O = {
     serializedName: `Container_releaseLeaseHeaders`,
     type: {
       name: `Composite`,
@@ -39666,7 +39712,7 @@ var WE = De({
       },
     },
   },
-  gO = {
+  vO = {
     serializedName: `Container_releaseLeaseExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -39680,7 +39726,7 @@ var WE = De({
       },
     },
   },
-  _O = {
+  yO = {
     serializedName: `Container_renewLeaseHeaders`,
     type: {
       name: `Composite`,
@@ -39716,7 +39762,7 @@ var WE = De({
       },
     },
   },
-  vO = {
+  bO = {
     serializedName: `Container_renewLeaseExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -39730,7 +39776,7 @@ var WE = De({
       },
     },
   },
-  yO = {
+  xO = {
     serializedName: `Container_breakLeaseHeaders`,
     type: {
       name: `Composite`,
@@ -39766,7 +39812,7 @@ var WE = De({
       },
     },
   },
-  bO = {
+  SO = {
     serializedName: `Container_breakLeaseExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -39780,7 +39826,7 @@ var WE = De({
       },
     },
   },
-  xO = {
+  CO = {
     serializedName: `Container_changeLeaseHeaders`,
     type: {
       name: `Composite`,
@@ -39816,7 +39862,7 @@ var WE = De({
       },
     },
   },
-  SO = {
+  wO = {
     serializedName: `Container_changeLeaseExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -39830,7 +39876,7 @@ var WE = De({
       },
     },
   },
-  CO = {
+  TO = {
     serializedName: `Container_listBlobFlatSegmentHeaders`,
     type: {
       name: `Composite`,
@@ -39865,7 +39911,7 @@ var WE = De({
       },
     },
   },
-  wO = {
+  EO = {
     serializedName: `Container_listBlobFlatSegmentExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -39879,7 +39925,7 @@ var WE = De({
       },
     },
   },
-  TO = {
+  DO = {
     serializedName: `Container_listBlobHierarchySegmentHeaders`,
     type: {
       name: `Composite`,
@@ -39914,7 +39960,7 @@ var WE = De({
       },
     },
   },
-  EO = {
+  OO = {
     serializedName: `Container_listBlobHierarchySegmentExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -39928,7 +39974,7 @@ var WE = De({
       },
     },
   },
-  DO = {
+  kO = {
     serializedName: `Container_getAccountInfoHeaders`,
     type: {
       name: `Composite`,
@@ -39986,7 +40032,7 @@ var WE = De({
       },
     },
   },
-  OO = {
+  AO = {
     serializedName: `Container_getAccountInfoExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -40000,7 +40046,7 @@ var WE = De({
       },
     },
   },
-  kO = {
+  jO = {
     serializedName: `Blob_downloadHeaders`,
     type: {
       name: `Composite`,
@@ -40231,7 +40277,7 @@ var WE = De({
       },
     },
   },
-  AO = {
+  MO = {
     serializedName: `Blob_downloadExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -40245,7 +40291,7 @@ var WE = De({
       },
     },
   },
-  jO = {
+  NO = {
     serializedName: `Blob_getPropertiesHeaders`,
     type: {
       name: `Composite`,
@@ -40501,7 +40547,7 @@ var WE = De({
       },
     },
   },
-  MO = {
+  PO = {
     serializedName: `Blob_getPropertiesExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -40515,7 +40561,7 @@ var WE = De({
       },
     },
   },
-  NO = {
+  FO = {
     serializedName: `Blob_deleteHeaders`,
     type: {
       name: `Composite`,
@@ -40545,7 +40591,7 @@ var WE = De({
       },
     },
   },
-  PO = {
+  IO = {
     serializedName: `Blob_deleteExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -40559,7 +40605,7 @@ var WE = De({
       },
     },
   },
-  FO = {
+  LO = {
     serializedName: `Blob_undeleteHeaders`,
     type: {
       name: `Composite`,
@@ -40589,7 +40635,7 @@ var WE = De({
       },
     },
   },
-  IO = {
+  RO = {
     serializedName: `Blob_undeleteExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -40603,7 +40649,7 @@ var WE = De({
       },
     },
   },
-  LO = {
+  zO = {
     serializedName: `Blob_setExpiryHeaders`,
     type: {
       name: `Composite`,
@@ -40634,7 +40680,7 @@ var WE = De({
       },
     },
   },
-  RO = {
+  BO = {
     serializedName: `Blob_setExpiryExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -40648,7 +40694,7 @@ var WE = De({
       },
     },
   },
-  zO = {
+  VO = {
     serializedName: `Blob_setHttpHeadersHeaders`,
     type: {
       name: `Composite`,
@@ -40689,7 +40735,7 @@ var WE = De({
       },
     },
   },
-  BO = {
+  HO = {
     serializedName: `Blob_setHttpHeadersExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -40703,7 +40749,7 @@ var WE = De({
       },
     },
   },
-  VO = {
+  UO = {
     serializedName: `Blob_setImmutabilityPolicyHeaders`,
     type: {
       name: `Composite`,
@@ -40738,7 +40784,7 @@ var WE = De({
       },
     },
   },
-  HO = {
+  WO = {
     serializedName: `Blob_setImmutabilityPolicyExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -40752,7 +40798,7 @@ var WE = De({
       },
     },
   },
-  UO = {
+  GO = {
     serializedName: `Blob_deleteImmutabilityPolicyHeaders`,
     type: {
       name: `Composite`,
@@ -40777,7 +40823,7 @@ var WE = De({
       },
     },
   },
-  WO = {
+  KO = {
     serializedName: `Blob_deleteImmutabilityPolicyExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -40791,7 +40837,7 @@ var WE = De({
       },
     },
   },
-  GO = {
+  qO = {
     serializedName: `Blob_setLegalHoldHeaders`,
     type: {
       name: `Composite`,
@@ -40821,7 +40867,7 @@ var WE = De({
       },
     },
   },
-  KO = {
+  JO = {
     serializedName: `Blob_setLegalHoldExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -40835,7 +40881,7 @@ var WE = De({
       },
     },
   },
-  qO = {
+  YO = {
     serializedName: `Blob_setMetadataHeaders`,
     type: {
       name: `Composite`,
@@ -40891,7 +40937,7 @@ var WE = De({
       },
     },
   },
-  JO = {
+  XO = {
     serializedName: `Blob_setMetadataExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -40905,7 +40951,7 @@ var WE = De({
       },
     },
   },
-  YO = {
+  ZO = {
     serializedName: `Blob_acquireLeaseHeaders`,
     type: {
       name: `Composite`,
@@ -40941,7 +40987,7 @@ var WE = De({
       },
     },
   },
-  XO = {
+  QO = {
     serializedName: `Blob_acquireLeaseExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -40955,7 +41001,7 @@ var WE = De({
       },
     },
   },
-  ZO = {
+  $O = {
     serializedName: `Blob_releaseLeaseHeaders`,
     type: {
       name: `Composite`,
@@ -40986,7 +41032,7 @@ var WE = De({
       },
     },
   },
-  QO = {
+  ek = {
     serializedName: `Blob_releaseLeaseExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -41000,7 +41046,7 @@ var WE = De({
       },
     },
   },
-  $O = {
+  tk = {
     serializedName: `Blob_renewLeaseHeaders`,
     type: {
       name: `Composite`,
@@ -41036,7 +41082,7 @@ var WE = De({
       },
     },
   },
-  ek = {
+  nk = {
     serializedName: `Blob_renewLeaseExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -41050,7 +41096,7 @@ var WE = De({
       },
     },
   },
-  tk = {
+  rk = {
     serializedName: `Blob_changeLeaseHeaders`,
     type: {
       name: `Composite`,
@@ -41086,7 +41132,7 @@ var WE = De({
       },
     },
   },
-  nk = {
+  ik = {
     serializedName: `Blob_changeLeaseExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -41100,7 +41146,7 @@ var WE = De({
       },
     },
   },
-  rk = {
+  ak = {
     serializedName: `Blob_breakLeaseHeaders`,
     type: {
       name: `Composite`,
@@ -41136,7 +41182,7 @@ var WE = De({
       },
     },
   },
-  ik = {
+  ok = {
     serializedName: `Blob_breakLeaseExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -41150,7 +41196,7 @@ var WE = De({
       },
     },
   },
-  ak = {
+  sk = {
     serializedName: `Blob_createSnapshotHeaders`,
     type: {
       name: `Composite`,
@@ -41201,7 +41247,7 @@ var WE = De({
       },
     },
   },
-  ok = {
+  ck = {
     serializedName: `Blob_createSnapshotExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -41215,7 +41261,7 @@ var WE = De({
       },
     },
   },
-  sk = {
+  lk = {
     serializedName: `Blob_startCopyFromURLHeaders`,
     type: {
       name: `Composite`,
@@ -41266,7 +41312,7 @@ var WE = De({
       },
     },
   },
-  ck = {
+  uk = {
     serializedName: `Blob_startCopyFromURLExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -41290,7 +41336,7 @@ var WE = De({
       },
     },
   },
-  lk = {
+  dk = {
     serializedName: `Blob_copyFromURLHeaders`,
     type: {
       name: `Composite`,
@@ -41357,7 +41403,7 @@ var WE = De({
       },
     },
   },
-  uk = {
+  fk = {
     serializedName: `Blob_copyFromURLExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -41381,7 +41427,7 @@ var WE = De({
       },
     },
   },
-  dk = {
+  pk = {
     serializedName: `Blob_abortCopyFromURLHeaders`,
     type: {
       name: `Composite`,
@@ -41411,7 +41457,7 @@ var WE = De({
       },
     },
   },
-  fk = {
+  mk = {
     serializedName: `Blob_abortCopyFromURLExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -41425,7 +41471,7 @@ var WE = De({
       },
     },
   },
-  pk = {
+  hk = {
     serializedName: `Blob_setTierHeaders`,
     type: {
       name: `Composite`,
@@ -41454,7 +41500,7 @@ var WE = De({
       },
     },
   },
-  mk = {
+  gk = {
     serializedName: `Blob_setTierExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -41468,7 +41514,7 @@ var WE = De({
       },
     },
   },
-  hk = {
+  _k = {
     serializedName: `Blob_getAccountInfoHeaders`,
     type: {
       name: `Composite`,
@@ -41526,7 +41572,7 @@ var WE = De({
       },
     },
   },
-  gk = {
+  vk = {
     serializedName: `Blob_getAccountInfoExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -41540,7 +41586,7 @@ var WE = De({
       },
     },
   },
-  _k = {
+  yk = {
     serializedName: `Blob_queryHeaders`,
     type: {
       name: `Composite`,
@@ -41715,7 +41761,7 @@ var WE = De({
       },
     },
   },
-  vk = {
+  bk = {
     serializedName: `Blob_queryExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -41729,7 +41775,7 @@ var WE = De({
       },
     },
   },
-  yk = {
+  xk = {
     serializedName: `Blob_getTagsHeaders`,
     type: {
       name: `Composite`,
@@ -41759,7 +41805,7 @@ var WE = De({
       },
     },
   },
-  bk = {
+  Sk = {
     serializedName: `Blob_getTagsExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -41773,7 +41819,7 @@ var WE = De({
       },
     },
   },
-  xk = {
+  Ck = {
     serializedName: `Blob_setTagsHeaders`,
     type: {
       name: `Composite`,
@@ -41803,7 +41849,7 @@ var WE = De({
       },
     },
   },
-  Sk = {
+  wk = {
     serializedName: `Blob_setTagsExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -41817,7 +41863,7 @@ var WE = De({
       },
     },
   },
-  Ck = {
+  Tk = {
     serializedName: `PageBlob_createHeaders`,
     type: {
       name: `Composite`,
@@ -41878,7 +41924,7 @@ var WE = De({
       },
     },
   },
-  wk = {
+  Ek = {
     serializedName: `PageBlob_createExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -41892,7 +41938,7 @@ var WE = De({
       },
     },
   },
-  Tk = {
+  Dk = {
     serializedName: `PageBlob_uploadPagesHeaders`,
     type: {
       name: `Composite`,
@@ -41958,7 +42004,7 @@ var WE = De({
       },
     },
   },
-  Ek = {
+  Ok = {
     serializedName: `PageBlob_uploadPagesExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -41972,7 +42018,7 @@ var WE = De({
       },
     },
   },
-  Dk = {
+  kk = {
     serializedName: `PageBlob_clearPagesHeaders`,
     type: {
       name: `Composite`,
@@ -42023,7 +42069,7 @@ var WE = De({
       },
     },
   },
-  Ok = {
+  Ak = {
     serializedName: `PageBlob_clearPagesExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -42037,7 +42083,7 @@ var WE = De({
       },
     },
   },
-  kk = {
+  jk = {
     serializedName: `PageBlob_uploadPagesFromURLHeaders`,
     type: {
       name: `Composite`,
@@ -42098,7 +42144,7 @@ var WE = De({
       },
     },
   },
-  Ak = {
+  Mk = {
     serializedName: `PageBlob_uploadPagesFromURLExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -42122,7 +42168,7 @@ var WE = De({
       },
     },
   },
-  jk = {
+  Nk = {
     serializedName: `PageBlob_getPageRangesHeaders`,
     type: {
       name: `Composite`,
@@ -42163,7 +42209,7 @@ var WE = De({
       },
     },
   },
-  Mk = {
+  Pk = {
     serializedName: `PageBlob_getPageRangesExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -42177,7 +42223,7 @@ var WE = De({
       },
     },
   },
-  Nk = {
+  Fk = {
     serializedName: `PageBlob_getPageRangesDiffHeaders`,
     type: {
       name: `Composite`,
@@ -42218,7 +42264,7 @@ var WE = De({
       },
     },
   },
-  Pk = {
+  Ik = {
     serializedName: `PageBlob_getPageRangesDiffExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -42232,7 +42278,7 @@ var WE = De({
       },
     },
   },
-  Fk = {
+  Lk = {
     serializedName: `PageBlob_resizeHeaders`,
     type: {
       name: `Composite`,
@@ -42273,7 +42319,7 @@ var WE = De({
       },
     },
   },
-  Ik = {
+  Rk = {
     serializedName: `PageBlob_resizeExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -42287,7 +42333,7 @@ var WE = De({
       },
     },
   },
-  Lk = {
+  zk = {
     serializedName: `PageBlob_updateSequenceNumberHeaders`,
     type: {
       name: `Composite`,
@@ -42328,7 +42374,7 @@ var WE = De({
       },
     },
   },
-  Rk = {
+  Bk = {
     serializedName: `PageBlob_updateSequenceNumberExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -42342,7 +42388,7 @@ var WE = De({
       },
     },
   },
-  zk = {
+  Vk = {
     serializedName: `PageBlob_copyIncrementalHeaders`,
     type: {
       name: `Composite`,
@@ -42388,7 +42434,7 @@ var WE = De({
       },
     },
   },
-  Bk = {
+  Hk = {
     serializedName: `PageBlob_copyIncrementalExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -42402,7 +42448,7 @@ var WE = De({
       },
     },
   },
-  Vk = {
+  Uk = {
     serializedName: `AppendBlob_createHeaders`,
     type: {
       name: `Composite`,
@@ -42463,7 +42509,7 @@ var WE = De({
       },
     },
   },
-  Hk = {
+  Wk = {
     serializedName: `AppendBlob_createExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -42477,7 +42523,7 @@ var WE = De({
       },
     },
   },
-  Uk = {
+  Gk = {
     serializedName: `AppendBlob_appendBlockHeaders`,
     type: {
       name: `Composite`,
@@ -42548,7 +42594,7 @@ var WE = De({
       },
     },
   },
-  Wk = {
+  Kk = {
     serializedName: `AppendBlob_appendBlockExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -42562,7 +42608,7 @@ var WE = De({
       },
     },
   },
-  Gk = {
+  qk = {
     serializedName: `AppendBlob_appendBlockFromUrlHeaders`,
     type: {
       name: `Composite`,
@@ -42628,7 +42674,7 @@ var WE = De({
       },
     },
   },
-  Kk = {
+  Jk = {
     serializedName: `AppendBlob_appendBlockFromUrlExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -42652,7 +42698,7 @@ var WE = De({
       },
     },
   },
-  qk = {
+  Yk = {
     serializedName: `AppendBlob_sealHeaders`,
     type: {
       name: `Composite`,
@@ -42688,7 +42734,7 @@ var WE = De({
       },
     },
   },
-  Jk = {
+  Xk = {
     serializedName: `AppendBlob_sealExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -42702,7 +42748,7 @@ var WE = De({
       },
     },
   },
-  Yk = {
+  Zk = {
     serializedName: `BlockBlob_uploadHeaders`,
     type: {
       name: `Composite`,
@@ -42763,7 +42809,7 @@ var WE = De({
       },
     },
   },
-  Xk = {
+  Qk = {
     serializedName: `BlockBlob_uploadExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -42777,7 +42823,7 @@ var WE = De({
       },
     },
   },
-  Zk = {
+  $k = {
     serializedName: `BlockBlob_putBlobFromUrlHeaders`,
     type: {
       name: `Composite`,
@@ -42838,7 +42884,7 @@ var WE = De({
       },
     },
   },
-  Qk = {
+  eA = {
     serializedName: `BlockBlob_putBlobFromUrlExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -42862,7 +42908,7 @@ var WE = De({
       },
     },
   },
-  $k = {
+  tA = {
     serializedName: `BlockBlob_stageBlockHeaders`,
     type: {
       name: `Composite`,
@@ -42917,7 +42963,7 @@ var WE = De({
       },
     },
   },
-  eA = {
+  nA = {
     serializedName: `BlockBlob_stageBlockExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -42931,7 +42977,7 @@ var WE = De({
       },
     },
   },
-  tA = {
+  rA = {
     serializedName: `BlockBlob_stageBlockFromURLHeaders`,
     type: {
       name: `Composite`,
@@ -42986,7 +43032,7 @@ var WE = De({
       },
     },
   },
-  nA = {
+  iA = {
     serializedName: `BlockBlob_stageBlockFromURLExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -43010,7 +43056,7 @@ var WE = De({
       },
     },
   },
-  rA = {
+  aA = {
     serializedName: `BlockBlob_commitBlockListHeaders`,
     type: {
       name: `Composite`,
@@ -43076,7 +43122,7 @@ var WE = De({
       },
     },
   },
-  iA = {
+  oA = {
     serializedName: `BlockBlob_commitBlockListExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -43090,7 +43136,7 @@ var WE = De({
       },
     },
   },
-  aA = {
+  sA = {
     serializedName: `BlockBlob_getBlockListHeaders`,
     type: {
       name: `Composite`,
@@ -43136,7 +43182,7 @@ var WE = De({
       },
     },
   },
-  oA = {
+  cA = {
     serializedName: `BlockBlob_getBlockListExceptionHeaders`,
     type: {
       name: `Composite`,
@@ -43150,7 +43196,7 @@ var WE = De({
       },
     },
   },
-  sA = {
+  lA = {
     parameterPath: [`options`, `contentType`],
     mapper: {
       defaultValue: `application/xml`,
@@ -43159,8 +43205,8 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  cA = { parameterPath: `blobServiceProperties`, mapper: GE },
-  lA = {
+  uA = { parameterPath: `blobServiceProperties`, mapper: qE },
+  dA = {
     parameterPath: `accept`,
     mapper: {
       defaultValue: `application/xml`,
@@ -43174,7 +43220,7 @@ var WE = De({
     mapper: { serializedName: `url`, required: !0, xmlName: `url`, type: { name: `String` } },
     skipEncoding: !0,
   },
-  uA = {
+  fA = {
     parameterPath: `restype`,
     mapper: {
       defaultValue: `service`,
@@ -43183,7 +43229,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  dA = {
+  pA = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `properties`,
@@ -43227,7 +43273,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  fA = {
+  mA = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `stats`,
@@ -43236,7 +43282,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  pA = {
+  hA = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `list`,
@@ -43245,15 +43291,15 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  mA = {
+  gA = {
     parameterPath: [`options`, `prefix`],
     mapper: { serializedName: `prefix`, xmlName: `prefix`, type: { name: `String` } },
   },
-  hA = {
+  _A = {
     parameterPath: [`options`, `marker`],
     mapper: { serializedName: `marker`, xmlName: `marker`, type: { name: `String` } },
   },
-  gA = {
+  vA = {
     parameterPath: [`options`, `maxPageSize`],
     mapper: {
       constraints: { InclusiveMinimum: 1 },
@@ -43262,7 +43308,7 @@ var WE = De({
       type: { name: `Number` },
     },
   },
-  _A = {
+  yA = {
     parameterPath: [`options`, `include`],
     mapper: {
       serializedName: `include`,
@@ -43275,8 +43321,8 @@ var WE = De({
     },
     collectionFormat: `CSV`,
   },
-  vA = { parameterPath: `keyInfo`, mapper: nD },
-  yA = {
+  bA = { parameterPath: `keyInfo`, mapper: iD },
+  xA = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `userdelegationkey`,
@@ -43285,7 +43331,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  bA = {
+  SA = {
     parameterPath: `restype`,
     mapper: {
       defaultValue: `account`,
@@ -43294,11 +43340,11 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  xA = {
+  CA = {
     parameterPath: `body`,
     mapper: { serializedName: `body`, required: !0, xmlName: `body`, type: { name: `Stream` } },
   },
-  SA = {
+  wA = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `batch`,
@@ -43307,7 +43353,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  CA = {
+  TA = {
     parameterPath: `contentLength`,
     mapper: {
       serializedName: `Content-Length`,
@@ -43316,7 +43362,7 @@ var WE = De({
       type: { name: `Number` },
     },
   },
-  wA = {
+  EA = {
     parameterPath: `multipartContentType`,
     mapper: {
       serializedName: `Content-Type`,
@@ -43325,7 +43371,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  TA = {
+  DA = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `blobs`,
@@ -43334,11 +43380,11 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  EA = {
+  OA = {
     parameterPath: [`options`, `where`],
     mapper: { serializedName: `where`, xmlName: `where`, type: { name: `String` } },
   },
-  DA = {
+  kA = {
     parameterPath: `restype`,
     mapper: {
       defaultValue: `container`,
@@ -43347,7 +43393,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  OA = {
+  AA = {
     parameterPath: [`options`, `metadata`],
     mapper: {
       serializedName: `x-ms-meta`,
@@ -43356,7 +43402,7 @@ var WE = De({
       type: { name: `Dictionary`, value: { type: { name: `String` } } },
     },
   },
-  kA = {
+  jA = {
     parameterPath: [`options`, `access`],
     mapper: {
       serializedName: `x-ms-blob-public-access`,
@@ -43364,7 +43410,7 @@ var WE = De({
       type: { name: `Enum`, allowedValues: [`container`, `blob`] },
     },
   },
-  AA = {
+  MA = {
     parameterPath: [`options`, `containerEncryptionScope`, `defaultEncryptionScope`],
     mapper: {
       serializedName: `x-ms-default-encryption-scope`,
@@ -43372,7 +43418,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  jA = {
+  NA = {
     parameterPath: [`options`, `containerEncryptionScope`, `preventEncryptionScopeOverride`],
     mapper: {
       serializedName: `x-ms-deny-encryption-scope-override`,
@@ -43380,11 +43426,11 @@ var WE = De({
       type: { name: `Boolean` },
     },
   },
-  MA = {
+  PA = {
     parameterPath: [`options`, `leaseAccessConditions`, `leaseId`],
     mapper: { serializedName: `x-ms-lease-id`, xmlName: `x-ms-lease-id`, type: { name: `String` } },
   },
-  NA = {
+  FA = {
     parameterPath: [`options`, `modifiedAccessConditions`, `ifModifiedSince`],
     mapper: {
       serializedName: `If-Modified-Since`,
@@ -43392,7 +43438,7 @@ var WE = De({
       type: { name: `DateTimeRfc1123` },
     },
   },
-  PA = {
+  IA = {
     parameterPath: [`options`, `modifiedAccessConditions`, `ifUnmodifiedSince`],
     mapper: {
       serializedName: `If-Unmodified-Since`,
@@ -43400,7 +43446,7 @@ var WE = De({
       type: { name: `DateTimeRfc1123` },
     },
   },
-  FA = {
+  LA = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `metadata`,
@@ -43409,7 +43455,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  IA = {
+  RA = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `acl`,
@@ -43418,7 +43464,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  LA = {
+  zA = {
     parameterPath: [`options`, `containerAcl`],
     mapper: {
       serializedName: `containerAcl`,
@@ -43431,7 +43477,7 @@ var WE = De({
       },
     },
   },
-  RA = {
+  BA = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `undelete`,
@@ -43440,7 +43486,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  zA = {
+  VA = {
     parameterPath: [`options`, `deletedContainerName`],
     mapper: {
       serializedName: `x-ms-deleted-container-name`,
@@ -43448,7 +43494,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  BA = {
+  HA = {
     parameterPath: [`options`, `deletedContainerVersion`],
     mapper: {
       serializedName: `x-ms-deleted-container-version`,
@@ -43456,7 +43502,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  VA = {
+  UA = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `rename`,
@@ -43465,7 +43511,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  HA = {
+  WA = {
     parameterPath: `sourceContainerName`,
     mapper: {
       serializedName: `x-ms-source-container-name`,
@@ -43474,7 +43520,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  UA = {
+  GA = {
     parameterPath: [`options`, `sourceLeaseId`],
     mapper: {
       serializedName: `x-ms-source-lease-id`,
@@ -43482,7 +43528,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  WA = {
+  KA = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `lease`,
@@ -43491,7 +43537,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  GA = {
+  qA = {
     parameterPath: `action`,
     mapper: {
       defaultValue: `acquire`,
@@ -43500,7 +43546,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  KA = {
+  JA = {
     parameterPath: [`options`, `duration`],
     mapper: {
       serializedName: `x-ms-lease-duration`,
@@ -43508,7 +43554,7 @@ var WE = De({
       type: { name: `Number` },
     },
   },
-  qA = {
+  YA = {
     parameterPath: [`options`, `proposedLeaseId`],
     mapper: {
       serializedName: `x-ms-proposed-lease-id`,
@@ -43516,7 +43562,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  JA = {
+  XA = {
     parameterPath: `action`,
     mapper: {
       defaultValue: `release`,
@@ -43525,7 +43571,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  YA = {
+  ZA = {
     parameterPath: `leaseId`,
     mapper: {
       serializedName: `x-ms-lease-id`,
@@ -43534,7 +43580,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  XA = {
+  QA = {
     parameterPath: `action`,
     mapper: {
       defaultValue: `renew`,
@@ -43543,7 +43589,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  ZA = {
+  $A = {
     parameterPath: `action`,
     mapper: {
       defaultValue: `break`,
@@ -43552,7 +43598,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  QA = {
+  ej = {
     parameterPath: [`options`, `breakPeriod`],
     mapper: {
       serializedName: `x-ms-lease-break-period`,
@@ -43560,7 +43606,7 @@ var WE = De({
       type: { name: `Number` },
     },
   },
-  $A = {
+  tj = {
     parameterPath: `action`,
     mapper: {
       defaultValue: `change`,
@@ -43569,7 +43615,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  ej = {
+  nj = {
     parameterPath: `proposedLeaseId`,
     mapper: {
       serializedName: `x-ms-proposed-lease-id`,
@@ -43578,7 +43624,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  tj = {
+  rj = {
     parameterPath: [`options`, `include`],
     mapper: {
       serializedName: `include`,
@@ -43607,11 +43653,11 @@ var WE = De({
     },
     collectionFormat: `CSV`,
   },
-  nj = {
+  ij = {
     parameterPath: [`options`, `startFrom`],
     mapper: { serializedName: `startFrom`, xmlName: `startFrom`, type: { name: `String` } },
   },
-  rj = {
+  aj = {
     parameterPath: `delimiter`,
     mapper: {
       serializedName: `delimiter`,
@@ -43620,19 +43666,19 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  ij = {
+  oj = {
     parameterPath: [`options`, `snapshot`],
     mapper: { serializedName: `snapshot`, xmlName: `snapshot`, type: { name: `String` } },
   },
-  aj = {
+  sj = {
     parameterPath: [`options`, `versionId`],
     mapper: { serializedName: `versionid`, xmlName: `versionid`, type: { name: `String` } },
   },
-  oj = {
+  cj = {
     parameterPath: [`options`, `range`],
     mapper: { serializedName: `x-ms-range`, xmlName: `x-ms-range`, type: { name: `String` } },
   },
-  sj = {
+  lj = {
     parameterPath: [`options`, `rangeGetContentMD5`],
     mapper: {
       serializedName: `x-ms-range-get-content-md5`,
@@ -43640,7 +43686,7 @@ var WE = De({
       type: { name: `Boolean` },
     },
   },
-  cj = {
+  uj = {
     parameterPath: [`options`, `rangeGetContentCRC64`],
     mapper: {
       serializedName: `x-ms-range-get-content-crc64`,
@@ -43648,7 +43694,7 @@ var WE = De({
       type: { name: `Boolean` },
     },
   },
-  lj = {
+  dj = {
     parameterPath: [`options`, `cpkInfo`, `encryptionKey`],
     mapper: {
       serializedName: `x-ms-encryption-key`,
@@ -43656,7 +43702,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  uj = {
+  fj = {
     parameterPath: [`options`, `cpkInfo`, `encryptionKeySha256`],
     mapper: {
       serializedName: `x-ms-encryption-key-sha256`,
@@ -43664,7 +43710,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  dj = {
+  pj = {
     parameterPath: [`options`, `cpkInfo`, `encryptionAlgorithm`],
     mapper: {
       serializedName: `x-ms-encryption-algorithm`,
@@ -43672,19 +43718,19 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  fj = {
+  mj = {
     parameterPath: [`options`, `modifiedAccessConditions`, `ifMatch`],
     mapper: { serializedName: `If-Match`, xmlName: `If-Match`, type: { name: `String` } },
   },
-  pj = {
+  hj = {
     parameterPath: [`options`, `modifiedAccessConditions`, `ifNoneMatch`],
     mapper: { serializedName: `If-None-Match`, xmlName: `If-None-Match`, type: { name: `String` } },
   },
-  mj = {
+  gj = {
     parameterPath: [`options`, `modifiedAccessConditions`, `ifTags`],
     mapper: { serializedName: `x-ms-if-tags`, xmlName: `x-ms-if-tags`, type: { name: `String` } },
   },
-  hj = {
+  _j = {
     parameterPath: [`options`, `deleteSnapshots`],
     mapper: {
       serializedName: `x-ms-delete-snapshots`,
@@ -43692,11 +43738,11 @@ var WE = De({
       type: { name: `Enum`, allowedValues: [`include`, `only`] },
     },
   },
-  gj = {
+  vj = {
     parameterPath: [`options`, `blobDeleteType`],
     mapper: { serializedName: `deletetype`, xmlName: `deletetype`, type: { name: `String` } },
   },
-  _j = {
+  yj = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `expiry`,
@@ -43705,7 +43751,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  vj = {
+  bj = {
     parameterPath: `expiryOptions`,
     mapper: {
       serializedName: `x-ms-expiry-option`,
@@ -43714,7 +43760,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  yj = {
+  xj = {
     parameterPath: [`options`, `expiresOn`],
     mapper: {
       serializedName: `x-ms-expiry-time`,
@@ -43722,7 +43768,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  bj = {
+  Sj = {
     parameterPath: [`options`, `blobHttpHeaders`, `blobCacheControl`],
     mapper: {
       serializedName: `x-ms-blob-cache-control`,
@@ -43730,7 +43776,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  xj = {
+  Cj = {
     parameterPath: [`options`, `blobHttpHeaders`, `blobContentType`],
     mapper: {
       serializedName: `x-ms-blob-content-type`,
@@ -43738,7 +43784,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  Sj = {
+  wj = {
     parameterPath: [`options`, `blobHttpHeaders`, `blobContentMD5`],
     mapper: {
       serializedName: `x-ms-blob-content-md5`,
@@ -43746,7 +43792,7 @@ var WE = De({
       type: { name: `ByteArray` },
     },
   },
-  Cj = {
+  Tj = {
     parameterPath: [`options`, `blobHttpHeaders`, `blobContentEncoding`],
     mapper: {
       serializedName: `x-ms-blob-content-encoding`,
@@ -43754,7 +43800,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  wj = {
+  Ej = {
     parameterPath: [`options`, `blobHttpHeaders`, `blobContentLanguage`],
     mapper: {
       serializedName: `x-ms-blob-content-language`,
@@ -43762,7 +43808,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  Tj = {
+  Dj = {
     parameterPath: [`options`, `blobHttpHeaders`, `blobContentDisposition`],
     mapper: {
       serializedName: `x-ms-blob-content-disposition`,
@@ -43770,7 +43816,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  Ej = {
+  Oj = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `immutabilityPolicies`,
@@ -43779,7 +43825,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  Dj = {
+  kj = {
     parameterPath: [`options`, `immutabilityPolicyExpiry`],
     mapper: {
       serializedName: `x-ms-immutability-policy-until-date`,
@@ -43787,7 +43833,7 @@ var WE = De({
       type: { name: `DateTimeRfc1123` },
     },
   },
-  Oj = {
+  Aj = {
     parameterPath: [`options`, `immutabilityPolicyMode`],
     mapper: {
       serializedName: `x-ms-immutability-policy-mode`,
@@ -43795,7 +43841,7 @@ var WE = De({
       type: { name: `Enum`, allowedValues: [`Mutable`, `Unlocked`, `Locked`] },
     },
   },
-  kj = {
+  jj = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `legalhold`,
@@ -43804,7 +43850,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  Aj = {
+  Mj = {
     parameterPath: `legalHold`,
     mapper: {
       serializedName: `x-ms-legal-hold`,
@@ -43813,7 +43859,7 @@ var WE = De({
       type: { name: `Boolean` },
     },
   },
-  jj = {
+  Nj = {
     parameterPath: [`options`, `encryptionScope`],
     mapper: {
       serializedName: `x-ms-encryption-scope`,
@@ -43821,7 +43867,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  Mj = {
+  Pj = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `snapshot`,
@@ -43830,7 +43876,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  Nj = {
+  Fj = {
     parameterPath: [`options`, `tier`],
     mapper: {
       serializedName: `x-ms-access-tier`,
@@ -43857,7 +43903,7 @@ var WE = De({
       },
     },
   },
-  Pj = {
+  Ij = {
     parameterPath: [`options`, `rehydratePriority`],
     mapper: {
       serializedName: `x-ms-rehydrate-priority`,
@@ -43865,7 +43911,7 @@ var WE = De({
       type: { name: `Enum`, allowedValues: [`High`, `Standard`] },
     },
   },
-  Fj = {
+  Lj = {
     parameterPath: [`options`, `sourceModifiedAccessConditions`, `sourceIfModifiedSince`],
     mapper: {
       serializedName: `x-ms-source-if-modified-since`,
@@ -43873,7 +43919,7 @@ var WE = De({
       type: { name: `DateTimeRfc1123` },
     },
   },
-  Ij = {
+  Rj = {
     parameterPath: [`options`, `sourceModifiedAccessConditions`, `sourceIfUnmodifiedSince`],
     mapper: {
       serializedName: `x-ms-source-if-unmodified-since`,
@@ -43881,7 +43927,7 @@ var WE = De({
       type: { name: `DateTimeRfc1123` },
     },
   },
-  Lj = {
+  zj = {
     parameterPath: [`options`, `sourceModifiedAccessConditions`, `sourceIfMatch`],
     mapper: {
       serializedName: `x-ms-source-if-match`,
@@ -43889,7 +43935,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  Rj = {
+  Bj = {
     parameterPath: [`options`, `sourceModifiedAccessConditions`, `sourceIfNoneMatch`],
     mapper: {
       serializedName: `x-ms-source-if-none-match`,
@@ -43897,7 +43943,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  zj = {
+  Vj = {
     parameterPath: [`options`, `sourceModifiedAccessConditions`, `sourceIfTags`],
     mapper: {
       serializedName: `x-ms-source-if-tags`,
@@ -43905,7 +43951,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  Bj = {
+  Hj = {
     parameterPath: `copySource`,
     mapper: {
       serializedName: `x-ms-copy-source`,
@@ -43914,11 +43960,11 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  Vj = {
+  Uj = {
     parameterPath: [`options`, `blobTagsString`],
     mapper: { serializedName: `x-ms-tags`, xmlName: `x-ms-tags`, type: { name: `String` } },
   },
-  Hj = {
+  Wj = {
     parameterPath: [`options`, `sealBlob`],
     mapper: {
       serializedName: `x-ms-seal-blob`,
@@ -43926,7 +43972,7 @@ var WE = De({
       type: { name: `Boolean` },
     },
   },
-  Uj = {
+  Gj = {
     parameterPath: [`options`, `legalHold`],
     mapper: {
       serializedName: `x-ms-legal-hold`,
@@ -43934,7 +43980,7 @@ var WE = De({
       type: { name: `Boolean` },
     },
   },
-  Wj = {
+  Kj = {
     parameterPath: `xMsRequiresSync`,
     mapper: {
       defaultValue: `true`,
@@ -43943,7 +43989,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  Gj = {
+  qj = {
     parameterPath: [`options`, `sourceContentMD5`],
     mapper: {
       serializedName: `x-ms-source-content-md5`,
@@ -43951,7 +43997,7 @@ var WE = De({
       type: { name: `ByteArray` },
     },
   },
-  Kj = {
+  Jj = {
     parameterPath: [`options`, `copySourceAuthorization`],
     mapper: {
       serializedName: `x-ms-copy-source-authorization`,
@@ -43959,7 +44005,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  qj = {
+  Yj = {
     parameterPath: [`options`, `copySourceTags`],
     mapper: {
       serializedName: `x-ms-copy-source-tag-option`,
@@ -43967,7 +44013,7 @@ var WE = De({
       type: { name: `Enum`, allowedValues: [`REPLACE`, `COPY`] },
     },
   },
-  Jj = {
+  Xj = {
     parameterPath: [`options`, `fileRequestIntent`],
     mapper: {
       serializedName: `x-ms-file-request-intent`,
@@ -43975,7 +44021,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  Yj = {
+  Zj = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `copy`,
@@ -43984,7 +44030,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  Xj = {
+  Qj = {
     parameterPath: `copyActionAbortConstant`,
     mapper: {
       defaultValue: `abort`,
@@ -43993,11 +44039,11 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  Zj = {
+  $j = {
     parameterPath: `copyId`,
     mapper: { serializedName: `copyid`, required: !0, xmlName: `copyid`, type: { name: `String` } },
   },
-  Qj = {
+  eM = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `tier`,
@@ -44006,7 +44052,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  $j = {
+  tM = {
     parameterPath: `tier`,
     mapper: {
       serializedName: `x-ms-access-tier`,
@@ -44034,8 +44080,8 @@ var WE = De({
       },
     },
   },
-  eM = { parameterPath: [`options`, `queryRequest`], mapper: wD },
-  tM = {
+  nM = { parameterPath: [`options`, `queryRequest`], mapper: ED },
+  rM = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `query`,
@@ -44044,7 +44090,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  nM = {
+  iM = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `tags`,
@@ -44053,7 +44099,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  rM = {
+  aM = {
     parameterPath: [`options`, `blobModifiedAccessConditions`, `ifModifiedSince`],
     mapper: {
       serializedName: `x-ms-blob-if-modified-since`,
@@ -44061,7 +44107,7 @@ var WE = De({
       type: { name: `DateTimeRfc1123` },
     },
   },
-  iM = {
+  oM = {
     parameterPath: [`options`, `blobModifiedAccessConditions`, `ifUnmodifiedSince`],
     mapper: {
       serializedName: `x-ms-blob-if-unmodified-since`,
@@ -44069,7 +44115,7 @@ var WE = De({
       type: { name: `DateTimeRfc1123` },
     },
   },
-  aM = {
+  sM = {
     parameterPath: [`options`, `blobModifiedAccessConditions`, `ifMatch`],
     mapper: {
       serializedName: `x-ms-blob-if-match`,
@@ -44077,7 +44123,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  oM = {
+  cM = {
     parameterPath: [`options`, `blobModifiedAccessConditions`, `ifNoneMatch`],
     mapper: {
       serializedName: `x-ms-blob-if-none-match`,
@@ -44085,12 +44131,12 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  sM = { parameterPath: [`options`, `tags`], mapper: oD },
-  cM = {
+  lM = { parameterPath: [`options`, `tags`], mapper: cD },
+  uM = {
     parameterPath: [`options`, `transactionalContentMD5`],
     mapper: { serializedName: `Content-MD5`, xmlName: `Content-MD5`, type: { name: `ByteArray` } },
   },
-  lM = {
+  dM = {
     parameterPath: [`options`, `transactionalContentCrc64`],
     mapper: {
       serializedName: `x-ms-content-crc64`,
@@ -44098,7 +44144,7 @@ var WE = De({
       type: { name: `ByteArray` },
     },
   },
-  uM = {
+  fM = {
     parameterPath: `blobType`,
     mapper: {
       defaultValue: `PageBlob`,
@@ -44107,7 +44153,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  dM = {
+  pM = {
     parameterPath: `blobContentLength`,
     mapper: {
       serializedName: `x-ms-blob-content-length`,
@@ -44116,7 +44162,7 @@ var WE = De({
       type: { name: `Number` },
     },
   },
-  fM = {
+  mM = {
     parameterPath: [`options`, `blobSequenceNumber`],
     mapper: {
       defaultValue: 0,
@@ -44125,7 +44171,7 @@ var WE = De({
       type: { name: `Number` },
     },
   },
-  pM = {
+  hM = {
     parameterPath: [`options`, `contentType`],
     mapper: {
       defaultValue: `application/octet-stream`,
@@ -44134,11 +44180,11 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  mM = {
+  gM = {
     parameterPath: `body`,
     mapper: { serializedName: `body`, required: !0, xmlName: `body`, type: { name: `Stream` } },
   },
-  hM = {
+  _M = {
     parameterPath: `accept`,
     mapper: {
       defaultValue: `application/xml`,
@@ -44147,7 +44193,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  gM = {
+  vM = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `page`,
@@ -44156,7 +44202,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  _M = {
+  yM = {
     parameterPath: `pageWrite`,
     mapper: {
       defaultValue: `update`,
@@ -44165,7 +44211,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  vM = {
+  bM = {
     parameterPath: [
       `options`,
       `sequenceNumberAccessConditions`,
@@ -44177,7 +44223,7 @@ var WE = De({
       type: { name: `Number` },
     },
   },
-  yM = {
+  xM = {
     parameterPath: [`options`, `sequenceNumberAccessConditions`, `ifSequenceNumberLessThan`],
     mapper: {
       serializedName: `x-ms-if-sequence-number-lt`,
@@ -44185,7 +44231,7 @@ var WE = De({
       type: { name: `Number` },
     },
   },
-  bM = {
+  SM = {
     parameterPath: [`options`, `sequenceNumberAccessConditions`, `ifSequenceNumberEqualTo`],
     mapper: {
       serializedName: `x-ms-if-sequence-number-eq`,
@@ -44193,7 +44239,7 @@ var WE = De({
       type: { name: `Number` },
     },
   },
-  xM = {
+  CM = {
     parameterPath: `pageWrite`,
     mapper: {
       defaultValue: `clear`,
@@ -44202,7 +44248,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  SM = {
+  wM = {
     parameterPath: `sourceUrl`,
     mapper: {
       serializedName: `x-ms-copy-source`,
@@ -44211,7 +44257,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  CM = {
+  TM = {
     parameterPath: `sourceRange`,
     mapper: {
       serializedName: `x-ms-source-range`,
@@ -44220,7 +44266,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  wM = {
+  EM = {
     parameterPath: [`options`, `sourceContentCrc64`],
     mapper: {
       serializedName: `x-ms-source-content-crc64`,
@@ -44228,7 +44274,7 @@ var WE = De({
       type: { name: `ByteArray` },
     },
   },
-  TM = {
+  DM = {
     parameterPath: `range`,
     mapper: {
       serializedName: `x-ms-range`,
@@ -44237,7 +44283,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  EM = {
+  OM = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `pagelist`,
@@ -44246,11 +44292,11 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  DM = {
+  kM = {
     parameterPath: [`options`, `prevsnapshot`],
     mapper: { serializedName: `prevsnapshot`, xmlName: `prevsnapshot`, type: { name: `String` } },
   },
-  OM = {
+  AM = {
     parameterPath: [`options`, `prevSnapshotUrl`],
     mapper: {
       serializedName: `x-ms-previous-snapshot-url`,
@@ -44258,7 +44304,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  kM = {
+  jM = {
     parameterPath: `sequenceNumberAction`,
     mapper: {
       serializedName: `x-ms-sequence-number-action`,
@@ -44267,7 +44313,7 @@ var WE = De({
       type: { name: `Enum`, allowedValues: [`max`, `update`, `increment`] },
     },
   },
-  AM = {
+  MM = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `incrementalcopy`,
@@ -44276,7 +44322,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  jM = {
+  NM = {
     parameterPath: `blobType`,
     mapper: {
       defaultValue: `AppendBlob`,
@@ -44285,7 +44331,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  MM = {
+  PM = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `appendblock`,
@@ -44294,7 +44340,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  NM = {
+  FM = {
     parameterPath: [`options`, `appendPositionAccessConditions`, `maxSize`],
     mapper: {
       serializedName: `x-ms-blob-condition-maxsize`,
@@ -44302,7 +44348,7 @@ var WE = De({
       type: { name: `Number` },
     },
   },
-  PM = {
+  IM = {
     parameterPath: [`options`, `appendPositionAccessConditions`, `appendPosition`],
     mapper: {
       serializedName: `x-ms-blob-condition-appendpos`,
@@ -44310,7 +44356,7 @@ var WE = De({
       type: { name: `Number` },
     },
   },
-  FM = {
+  LM = {
     parameterPath: [`options`, `sourceRange`],
     mapper: {
       serializedName: `x-ms-source-range`,
@@ -44318,7 +44364,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  IM = {
+  RM = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `seal`,
@@ -44327,7 +44373,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  LM = {
+  zM = {
     parameterPath: `blobType`,
     mapper: {
       defaultValue: `BlockBlob`,
@@ -44336,7 +44382,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  RM = {
+  BM = {
     parameterPath: [`options`, `copySourceBlobProperties`],
     mapper: {
       serializedName: `x-ms-copy-source-blob-properties`,
@@ -44344,7 +44390,7 @@ var WE = De({
       type: { name: `Boolean` },
     },
   },
-  zM = {
+  VM = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `block`,
@@ -44353,7 +44399,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  BM = {
+  HM = {
     parameterPath: `blockId`,
     mapper: {
       serializedName: `blockid`,
@@ -44362,8 +44408,8 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  VM = { parameterPath: `blocks`, mapper: vD },
-  HM = {
+  UM = { parameterPath: `blocks`, mapper: bD },
+  WM = {
     parameterPath: `comp`,
     mapper: {
       defaultValue: `blocklist`,
@@ -44372,7 +44418,7 @@ var WE = De({
       type: { name: `String` },
     },
   },
-  UM = {
+  GM = {
     parameterPath: `listType`,
     mapper: {
       defaultValue: `committed`,
@@ -44382,255 +44428,255 @@ var WE = De({
       type: { name: `Enum`, allowedValues: [`committed`, `uncommitted`, `all`] },
     },
   },
-  WM = class {
+  KM = class {
     client;
     constructor(e) {
       this.client = e;
     }
     setProperties(e, t) {
-      return this.client.sendOperationRequest({ blobServiceProperties: e, options: t }, KM);
+      return this.client.sendOperationRequest({ blobServiceProperties: e, options: t }, JM);
     }
     getProperties(e) {
-      return this.client.sendOperationRequest({ options: e }, qM);
-    }
-    getStatistics(e) {
-      return this.client.sendOperationRequest({ options: e }, JM);
-    }
-    listContainersSegment(e) {
       return this.client.sendOperationRequest({ options: e }, YM);
     }
+    getStatistics(e) {
+      return this.client.sendOperationRequest({ options: e }, XM);
+    }
+    listContainersSegment(e) {
+      return this.client.sendOperationRequest({ options: e }, ZM);
+    }
     getUserDelegationKey(e, t) {
-      return this.client.sendOperationRequest({ keyInfo: e, options: t }, XM);
+      return this.client.sendOperationRequest({ keyInfo: e, options: t }, QM);
     }
     getAccountInfo(e) {
-      return this.client.sendOperationRequest({ options: e }, ZM);
+      return this.client.sendOperationRequest({ options: e }, $M);
     }
     submitBatch(e, t, n, r) {
       return this.client.sendOperationRequest(
         { contentLength: e, multipartContentType: t, body: n, options: r },
-        QM,
+        eN,
       );
     }
     filterBlobs(e) {
-      return this.client.sendOperationRequest({ options: e }, $M);
+      return this.client.sendOperationRequest({ options: e }, tN);
     }
   },
-  GM = jb(WE, !0),
-  KM = {
+  qM = Nb(KE, !0),
+  JM = {
     path: `/`,
     httpMethod: `PUT`,
-    responses: { 202: { headersMapper: jD }, default: { bodyMapper: K, headersMapper: MD } },
-    requestBody: cA,
-    queryParameters: [uA, dA, J],
+    responses: { 202: { headersMapper: ND }, default: { bodyMapper: K, headersMapper: PD } },
+    requestBody: uA,
+    queryParameters: [fA, pA, J],
     urlParameters: [q],
-    headerParameters: [sA, lA, Y, X],
+    headerParameters: [lA, dA, Y, X],
     isXML: !0,
     contentType: `application/xml; charset=utf-8`,
     mediaType: `xml`,
-    serializer: GM,
-  },
-  qM = {
-    path: `/`,
-    httpMethod: `GET`,
-    responses: {
-      200: { bodyMapper: GE, headersMapper: ND },
-      default: { bodyMapper: K, headersMapper: PD },
-    },
-    queryParameters: [uA, dA, J],
-    urlParameters: [q],
-    headerParameters: [Y, X, Z],
-    isXML: !0,
-    serializer: GM,
-  },
-  JM = {
-    path: `/`,
-    httpMethod: `GET`,
-    responses: {
-      200: { bodyMapper: ZE, headersMapper: FD },
-      default: { bodyMapper: K, headersMapper: ID },
-    },
-    queryParameters: [uA, J, fA],
-    urlParameters: [q],
-    headerParameters: [Y, X, Z],
-    isXML: !0,
-    serializer: GM,
+    serializer: qM,
   },
   YM = {
+    path: `/`,
+    httpMethod: `GET`,
+    responses: {
+      200: { bodyMapper: qE, headersMapper: FD },
+      default: { bodyMapper: K, headersMapper: ID },
+    },
+    queryParameters: [fA, pA, J],
+    urlParameters: [q],
+    headerParameters: [Y, X, Z],
+    isXML: !0,
+    serializer: qM,
+  },
+  XM = {
     path: `/`,
     httpMethod: `GET`,
     responses: {
       200: { bodyMapper: $E, headersMapper: LD },
       default: { bodyMapper: K, headersMapper: RD },
     },
-    queryParameters: [J, pA, mA, hA, gA, _A],
+    queryParameters: [fA, J, mA],
     urlParameters: [q],
     headerParameters: [Y, X, Z],
     isXML: !0,
-    serializer: GM,
-  },
-  XM = {
-    path: `/`,
-    httpMethod: `POST`,
-    responses: {
-      200: { bodyMapper: rD, headersMapper: zD },
-      default: { bodyMapper: K, headersMapper: BD },
-    },
-    requestBody: vA,
-    queryParameters: [uA, J, yA],
-    urlParameters: [q],
-    headerParameters: [sA, lA, Y, X],
-    isXML: !0,
-    contentType: `application/xml; charset=utf-8`,
-    mediaType: `xml`,
-    serializer: GM,
+    serializer: qM,
   },
   ZM = {
     path: `/`,
     httpMethod: `GET`,
-    responses: { 200: { headersMapper: VD }, default: { bodyMapper: K, headersMapper: HD } },
-    queryParameters: [dA, J, bA],
+    responses: {
+      200: { bodyMapper: tD, headersMapper: zD },
+      default: { bodyMapper: K, headersMapper: BD },
+    },
+    queryParameters: [J, hA, gA, _A, vA, yA],
     urlParameters: [q],
     headerParameters: [Y, X, Z],
     isXML: !0,
-    serializer: GM,
+    serializer: qM,
   },
   QM = {
     path: `/`,
     httpMethod: `POST`,
     responses: {
-      202: {
-        bodyMapper: { type: { name: `Stream` }, serializedName: `parsedResponse` },
-        headersMapper: UD,
-      },
-      default: { bodyMapper: K, headersMapper: WD },
+      200: { bodyMapper: aD, headersMapper: VD },
+      default: { bodyMapper: K, headersMapper: HD },
     },
-    requestBody: xA,
-    queryParameters: [J, SA],
+    requestBody: bA,
+    queryParameters: [fA, J, xA],
     urlParameters: [q],
-    headerParameters: [lA, Y, X, CA, wA],
+    headerParameters: [lA, dA, Y, X],
     isXML: !0,
     contentType: `application/xml; charset=utf-8`,
     mediaType: `xml`,
-    serializer: GM,
+    serializer: qM,
   },
   $M = {
     path: `/`,
     httpMethod: `GET`,
-    responses: {
-      200: { bodyMapper: iD, headersMapper: GD },
-      default: { bodyMapper: K, headersMapper: KD },
-    },
-    queryParameters: [J, hA, gA, TA, EA],
+    responses: { 200: { headersMapper: UD }, default: { bodyMapper: K, headersMapper: WD } },
+    queryParameters: [pA, J, SA],
     urlParameters: [q],
     headerParameters: [Y, X, Z],
     isXML: !0,
-    serializer: GM,
+    serializer: qM,
   },
-  eN = class {
+  eN = {
+    path: `/`,
+    httpMethod: `POST`,
+    responses: {
+      202: {
+        bodyMapper: { type: { name: `Stream` }, serializedName: `parsedResponse` },
+        headersMapper: GD,
+      },
+      default: { bodyMapper: K, headersMapper: KD },
+    },
+    requestBody: CA,
+    queryParameters: [J, wA],
+    urlParameters: [q],
+    headerParameters: [dA, Y, X, TA, EA],
+    isXML: !0,
+    contentType: `application/xml; charset=utf-8`,
+    mediaType: `xml`,
+    serializer: qM,
+  },
+  tN = {
+    path: `/`,
+    httpMethod: `GET`,
+    responses: {
+      200: { bodyMapper: oD, headersMapper: qD },
+      default: { bodyMapper: K, headersMapper: JD },
+    },
+    queryParameters: [J, _A, vA, DA, OA],
+    urlParameters: [q],
+    headerParameters: [Y, X, Z],
+    isXML: !0,
+    serializer: qM,
+  },
+  nN = class {
     client;
     constructor(e) {
       this.client = e;
     }
     create(e) {
-      return this.client.sendOperationRequest({ options: e }, nN);
-    }
-    getProperties(e) {
-      return this.client.sendOperationRequest({ options: e }, rN);
-    }
-    delete(e) {
       return this.client.sendOperationRequest({ options: e }, iN);
     }
-    setMetadata(e) {
+    getProperties(e) {
       return this.client.sendOperationRequest({ options: e }, aN);
     }
-    getAccessPolicy(e) {
+    delete(e) {
       return this.client.sendOperationRequest({ options: e }, oN);
     }
-    setAccessPolicy(e) {
+    setMetadata(e) {
       return this.client.sendOperationRequest({ options: e }, sN);
     }
-    restore(e) {
+    getAccessPolicy(e) {
       return this.client.sendOperationRequest({ options: e }, cN);
     }
+    setAccessPolicy(e) {
+      return this.client.sendOperationRequest({ options: e }, lN);
+    }
+    restore(e) {
+      return this.client.sendOperationRequest({ options: e }, uN);
+    }
     rename(e, t) {
-      return this.client.sendOperationRequest({ sourceContainerName: e, options: t }, lN);
+      return this.client.sendOperationRequest({ sourceContainerName: e, options: t }, dN);
     }
     submitBatch(e, t, n, r) {
       return this.client.sendOperationRequest(
         { contentLength: e, multipartContentType: t, body: n, options: r },
-        uN,
+        fN,
       );
     }
     filterBlobs(e) {
-      return this.client.sendOperationRequest({ options: e }, dN);
+      return this.client.sendOperationRequest({ options: e }, pN);
     }
     acquireLease(e) {
-      return this.client.sendOperationRequest({ options: e }, fN);
+      return this.client.sendOperationRequest({ options: e }, mN);
     }
     releaseLease(e, t) {
-      return this.client.sendOperationRequest({ leaseId: e, options: t }, pN);
+      return this.client.sendOperationRequest({ leaseId: e, options: t }, hN);
     }
     renewLease(e, t) {
-      return this.client.sendOperationRequest({ leaseId: e, options: t }, mN);
+      return this.client.sendOperationRequest({ leaseId: e, options: t }, gN);
     }
     breakLease(e) {
-      return this.client.sendOperationRequest({ options: e }, hN);
-    }
-    changeLease(e, t, n) {
-      return this.client.sendOperationRequest({ leaseId: e, proposedLeaseId: t, options: n }, gN);
-    }
-    listBlobFlatSegment(e) {
       return this.client.sendOperationRequest({ options: e }, _N);
     }
-    listBlobHierarchySegment(e, t) {
-      return this.client.sendOperationRequest({ delimiter: e, options: t }, vN);
+    changeLease(e, t, n) {
+      return this.client.sendOperationRequest({ leaseId: e, proposedLeaseId: t, options: n }, vN);
     }
-    getAccountInfo(e) {
+    listBlobFlatSegment(e) {
       return this.client.sendOperationRequest({ options: e }, yN);
     }
+    listBlobHierarchySegment(e, t) {
+      return this.client.sendOperationRequest({ delimiter: e, options: t }, bN);
+    }
+    getAccountInfo(e) {
+      return this.client.sendOperationRequest({ options: e }, xN);
+    }
   },
-  tN = jb(WE, !0),
-  nN = {
-    path: `/{containerName}`,
-    httpMethod: `PUT`,
-    responses: { 201: { headersMapper: qD }, default: { bodyMapper: K, headersMapper: JD } },
-    queryParameters: [J, DA],
-    urlParameters: [q],
-    headerParameters: [Y, X, Z, OA, kA, AA, jA],
-    isXML: !0,
-    serializer: tN,
-  },
-  rN = {
-    path: `/{containerName}`,
-    httpMethod: `GET`,
-    responses: { 200: { headersMapper: YD }, default: { bodyMapper: K, headersMapper: XD } },
-    queryParameters: [J, DA],
-    urlParameters: [q],
-    headerParameters: [Y, X, Z, MA],
-    isXML: !0,
-    serializer: tN,
-  },
+  rN = Nb(KE, !0),
   iN = {
     path: `/{containerName}`,
-    httpMethod: `DELETE`,
-    responses: { 202: { headersMapper: ZD }, default: { bodyMapper: K, headersMapper: QD } },
-    queryParameters: [J, DA],
+    httpMethod: `PUT`,
+    responses: { 201: { headersMapper: YD }, default: { bodyMapper: K, headersMapper: XD } },
+    queryParameters: [J, kA],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, MA, NA, PA],
+    headerParameters: [Y, X, Z, AA, jA, MA, NA],
     isXML: !0,
-    serializer: tN,
+    serializer: rN,
   },
   aN = {
     path: `/{containerName}`,
-    httpMethod: `PUT`,
-    responses: { 200: { headersMapper: $D }, default: { bodyMapper: K, headersMapper: eO } },
-    queryParameters: [J, DA, FA],
+    httpMethod: `GET`,
+    responses: { 200: { headersMapper: ZD }, default: { bodyMapper: K, headersMapper: QD } },
+    queryParameters: [J, kA],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, OA, MA, NA],
+    headerParameters: [Y, X, Z, PA],
     isXML: !0,
-    serializer: tN,
+    serializer: rN,
   },
   oN = {
+    path: `/{containerName}`,
+    httpMethod: `DELETE`,
+    responses: { 202: { headersMapper: $D }, default: { bodyMapper: K, headersMapper: eO } },
+    queryParameters: [J, kA],
+    urlParameters: [q],
+    headerParameters: [Y, X, Z, PA, FA, IA],
+    isXML: !0,
+    serializer: rN,
+  },
+  sN = {
+    path: `/{containerName}`,
+    httpMethod: `PUT`,
+    responses: { 200: { headersMapper: tO }, default: { bodyMapper: K, headersMapper: nO } },
+    queryParameters: [J, kA, LA],
+    urlParameters: [q],
+    headerParameters: [Y, X, Z, AA, PA, FA],
+    isXML: !0,
+    serializer: rN,
+  },
+  cN = {
     path: `/{containerName}`,
     httpMethod: `GET`,
     responses: {
@@ -44645,451 +44691,417 @@ var WE = De({
           xmlIsWrapped: !0,
           xmlElementName: `SignedIdentifier`,
         },
-        headersMapper: tO,
+        headersMapper: rO,
       },
-      default: { bodyMapper: K, headersMapper: nO },
+      default: { bodyMapper: K, headersMapper: iO },
     },
-    queryParameters: [J, DA, IA],
+    queryParameters: [J, kA, RA],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, MA],
+    headerParameters: [Y, X, Z, PA],
     isXML: !0,
-    serializer: tN,
-  },
-  sN = {
-    path: `/{containerName}`,
-    httpMethod: `PUT`,
-    responses: { 200: { headersMapper: rO }, default: { bodyMapper: K, headersMapper: iO } },
-    requestBody: LA,
-    queryParameters: [J, DA, IA],
-    urlParameters: [q],
-    headerParameters: [sA, lA, Y, X, kA, MA, NA, PA],
-    isXML: !0,
-    contentType: `application/xml; charset=utf-8`,
-    mediaType: `xml`,
-    serializer: tN,
-  },
-  cN = {
-    path: `/{containerName}`,
-    httpMethod: `PUT`,
-    responses: { 201: { headersMapper: aO }, default: { bodyMapper: K, headersMapper: oO } },
-    queryParameters: [J, DA, RA],
-    urlParameters: [q],
-    headerParameters: [Y, X, Z, zA, BA],
-    isXML: !0,
-    serializer: tN,
+    serializer: rN,
   },
   lN = {
     path: `/{containerName}`,
     httpMethod: `PUT`,
-    responses: { 200: { headersMapper: sO }, default: { bodyMapper: K, headersMapper: cO } },
-    queryParameters: [J, DA, VA],
+    responses: { 200: { headersMapper: aO }, default: { bodyMapper: K, headersMapper: oO } },
+    requestBody: zA,
+    queryParameters: [J, kA, RA],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, HA, UA],
+    headerParameters: [lA, dA, Y, X, jA, PA, FA, IA],
     isXML: !0,
-    serializer: tN,
+    contentType: `application/xml; charset=utf-8`,
+    mediaType: `xml`,
+    serializer: rN,
   },
   uN = {
+    path: `/{containerName}`,
+    httpMethod: `PUT`,
+    responses: { 201: { headersMapper: sO }, default: { bodyMapper: K, headersMapper: cO } },
+    queryParameters: [J, kA, BA],
+    urlParameters: [q],
+    headerParameters: [Y, X, Z, VA, HA],
+    isXML: !0,
+    serializer: rN,
+  },
+  dN = {
+    path: `/{containerName}`,
+    httpMethod: `PUT`,
+    responses: { 200: { headersMapper: lO }, default: { bodyMapper: K, headersMapper: uO } },
+    queryParameters: [J, kA, UA],
+    urlParameters: [q],
+    headerParameters: [Y, X, Z, WA, GA],
+    isXML: !0,
+    serializer: rN,
+  },
+  fN = {
     path: `/{containerName}`,
     httpMethod: `POST`,
     responses: {
       202: {
         bodyMapper: { type: { name: `Stream` }, serializedName: `parsedResponse` },
-        headersMapper: lO,
+        headersMapper: dO,
       },
-      default: { bodyMapper: K, headersMapper: uO },
+      default: { bodyMapper: K, headersMapper: fO },
     },
-    requestBody: xA,
-    queryParameters: [J, SA, DA],
+    requestBody: CA,
+    queryParameters: [J, wA, kA],
     urlParameters: [q],
-    headerParameters: [lA, Y, X, CA, wA],
+    headerParameters: [dA, Y, X, TA, EA],
     isXML: !0,
     contentType: `application/xml; charset=utf-8`,
     mediaType: `xml`,
-    serializer: tN,
-  },
-  dN = {
-    path: `/{containerName}`,
-    httpMethod: `GET`,
-    responses: {
-      200: { bodyMapper: iD, headersMapper: dO },
-      default: { bodyMapper: K, headersMapper: fO },
-    },
-    queryParameters: [J, hA, gA, TA, EA, DA],
-    urlParameters: [q],
-    headerParameters: [Y, X, Z],
-    isXML: !0,
-    serializer: tN,
-  },
-  fN = {
-    path: `/{containerName}`,
-    httpMethod: `PUT`,
-    responses: { 201: { headersMapper: pO }, default: { bodyMapper: K, headersMapper: mO } },
-    queryParameters: [J, DA, WA],
-    urlParameters: [q],
-    headerParameters: [Y, X, Z, NA, PA, GA, KA, qA],
-    isXML: !0,
-    serializer: tN,
+    serializer: rN,
   },
   pN = {
     path: `/{containerName}`,
-    httpMethod: `PUT`,
-    responses: { 200: { headersMapper: hO }, default: { bodyMapper: K, headersMapper: gO } },
-    queryParameters: [J, DA, WA],
+    httpMethod: `GET`,
+    responses: {
+      200: { bodyMapper: oD, headersMapper: pO },
+      default: { bodyMapper: K, headersMapper: mO },
+    },
+    queryParameters: [J, _A, vA, DA, OA, kA],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, NA, PA, JA, YA],
+    headerParameters: [Y, X, Z],
     isXML: !0,
-    serializer: tN,
+    serializer: rN,
   },
   mN = {
     path: `/{containerName}`,
     httpMethod: `PUT`,
-    responses: { 200: { headersMapper: _O }, default: { bodyMapper: K, headersMapper: vO } },
-    queryParameters: [J, DA, WA],
+    responses: { 201: { headersMapper: hO }, default: { bodyMapper: K, headersMapper: gO } },
+    queryParameters: [J, kA, KA],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, NA, PA, YA, XA],
+    headerParameters: [Y, X, Z, FA, IA, qA, JA, YA],
     isXML: !0,
-    serializer: tN,
+    serializer: rN,
   },
   hN = {
     path: `/{containerName}`,
     httpMethod: `PUT`,
-    responses: { 202: { headersMapper: yO }, default: { bodyMapper: K, headersMapper: bO } },
-    queryParameters: [J, DA, WA],
+    responses: { 200: { headersMapper: _O }, default: { bodyMapper: K, headersMapper: vO } },
+    queryParameters: [J, kA, KA],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, NA, PA, ZA, QA],
+    headerParameters: [Y, X, Z, FA, IA, XA, ZA],
     isXML: !0,
-    serializer: tN,
+    serializer: rN,
   },
   gN = {
     path: `/{containerName}`,
     httpMethod: `PUT`,
-    responses: { 200: { headersMapper: xO }, default: { bodyMapper: K, headersMapper: SO } },
-    queryParameters: [J, DA, WA],
+    responses: { 200: { headersMapper: yO }, default: { bodyMapper: K, headersMapper: bO } },
+    queryParameters: [J, kA, KA],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, NA, PA, YA, $A, ej],
+    headerParameters: [Y, X, Z, FA, IA, ZA, QA],
     isXML: !0,
-    serializer: tN,
+    serializer: rN,
   },
   _N = {
     path: `/{containerName}`,
-    httpMethod: `GET`,
-    responses: {
-      200: { bodyMapper: uD, headersMapper: CO },
-      default: { bodyMapper: K, headersMapper: wO },
-    },
-    queryParameters: [J, pA, mA, hA, gA, DA, tj, nj],
+    httpMethod: `PUT`,
+    responses: { 202: { headersMapper: xO }, default: { bodyMapper: K, headersMapper: SO } },
+    queryParameters: [J, kA, KA],
     urlParameters: [q],
-    headerParameters: [Y, X, Z],
+    headerParameters: [Y, X, Z, FA, IA, $A, ej],
     isXML: !0,
-    serializer: tN,
+    serializer: rN,
   },
   vN = {
     path: `/{containerName}`,
-    httpMethod: `GET`,
-    responses: {
-      200: { bodyMapper: hD, headersMapper: TO },
-      default: { bodyMapper: K, headersMapper: EO },
-    },
-    queryParameters: [J, pA, mA, hA, gA, DA, tj, nj, rj],
+    httpMethod: `PUT`,
+    responses: { 200: { headersMapper: CO }, default: { bodyMapper: K, headersMapper: wO } },
+    queryParameters: [J, kA, KA],
     urlParameters: [q],
-    headerParameters: [Y, X, Z],
+    headerParameters: [Y, X, Z, FA, IA, ZA, tj, nj],
     isXML: !0,
-    serializer: tN,
+    serializer: rN,
   },
   yN = {
     path: `/{containerName}`,
     httpMethod: `GET`,
-    responses: { 200: { headersMapper: DO }, default: { bodyMapper: K, headersMapper: OO } },
-    queryParameters: [dA, J, bA],
+    responses: {
+      200: { bodyMapper: fD, headersMapper: TO },
+      default: { bodyMapper: K, headersMapper: EO },
+    },
+    queryParameters: [J, hA, gA, _A, vA, kA, rj, ij],
     urlParameters: [q],
     headerParameters: [Y, X, Z],
     isXML: !0,
-    serializer: tN,
+    serializer: rN,
   },
-  bN = class {
+  bN = {
+    path: `/{containerName}`,
+    httpMethod: `GET`,
+    responses: {
+      200: { bodyMapper: _D, headersMapper: DO },
+      default: { bodyMapper: K, headersMapper: OO },
+    },
+    queryParameters: [J, hA, gA, _A, vA, kA, rj, ij, aj],
+    urlParameters: [q],
+    headerParameters: [Y, X, Z],
+    isXML: !0,
+    serializer: rN,
+  },
+  xN = {
+    path: `/{containerName}`,
+    httpMethod: `GET`,
+    responses: { 200: { headersMapper: kO }, default: { bodyMapper: K, headersMapper: AO } },
+    queryParameters: [pA, J, SA],
+    urlParameters: [q],
+    headerParameters: [Y, X, Z],
+    isXML: !0,
+    serializer: rN,
+  },
+  SN = class {
     client;
     constructor(e) {
       this.client = e;
     }
     download(e) {
-      return this.client.sendOperationRequest({ options: e }, SN);
-    }
-    getProperties(e) {
-      return this.client.sendOperationRequest({ options: e }, CN);
-    }
-    delete(e) {
       return this.client.sendOperationRequest({ options: e }, wN);
     }
-    undelete(e) {
+    getProperties(e) {
       return this.client.sendOperationRequest({ options: e }, TN);
     }
-    setExpiry(e, t) {
-      return this.client.sendOperationRequest({ expiryOptions: e, options: t }, EN);
+    delete(e) {
+      return this.client.sendOperationRequest({ options: e }, EN);
     }
-    setHttpHeaders(e) {
+    undelete(e) {
       return this.client.sendOperationRequest({ options: e }, DN);
     }
-    setImmutabilityPolicy(e) {
-      return this.client.sendOperationRequest({ options: e }, ON);
+    setExpiry(e, t) {
+      return this.client.sendOperationRequest({ expiryOptions: e, options: t }, ON);
     }
-    deleteImmutabilityPolicy(e) {
+    setHttpHeaders(e) {
       return this.client.sendOperationRequest({ options: e }, kN);
     }
-    setLegalHold(e, t) {
-      return this.client.sendOperationRequest({ legalHold: e, options: t }, AN);
+    setImmutabilityPolicy(e) {
+      return this.client.sendOperationRequest({ options: e }, AN);
     }
-    setMetadata(e) {
+    deleteImmutabilityPolicy(e) {
       return this.client.sendOperationRequest({ options: e }, jN);
     }
+    setLegalHold(e, t) {
+      return this.client.sendOperationRequest({ legalHold: e, options: t }, MN);
+    }
+    setMetadata(e) {
+      return this.client.sendOperationRequest({ options: e }, NN);
+    }
     acquireLease(e) {
-      return this.client.sendOperationRequest({ options: e }, MN);
+      return this.client.sendOperationRequest({ options: e }, PN);
     }
     releaseLease(e, t) {
-      return this.client.sendOperationRequest({ leaseId: e, options: t }, NN);
+      return this.client.sendOperationRequest({ leaseId: e, options: t }, FN);
     }
     renewLease(e, t) {
-      return this.client.sendOperationRequest({ leaseId: e, options: t }, PN);
+      return this.client.sendOperationRequest({ leaseId: e, options: t }, IN);
     }
     changeLease(e, t, n) {
-      return this.client.sendOperationRequest({ leaseId: e, proposedLeaseId: t, options: n }, FN);
+      return this.client.sendOperationRequest({ leaseId: e, proposedLeaseId: t, options: n }, LN);
     }
     breakLease(e) {
-      return this.client.sendOperationRequest({ options: e }, IN);
+      return this.client.sendOperationRequest({ options: e }, RN);
     }
     createSnapshot(e) {
-      return this.client.sendOperationRequest({ options: e }, LN);
+      return this.client.sendOperationRequest({ options: e }, zN);
     }
     startCopyFromURL(e, t) {
-      return this.client.sendOperationRequest({ copySource: e, options: t }, RN);
+      return this.client.sendOperationRequest({ copySource: e, options: t }, BN);
     }
     copyFromURL(e, t) {
-      return this.client.sendOperationRequest({ copySource: e, options: t }, zN);
+      return this.client.sendOperationRequest({ copySource: e, options: t }, VN);
     }
     abortCopyFromURL(e, t) {
-      return this.client.sendOperationRequest({ copyId: e, options: t }, BN);
+      return this.client.sendOperationRequest({ copyId: e, options: t }, HN);
     }
     setTier(e, t) {
-      return this.client.sendOperationRequest({ tier: e, options: t }, VN);
+      return this.client.sendOperationRequest({ tier: e, options: t }, UN);
     }
     getAccountInfo(e) {
-      return this.client.sendOperationRequest({ options: e }, HN);
-    }
-    query(e) {
-      return this.client.sendOperationRequest({ options: e }, UN);
-    }
-    getTags(e) {
       return this.client.sendOperationRequest({ options: e }, WN);
     }
-    setTags(e) {
+    query(e) {
       return this.client.sendOperationRequest({ options: e }, GN);
     }
+    getTags(e) {
+      return this.client.sendOperationRequest({ options: e }, KN);
+    }
+    setTags(e) {
+      return this.client.sendOperationRequest({ options: e }, qN);
+    }
   },
-  xN = jb(WE, !0),
-  SN = {
+  CN = Nb(KE, !0),
+  wN = {
     path: `/{containerName}/{blob}`,
     httpMethod: `GET`,
     responses: {
       200: {
         bodyMapper: { type: { name: `Stream` }, serializedName: `parsedResponse` },
-        headersMapper: kO,
+        headersMapper: jO,
       },
       206: {
         bodyMapper: { type: { name: `Stream` }, serializedName: `parsedResponse` },
-        headersMapper: kO,
+        headersMapper: jO,
       },
-      default: { bodyMapper: K, headersMapper: AO },
+      default: { bodyMapper: K, headersMapper: MO },
     },
-    queryParameters: [J, ij, aj],
+    queryParameters: [J, oj, sj],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, MA, NA, PA, oj, sj, cj, lj, uj, dj, fj, pj, mj],
+    headerParameters: [Y, X, Z, PA, FA, IA, cj, lj, uj, dj, fj, pj, mj, hj, gj],
     isXML: !0,
-    serializer: xN,
-  },
-  CN = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `HEAD`,
-    responses: { 200: { headersMapper: jO }, default: { bodyMapper: K, headersMapper: MO } },
-    queryParameters: [J, ij, aj],
-    urlParameters: [q],
-    headerParameters: [Y, X, Z, MA, NA, PA, lj, uj, dj, fj, pj, mj],
-    isXML: !0,
-    serializer: xN,
-  },
-  wN = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `DELETE`,
-    responses: { 202: { headersMapper: NO }, default: { bodyMapper: K, headersMapper: PO } },
-    queryParameters: [J, ij, aj, gj],
-    urlParameters: [q],
-    headerParameters: [Y, X, Z, MA, NA, PA, fj, pj, mj, hj],
-    isXML: !0,
-    serializer: xN,
+    serializer: CN,
   },
   TN = {
     path: `/{containerName}/{blob}`,
-    httpMethod: `PUT`,
-    responses: { 200: { headersMapper: FO }, default: { bodyMapper: K, headersMapper: IO } },
-    queryParameters: [J, RA],
+    httpMethod: `HEAD`,
+    responses: { 200: { headersMapper: NO }, default: { bodyMapper: K, headersMapper: PO } },
+    queryParameters: [J, oj, sj],
     urlParameters: [q],
-    headerParameters: [Y, X, Z],
+    headerParameters: [Y, X, Z, PA, FA, IA, dj, fj, pj, mj, hj, gj],
     isXML: !0,
-    serializer: xN,
+    serializer: CN,
   },
   EN = {
     path: `/{containerName}/{blob}`,
-    httpMethod: `PUT`,
-    responses: { 200: { headersMapper: LO }, default: { bodyMapper: K, headersMapper: RO } },
-    queryParameters: [J, _j],
+    httpMethod: `DELETE`,
+    responses: { 202: { headersMapper: FO }, default: { bodyMapper: K, headersMapper: IO } },
+    queryParameters: [J, oj, sj, vj],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, vj, yj],
+    headerParameters: [Y, X, Z, PA, FA, IA, mj, hj, gj, _j],
     isXML: !0,
-    serializer: xN,
+    serializer: CN,
   },
   DN = {
     path: `/{containerName}/{blob}`,
     httpMethod: `PUT`,
-    responses: { 200: { headersMapper: zO }, default: { bodyMapper: K, headersMapper: BO } },
-    queryParameters: [dA, J],
+    responses: { 200: { headersMapper: LO }, default: { bodyMapper: K, headersMapper: RO } },
+    queryParameters: [J, BA],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, MA, NA, PA, fj, pj, mj, bj, xj, Sj, Cj, wj, Tj],
+    headerParameters: [Y, X, Z],
     isXML: !0,
-    serializer: xN,
+    serializer: CN,
   },
   ON = {
     path: `/{containerName}/{blob}`,
     httpMethod: `PUT`,
-    responses: { 200: { headersMapper: VO }, default: { bodyMapper: K, headersMapper: HO } },
-    queryParameters: [J, ij, aj, Ej],
+    responses: { 200: { headersMapper: zO }, default: { bodyMapper: K, headersMapper: BO } },
+    queryParameters: [J, yj],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, PA, Dj, Oj],
+    headerParameters: [Y, X, Z, bj, xj],
     isXML: !0,
-    serializer: xN,
+    serializer: CN,
   },
   kN = {
     path: `/{containerName}/{blob}`,
-    httpMethod: `DELETE`,
-    responses: { 200: { headersMapper: UO }, default: { bodyMapper: K, headersMapper: WO } },
-    queryParameters: [J, ij, aj, Ej],
+    httpMethod: `PUT`,
+    responses: { 200: { headersMapper: VO }, default: { bodyMapper: K, headersMapper: HO } },
+    queryParameters: [pA, J],
     urlParameters: [q],
-    headerParameters: [Y, X, Z],
+    headerParameters: [Y, X, Z, PA, FA, IA, mj, hj, gj, Sj, Cj, wj, Tj, Ej, Dj],
     isXML: !0,
-    serializer: xN,
+    serializer: CN,
   },
   AN = {
     path: `/{containerName}/{blob}`,
     httpMethod: `PUT`,
-    responses: { 200: { headersMapper: GO }, default: { bodyMapper: K, headersMapper: KO } },
-    queryParameters: [J, ij, aj, kj],
+    responses: { 200: { headersMapper: UO }, default: { bodyMapper: K, headersMapper: WO } },
+    queryParameters: [J, oj, sj, Oj],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, Aj],
+    headerParameters: [Y, X, Z, IA, kj, Aj],
     isXML: !0,
-    serializer: xN,
+    serializer: CN,
   },
   jN = {
     path: `/{containerName}/{blob}`,
-    httpMethod: `PUT`,
-    responses: { 200: { headersMapper: qO }, default: { bodyMapper: K, headersMapper: JO } },
-    queryParameters: [J, FA],
+    httpMethod: `DELETE`,
+    responses: { 200: { headersMapper: GO }, default: { bodyMapper: K, headersMapper: KO } },
+    queryParameters: [J, oj, sj, Oj],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, OA, MA, NA, PA, lj, uj, dj, fj, pj, mj, jj],
+    headerParameters: [Y, X, Z],
     isXML: !0,
-    serializer: xN,
+    serializer: CN,
   },
   MN = {
     path: `/{containerName}/{blob}`,
     httpMethod: `PUT`,
-    responses: { 201: { headersMapper: YO }, default: { bodyMapper: K, headersMapper: XO } },
-    queryParameters: [J, WA],
+    responses: { 200: { headersMapper: qO }, default: { bodyMapper: K, headersMapper: JO } },
+    queryParameters: [J, oj, sj, jj],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, NA, PA, GA, KA, qA, fj, pj, mj],
+    headerParameters: [Y, X, Z, Mj],
     isXML: !0,
-    serializer: xN,
+    serializer: CN,
   },
   NN = {
     path: `/{containerName}/{blob}`,
     httpMethod: `PUT`,
-    responses: { 200: { headersMapper: ZO }, default: { bodyMapper: K, headersMapper: QO } },
-    queryParameters: [J, WA],
+    responses: { 200: { headersMapper: YO }, default: { bodyMapper: K, headersMapper: XO } },
+    queryParameters: [J, LA],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, NA, PA, JA, YA, fj, pj, mj],
+    headerParameters: [Y, X, Z, AA, PA, FA, IA, dj, fj, pj, mj, hj, gj, Nj],
     isXML: !0,
-    serializer: xN,
+    serializer: CN,
   },
   PN = {
     path: `/{containerName}/{blob}`,
     httpMethod: `PUT`,
-    responses: { 200: { headersMapper: $O }, default: { bodyMapper: K, headersMapper: ek } },
-    queryParameters: [J, WA],
+    responses: { 201: { headersMapper: ZO }, default: { bodyMapper: K, headersMapper: QO } },
+    queryParameters: [J, KA],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, NA, PA, YA, XA, fj, pj, mj],
+    headerParameters: [Y, X, Z, FA, IA, qA, JA, YA, mj, hj, gj],
     isXML: !0,
-    serializer: xN,
+    serializer: CN,
   },
   FN = {
     path: `/{containerName}/{blob}`,
     httpMethod: `PUT`,
-    responses: { 200: { headersMapper: tk }, default: { bodyMapper: K, headersMapper: nk } },
-    queryParameters: [J, WA],
+    responses: { 200: { headersMapper: $O }, default: { bodyMapper: K, headersMapper: ek } },
+    queryParameters: [J, KA],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, NA, PA, YA, $A, ej, fj, pj, mj],
+    headerParameters: [Y, X, Z, FA, IA, XA, ZA, mj, hj, gj],
     isXML: !0,
-    serializer: xN,
+    serializer: CN,
   },
   IN = {
     path: `/{containerName}/{blob}`,
     httpMethod: `PUT`,
-    responses: { 202: { headersMapper: rk }, default: { bodyMapper: K, headersMapper: ik } },
-    queryParameters: [J, WA],
+    responses: { 200: { headersMapper: tk }, default: { bodyMapper: K, headersMapper: nk } },
+    queryParameters: [J, KA],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, NA, PA, ZA, QA, fj, pj, mj],
+    headerParameters: [Y, X, Z, FA, IA, ZA, QA, mj, hj, gj],
     isXML: !0,
-    serializer: xN,
+    serializer: CN,
   },
   LN = {
     path: `/{containerName}/{blob}`,
     httpMethod: `PUT`,
-    responses: { 201: { headersMapper: ak }, default: { bodyMapper: K, headersMapper: ok } },
-    queryParameters: [J, Mj],
+    responses: { 200: { headersMapper: rk }, default: { bodyMapper: K, headersMapper: ik } },
+    queryParameters: [J, KA],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, OA, MA, NA, PA, lj, uj, dj, fj, pj, mj, jj],
+    headerParameters: [Y, X, Z, FA, IA, ZA, tj, nj, mj, hj, gj],
     isXML: !0,
-    serializer: xN,
+    serializer: CN,
   },
   RN = {
     path: `/{containerName}/{blob}`,
     httpMethod: `PUT`,
-    responses: { 202: { headersMapper: sk }, default: { bodyMapper: K, headersMapper: ck } },
-    queryParameters: [J],
+    responses: { 202: { headersMapper: ak }, default: { bodyMapper: K, headersMapper: ok } },
+    queryParameters: [J, KA],
     urlParameters: [q],
-    headerParameters: [
-      Y,
-      X,
-      Z,
-      OA,
-      MA,
-      NA,
-      PA,
-      fj,
-      pj,
-      mj,
-      Dj,
-      Oj,
-      Nj,
-      Pj,
-      Fj,
-      Ij,
-      Lj,
-      Rj,
-      zj,
-      Bj,
-      Vj,
-      Hj,
-      Uj,
-    ],
+    headerParameters: [Y, X, Z, FA, IA, $A, ej, mj, hj, gj],
     isXML: !0,
-    serializer: xN,
+    serializer: CN,
   },
   zN = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `PUT`,
+    responses: { 201: { headersMapper: sk }, default: { bodyMapper: K, headersMapper: ck } },
+    queryParameters: [J, Pj],
+    urlParameters: [q],
+    headerParameters: [Y, X, Z, AA, PA, FA, IA, dj, fj, pj, mj, hj, gj, Nj],
+    isXML: !0,
+    serializer: CN,
+  },
+  BN = {
     path: `/{containerName}/{blob}`,
     httpMethod: `PUT`,
     responses: { 202: { headersMapper: lk }, default: { bodyMapper: K, headersMapper: uk } },
@@ -45099,559 +45111,15 @@ var WE = De({
       Y,
       X,
       Z,
-      OA,
-      MA,
-      NA,
+      AA,
       PA,
-      fj,
-      pj,
+      FA,
+      IA,
       mj,
-      Dj,
-      Oj,
-      jj,
-      Nj,
-      Fj,
-      Ij,
-      Lj,
-      Rj,
-      Bj,
-      Vj,
-      Uj,
-      Wj,
-      Gj,
-      Kj,
-      qj,
-      Jj,
-    ],
-    isXML: !0,
-    serializer: xN,
-  },
-  BN = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `PUT`,
-    responses: { 204: { headersMapper: dk }, default: { bodyMapper: K, headersMapper: fk } },
-    queryParameters: [J, Yj, Zj],
-    urlParameters: [q],
-    headerParameters: [Y, X, Z, MA, Xj],
-    isXML: !0,
-    serializer: xN,
-  },
-  VN = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `PUT`,
-    responses: {
-      200: { headersMapper: pk },
-      202: { headersMapper: pk },
-      default: { bodyMapper: K, headersMapper: mk },
-    },
-    queryParameters: [J, ij, aj, Qj],
-    urlParameters: [q],
-    headerParameters: [Y, X, Z, MA, mj, Pj, $j],
-    isXML: !0,
-    serializer: xN,
-  },
-  HN = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `GET`,
-    responses: { 200: { headersMapper: hk }, default: { bodyMapper: K, headersMapper: gk } },
-    queryParameters: [dA, J, bA],
-    urlParameters: [q],
-    headerParameters: [Y, X, Z],
-    isXML: !0,
-    serializer: xN,
-  },
-  UN = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `POST`,
-    responses: {
-      200: {
-        bodyMapper: { type: { name: `Stream` }, serializedName: `parsedResponse` },
-        headersMapper: _k,
-      },
-      206: {
-        bodyMapper: { type: { name: `Stream` }, serializedName: `parsedResponse` },
-        headersMapper: _k,
-      },
-      default: { bodyMapper: K, headersMapper: vk },
-    },
-    requestBody: eM,
-    queryParameters: [J, ij, tM],
-    urlParameters: [q],
-    headerParameters: [sA, lA, Y, X, MA, NA, PA, lj, uj, dj, fj, pj, mj],
-    isXML: !0,
-    contentType: `application/xml; charset=utf-8`,
-    mediaType: `xml`,
-    serializer: xN,
-  },
-  WN = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `GET`,
-    responses: {
-      200: { bodyMapper: oD, headersMapper: yk },
-      default: { bodyMapper: K, headersMapper: bk },
-    },
-    queryParameters: [J, ij, aj, nM],
-    urlParameters: [q],
-    headerParameters: [Y, X, Z, MA, mj, rM, iM, aM, oM],
-    isXML: !0,
-    serializer: xN,
-  },
-  GN = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `PUT`,
-    responses: { 204: { headersMapper: xk }, default: { bodyMapper: K, headersMapper: Sk } },
-    requestBody: sM,
-    queryParameters: [J, aj, nM],
-    urlParameters: [q],
-    headerParameters: [sA, lA, Y, X, MA, mj, rM, iM, aM, oM, cM, lM],
-    isXML: !0,
-    contentType: `application/xml; charset=utf-8`,
-    mediaType: `xml`,
-    serializer: xN,
-  },
-  KN = class {
-    client;
-    constructor(e) {
-      this.client = e;
-    }
-    create(e, t, n) {
-      return this.client.sendOperationRequest(
-        { contentLength: e, blobContentLength: t, options: n },
-        JN,
-      );
-    }
-    uploadPages(e, t, n) {
-      return this.client.sendOperationRequest({ contentLength: e, body: t, options: n }, YN);
-    }
-    clearPages(e, t) {
-      return this.client.sendOperationRequest({ contentLength: e, options: t }, XN);
-    }
-    uploadPagesFromURL(e, t, n, r, i) {
-      return this.client.sendOperationRequest(
-        { sourceUrl: e, sourceRange: t, contentLength: n, range: r, options: i },
-        ZN,
-      );
-    }
-    getPageRanges(e) {
-      return this.client.sendOperationRequest({ options: e }, QN);
-    }
-    getPageRangesDiff(e) {
-      return this.client.sendOperationRequest({ options: e }, $N);
-    }
-    resize(e, t) {
-      return this.client.sendOperationRequest({ blobContentLength: e, options: t }, eP);
-    }
-    updateSequenceNumber(e, t) {
-      return this.client.sendOperationRequest({ sequenceNumberAction: e, options: t }, tP);
-    }
-    copyIncremental(e, t) {
-      return this.client.sendOperationRequest({ copySource: e, options: t }, nP);
-    }
-  },
-  qN = jb(WE, !0),
-  JN = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `PUT`,
-    responses: { 201: { headersMapper: Ck }, default: { bodyMapper: K, headersMapper: wk } },
-    queryParameters: [J],
-    urlParameters: [q],
-    headerParameters: [
-      Y,
-      X,
-      Z,
-      CA,
-      OA,
-      MA,
-      NA,
-      PA,
-      lj,
-      uj,
-      dj,
-      fj,
-      pj,
-      mj,
-      bj,
-      xj,
-      Sj,
-      Cj,
-      wj,
-      Tj,
-      Dj,
-      Oj,
-      jj,
-      Nj,
-      Vj,
-      Uj,
-      uM,
-      dM,
-      fM,
-    ],
-    isXML: !0,
-    serializer: qN,
-  },
-  YN = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `PUT`,
-    responses: { 201: { headersMapper: Tk }, default: { bodyMapper: K, headersMapper: Ek } },
-    requestBody: mM,
-    queryParameters: [J, gM],
-    urlParameters: [q],
-    headerParameters: [
-      Y,
-      X,
-      CA,
-      MA,
-      NA,
-      PA,
-      oj,
-      lj,
-      uj,
-      dj,
-      fj,
-      pj,
-      mj,
-      jj,
-      cM,
-      lM,
-      pM,
-      hM,
-      _M,
-      vM,
-      yM,
-      bM,
-    ],
-    isXML: !0,
-    contentType: `application/xml; charset=utf-8`,
-    mediaType: `binary`,
-    serializer: qN,
-  },
-  XN = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `PUT`,
-    responses: { 201: { headersMapper: Dk }, default: { bodyMapper: K, headersMapper: Ok } },
-    queryParameters: [J, gM],
-    urlParameters: [q],
-    headerParameters: [Y, X, Z, CA, MA, NA, PA, oj, lj, uj, dj, fj, pj, mj, jj, vM, yM, bM, xM],
-    isXML: !0,
-    serializer: qN,
-  },
-  ZN = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `PUT`,
-    responses: { 201: { headersMapper: kk }, default: { bodyMapper: K, headersMapper: Ak } },
-    queryParameters: [J, gM],
-    urlParameters: [q],
-    headerParameters: [
-      Y,
-      X,
-      Z,
-      CA,
-      MA,
-      NA,
-      PA,
-      lj,
-      uj,
-      dj,
-      fj,
-      pj,
-      mj,
-      jj,
-      Fj,
-      Ij,
-      Lj,
-      Rj,
-      Gj,
-      Kj,
-      Jj,
-      _M,
-      vM,
-      yM,
-      bM,
-      SM,
-      CM,
-      wM,
-      TM,
-    ],
-    isXML: !0,
-    serializer: qN,
-  },
-  QN = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `GET`,
-    responses: {
-      200: { bodyMapper: xD, headersMapper: jk },
-      default: { bodyMapper: K, headersMapper: Mk },
-    },
-    queryParameters: [J, hA, gA, ij, EM],
-    urlParameters: [q],
-    headerParameters: [Y, X, Z, MA, NA, PA, oj, fj, pj, mj],
-    isXML: !0,
-    serializer: qN,
-  },
-  $N = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `GET`,
-    responses: {
-      200: { bodyMapper: xD, headersMapper: Nk },
-      default: { bodyMapper: K, headersMapper: Pk },
-    },
-    queryParameters: [J, hA, gA, ij, EM, DM],
-    urlParameters: [q],
-    headerParameters: [Y, X, Z, MA, NA, PA, oj, fj, pj, mj, OM],
-    isXML: !0,
-    serializer: qN,
-  },
-  eP = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `PUT`,
-    responses: { 200: { headersMapper: Fk }, default: { bodyMapper: K, headersMapper: Ik } },
-    queryParameters: [dA, J],
-    urlParameters: [q],
-    headerParameters: [Y, X, Z, MA, NA, PA, lj, uj, dj, fj, pj, mj, jj, dM],
-    isXML: !0,
-    serializer: qN,
-  },
-  tP = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `PUT`,
-    responses: { 200: { headersMapper: Lk }, default: { bodyMapper: K, headersMapper: Rk } },
-    queryParameters: [dA, J],
-    urlParameters: [q],
-    headerParameters: [Y, X, Z, MA, NA, PA, fj, pj, mj, fM, kM],
-    isXML: !0,
-    serializer: qN,
-  },
-  nP = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `PUT`,
-    responses: { 202: { headersMapper: zk }, default: { bodyMapper: K, headersMapper: Bk } },
-    queryParameters: [J, AM],
-    urlParameters: [q],
-    headerParameters: [Y, X, Z, NA, PA, fj, pj, mj, Bj],
-    isXML: !0,
-    serializer: qN,
-  },
-  rP = class {
-    client;
-    constructor(e) {
-      this.client = e;
-    }
-    create(e, t) {
-      return this.client.sendOperationRequest({ contentLength: e, options: t }, aP);
-    }
-    appendBlock(e, t, n) {
-      return this.client.sendOperationRequest({ contentLength: e, body: t, options: n }, oP);
-    }
-    appendBlockFromUrl(e, t, n) {
-      return this.client.sendOperationRequest({ sourceUrl: e, contentLength: t, options: n }, sP);
-    }
-    seal(e) {
-      return this.client.sendOperationRequest({ options: e }, cP);
-    }
-  },
-  iP = jb(WE, !0),
-  aP = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `PUT`,
-    responses: { 201: { headersMapper: Vk }, default: { bodyMapper: K, headersMapper: Hk } },
-    queryParameters: [J],
-    urlParameters: [q],
-    headerParameters: [
-      Y,
-      X,
-      Z,
-      CA,
-      OA,
-      MA,
-      NA,
-      PA,
-      lj,
-      uj,
-      dj,
-      fj,
-      pj,
-      mj,
-      bj,
-      xj,
-      Sj,
-      Cj,
-      wj,
-      Tj,
-      Dj,
-      Oj,
-      jj,
-      Vj,
-      Uj,
-      jM,
-    ],
-    isXML: !0,
-    serializer: iP,
-  },
-  oP = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `PUT`,
-    responses: { 201: { headersMapper: Uk }, default: { bodyMapper: K, headersMapper: Wk } },
-    requestBody: mM,
-    queryParameters: [J, MM],
-    urlParameters: [q],
-    headerParameters: [Y, X, CA, MA, NA, PA, lj, uj, dj, fj, pj, mj, jj, cM, lM, pM, hM, NM, PM],
-    isXML: !0,
-    contentType: `application/xml; charset=utf-8`,
-    mediaType: `binary`,
-    serializer: iP,
-  },
-  sP = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `PUT`,
-    responses: { 201: { headersMapper: Gk }, default: { bodyMapper: K, headersMapper: Kk } },
-    queryParameters: [J, MM],
-    urlParameters: [q],
-    headerParameters: [
-      Y,
-      X,
-      Z,
-      CA,
-      MA,
-      NA,
-      PA,
-      lj,
-      uj,
-      dj,
-      fj,
-      pj,
-      mj,
-      jj,
-      Fj,
-      Ij,
-      Lj,
-      Rj,
-      Gj,
-      Kj,
-      Jj,
-      cM,
-      SM,
-      wM,
-      NM,
-      PM,
-      FM,
-    ],
-    isXML: !0,
-    serializer: iP,
-  },
-  cP = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `PUT`,
-    responses: { 200: { headersMapper: qk }, default: { bodyMapper: K, headersMapper: Jk } },
-    queryParameters: [J, IM],
-    urlParameters: [q],
-    headerParameters: [Y, X, Z, MA, NA, PA, fj, pj, PM],
-    isXML: !0,
-    serializer: iP,
-  },
-  lP = class {
-    client;
-    constructor(e) {
-      this.client = e;
-    }
-    upload(e, t, n) {
-      return this.client.sendOperationRequest({ contentLength: e, body: t, options: n }, dP);
-    }
-    putBlobFromUrl(e, t, n) {
-      return this.client.sendOperationRequest({ contentLength: e, copySource: t, options: n }, fP);
-    }
-    stageBlock(e, t, n, r) {
-      return this.client.sendOperationRequest(
-        { blockId: e, contentLength: t, body: n, options: r },
-        pP,
-      );
-    }
-    stageBlockFromURL(e, t, n, r) {
-      return this.client.sendOperationRequest(
-        { blockId: e, contentLength: t, sourceUrl: n, options: r },
-        mP,
-      );
-    }
-    commitBlockList(e, t) {
-      return this.client.sendOperationRequest({ blocks: e, options: t }, hP);
-    }
-    getBlockList(e, t) {
-      return this.client.sendOperationRequest({ listType: e, options: t }, gP);
-    }
-  },
-  uP = jb(WE, !0),
-  dP = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `PUT`,
-    responses: { 201: { headersMapper: Yk }, default: { bodyMapper: K, headersMapper: Xk } },
-    requestBody: mM,
-    queryParameters: [J],
-    urlParameters: [q],
-    headerParameters: [
-      Y,
-      X,
-      CA,
-      OA,
-      MA,
-      NA,
-      PA,
-      lj,
-      uj,
-      dj,
-      fj,
-      pj,
-      mj,
-      bj,
-      xj,
-      Sj,
-      Cj,
-      wj,
-      Tj,
-      Dj,
-      Oj,
-      jj,
-      Nj,
-      Vj,
-      Uj,
-      cM,
-      lM,
-      pM,
-      hM,
-      LM,
-    ],
-    isXML: !0,
-    contentType: `application/xml; charset=utf-8`,
-    mediaType: `binary`,
-    serializer: uP,
-  },
-  fP = {
-    path: `/{containerName}/{blob}`,
-    httpMethod: `PUT`,
-    responses: { 201: { headersMapper: Zk }, default: { bodyMapper: K, headersMapper: Qk } },
-    queryParameters: [J],
-    urlParameters: [q],
-    headerParameters: [
-      Y,
-      X,
-      Z,
-      CA,
-      OA,
-      MA,
-      NA,
-      PA,
-      lj,
-      uj,
-      dj,
-      fj,
-      pj,
-      mj,
-      bj,
-      xj,
-      Sj,
-      Cj,
-      wj,
-      Tj,
-      jj,
-      Nj,
+      hj,
+      gj,
+      kj,
+      Aj,
       Fj,
       Ij,
       Lj,
@@ -45659,96 +45127,674 @@ var WE = De({
       zj,
       Bj,
       Vj,
+      Hj,
+      Uj,
+      Wj,
+      Gj,
+    ],
+    isXML: !0,
+    serializer: CN,
+  },
+  VN = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `PUT`,
+    responses: { 202: { headersMapper: dk }, default: { bodyMapper: K, headersMapper: fk } },
+    queryParameters: [J],
+    urlParameters: [q],
+    headerParameters: [
+      Y,
+      X,
+      Z,
+      AA,
+      PA,
+      FA,
+      IA,
+      mj,
+      hj,
+      gj,
+      kj,
+      Aj,
+      Nj,
+      Fj,
+      Lj,
+      Rj,
+      zj,
+      Bj,
+      Hj,
+      Uj,
       Gj,
       Kj,
       qj,
       Jj,
-      cM,
-      LM,
-      RM,
+      Yj,
+      Xj,
     ],
     isXML: !0,
-    serializer: uP,
+    serializer: CN,
   },
-  pP = {
+  HN = {
     path: `/{containerName}/{blob}`,
     httpMethod: `PUT`,
-    responses: { 201: { headersMapper: $k }, default: { bodyMapper: K, headersMapper: eA } },
-    requestBody: mM,
-    queryParameters: [J, zM, BM],
+    responses: { 204: { headersMapper: pk }, default: { bodyMapper: K, headersMapper: mk } },
+    queryParameters: [J, Zj, $j],
     urlParameters: [q],
-    headerParameters: [Y, X, CA, MA, lj, uj, dj, jj, cM, lM, pM, hM],
+    headerParameters: [Y, X, Z, PA, Qj],
+    isXML: !0,
+    serializer: CN,
+  },
+  UN = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `PUT`,
+    responses: {
+      200: { headersMapper: hk },
+      202: { headersMapper: hk },
+      default: { bodyMapper: K, headersMapper: gk },
+    },
+    queryParameters: [J, oj, sj, eM],
+    urlParameters: [q],
+    headerParameters: [Y, X, Z, PA, gj, Ij, tM],
+    isXML: !0,
+    serializer: CN,
+  },
+  WN = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `GET`,
+    responses: { 200: { headersMapper: _k }, default: { bodyMapper: K, headersMapper: vk } },
+    queryParameters: [pA, J, SA],
+    urlParameters: [q],
+    headerParameters: [Y, X, Z],
+    isXML: !0,
+    serializer: CN,
+  },
+  GN = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `POST`,
+    responses: {
+      200: {
+        bodyMapper: { type: { name: `Stream` }, serializedName: `parsedResponse` },
+        headersMapper: yk,
+      },
+      206: {
+        bodyMapper: { type: { name: `Stream` }, serializedName: `parsedResponse` },
+        headersMapper: yk,
+      },
+      default: { bodyMapper: K, headersMapper: bk },
+    },
+    requestBody: nM,
+    queryParameters: [J, oj, rM],
+    urlParameters: [q],
+    headerParameters: [lA, dA, Y, X, PA, FA, IA, dj, fj, pj, mj, hj, gj],
     isXML: !0,
     contentType: `application/xml; charset=utf-8`,
-    mediaType: `binary`,
-    serializer: uP,
+    mediaType: `xml`,
+    serializer: CN,
   },
-  mP = {
+  KN = {
     path: `/{containerName}/{blob}`,
-    httpMethod: `PUT`,
-    responses: { 201: { headersMapper: tA }, default: { bodyMapper: K, headersMapper: nA } },
-    queryParameters: [J, zM, BM],
+    httpMethod: `GET`,
+    responses: {
+      200: { bodyMapper: cD, headersMapper: xk },
+      default: { bodyMapper: K, headersMapper: Sk },
+    },
+    queryParameters: [J, oj, sj, iM],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, CA, MA, lj, uj, dj, jj, Fj, Ij, Lj, Rj, Gj, Kj, Jj, SM, wM, FM],
+    headerParameters: [Y, X, Z, PA, gj, aM, oM, sM, cM],
     isXML: !0,
-    serializer: uP,
+    serializer: CN,
   },
-  hP = {
+  qN = {
     path: `/{containerName}/{blob}`,
     httpMethod: `PUT`,
-    responses: { 201: { headersMapper: rA }, default: { bodyMapper: K, headersMapper: iA } },
-    requestBody: VM,
-    queryParameters: [J, HM],
+    responses: { 204: { headersMapper: Ck }, default: { bodyMapper: K, headersMapper: wk } },
+    requestBody: lM,
+    queryParameters: [J, sj, iM],
+    urlParameters: [q],
+    headerParameters: [lA, dA, Y, X, PA, gj, aM, oM, sM, cM, uM, dM],
+    isXML: !0,
+    contentType: `application/xml; charset=utf-8`,
+    mediaType: `xml`,
+    serializer: CN,
+  },
+  JN = class {
+    client;
+    constructor(e) {
+      this.client = e;
+    }
+    create(e, t, n) {
+      return this.client.sendOperationRequest(
+        { contentLength: e, blobContentLength: t, options: n },
+        XN,
+      );
+    }
+    uploadPages(e, t, n) {
+      return this.client.sendOperationRequest({ contentLength: e, body: t, options: n }, ZN);
+    }
+    clearPages(e, t) {
+      return this.client.sendOperationRequest({ contentLength: e, options: t }, QN);
+    }
+    uploadPagesFromURL(e, t, n, r, i) {
+      return this.client.sendOperationRequest(
+        { sourceUrl: e, sourceRange: t, contentLength: n, range: r, options: i },
+        $N,
+      );
+    }
+    getPageRanges(e) {
+      return this.client.sendOperationRequest({ options: e }, eP);
+    }
+    getPageRangesDiff(e) {
+      return this.client.sendOperationRequest({ options: e }, tP);
+    }
+    resize(e, t) {
+      return this.client.sendOperationRequest({ blobContentLength: e, options: t }, nP);
+    }
+    updateSequenceNumber(e, t) {
+      return this.client.sendOperationRequest({ sequenceNumberAction: e, options: t }, rP);
+    }
+    copyIncremental(e, t) {
+      return this.client.sendOperationRequest({ copySource: e, options: t }, iP);
+    }
+  },
+  YN = Nb(KE, !0),
+  XN = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `PUT`,
+    responses: { 201: { headersMapper: Tk }, default: { bodyMapper: K, headersMapper: Ek } },
+    queryParameters: [J],
     urlParameters: [q],
     headerParameters: [
-      sA,
-      lA,
       Y,
       X,
-      OA,
-      MA,
-      NA,
+      Z,
+      TA,
+      AA,
       PA,
-      lj,
-      uj,
+      FA,
+      IA,
       dj,
       fj,
       pj,
       mj,
-      bj,
-      xj,
+      hj,
+      gj,
       Sj,
       Cj,
       wj,
       Tj,
+      Ej,
       Dj,
-      Oj,
-      jj,
+      kj,
+      Aj,
       Nj,
-      Vj,
+      Fj,
       Uj,
-      cM,
-      lM,
+      Gj,
+      fM,
+      pM,
+      mM,
+    ],
+    isXML: !0,
+    serializer: YN,
+  },
+  ZN = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `PUT`,
+    responses: { 201: { headersMapper: Dk }, default: { bodyMapper: K, headersMapper: Ok } },
+    requestBody: gM,
+    queryParameters: [J, vM],
+    urlParameters: [q],
+    headerParameters: [
+      Y,
+      X,
+      TA,
+      PA,
+      FA,
+      IA,
+      cj,
+      dj,
+      fj,
+      pj,
+      mj,
+      hj,
+      gj,
+      Nj,
+      uM,
+      dM,
+      hM,
+      _M,
+      yM,
+      bM,
+      xM,
+      SM,
+    ],
+    isXML: !0,
+    contentType: `application/xml; charset=utf-8`,
+    mediaType: `binary`,
+    serializer: YN,
+  },
+  QN = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `PUT`,
+    responses: { 201: { headersMapper: kk }, default: { bodyMapper: K, headersMapper: Ak } },
+    queryParameters: [J, vM],
+    urlParameters: [q],
+    headerParameters: [Y, X, Z, TA, PA, FA, IA, cj, dj, fj, pj, mj, hj, gj, Nj, bM, xM, SM, CM],
+    isXML: !0,
+    serializer: YN,
+  },
+  $N = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `PUT`,
+    responses: { 201: { headersMapper: jk }, default: { bodyMapper: K, headersMapper: Mk } },
+    queryParameters: [J, vM],
+    urlParameters: [q],
+    headerParameters: [
+      Y,
+      X,
+      Z,
+      TA,
+      PA,
+      FA,
+      IA,
+      dj,
+      fj,
+      pj,
+      mj,
+      hj,
+      gj,
+      Nj,
+      Lj,
+      Rj,
+      zj,
+      Bj,
+      qj,
+      Jj,
+      Xj,
+      yM,
+      bM,
+      xM,
+      SM,
+      wM,
+      TM,
+      EM,
+      DM,
+    ],
+    isXML: !0,
+    serializer: YN,
+  },
+  eP = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `GET`,
+    responses: {
+      200: { bodyMapper: CD, headersMapper: Nk },
+      default: { bodyMapper: K, headersMapper: Pk },
+    },
+    queryParameters: [J, _A, vA, oj, OM],
+    urlParameters: [q],
+    headerParameters: [Y, X, Z, PA, FA, IA, cj, mj, hj, gj],
+    isXML: !0,
+    serializer: YN,
+  },
+  tP = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `GET`,
+    responses: {
+      200: { bodyMapper: CD, headersMapper: Fk },
+      default: { bodyMapper: K, headersMapper: Ik },
+    },
+    queryParameters: [J, _A, vA, oj, OM, kM],
+    urlParameters: [q],
+    headerParameters: [Y, X, Z, PA, FA, IA, cj, mj, hj, gj, AM],
+    isXML: !0,
+    serializer: YN,
+  },
+  nP = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `PUT`,
+    responses: { 200: { headersMapper: Lk }, default: { bodyMapper: K, headersMapper: Rk } },
+    queryParameters: [pA, J],
+    urlParameters: [q],
+    headerParameters: [Y, X, Z, PA, FA, IA, dj, fj, pj, mj, hj, gj, Nj, pM],
+    isXML: !0,
+    serializer: YN,
+  },
+  rP = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `PUT`,
+    responses: { 200: { headersMapper: zk }, default: { bodyMapper: K, headersMapper: Bk } },
+    queryParameters: [pA, J],
+    urlParameters: [q],
+    headerParameters: [Y, X, Z, PA, FA, IA, mj, hj, gj, mM, jM],
+    isXML: !0,
+    serializer: YN,
+  },
+  iP = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `PUT`,
+    responses: { 202: { headersMapper: Vk }, default: { bodyMapper: K, headersMapper: Hk } },
+    queryParameters: [J, MM],
+    urlParameters: [q],
+    headerParameters: [Y, X, Z, FA, IA, mj, hj, gj, Hj],
+    isXML: !0,
+    serializer: YN,
+  },
+  aP = class {
+    client;
+    constructor(e) {
+      this.client = e;
+    }
+    create(e, t) {
+      return this.client.sendOperationRequest({ contentLength: e, options: t }, sP);
+    }
+    appendBlock(e, t, n) {
+      return this.client.sendOperationRequest({ contentLength: e, body: t, options: n }, cP);
+    }
+    appendBlockFromUrl(e, t, n) {
+      return this.client.sendOperationRequest({ sourceUrl: e, contentLength: t, options: n }, lP);
+    }
+    seal(e) {
+      return this.client.sendOperationRequest({ options: e }, uP);
+    }
+  },
+  oP = Nb(KE, !0),
+  sP = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `PUT`,
+    responses: { 201: { headersMapper: Uk }, default: { bodyMapper: K, headersMapper: Wk } },
+    queryParameters: [J],
+    urlParameters: [q],
+    headerParameters: [
+      Y,
+      X,
+      Z,
+      TA,
+      AA,
+      PA,
+      FA,
+      IA,
+      dj,
+      fj,
+      pj,
+      mj,
+      hj,
+      gj,
+      Sj,
+      Cj,
+      wj,
+      Tj,
+      Ej,
+      Dj,
+      kj,
+      Aj,
+      Nj,
+      Uj,
+      Gj,
+      NM,
+    ],
+    isXML: !0,
+    serializer: oP,
+  },
+  cP = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `PUT`,
+    responses: { 201: { headersMapper: Gk }, default: { bodyMapper: K, headersMapper: Kk } },
+    requestBody: gM,
+    queryParameters: [J, PM],
+    urlParameters: [q],
+    headerParameters: [Y, X, TA, PA, FA, IA, dj, fj, pj, mj, hj, gj, Nj, uM, dM, hM, _M, FM, IM],
+    isXML: !0,
+    contentType: `application/xml; charset=utf-8`,
+    mediaType: `binary`,
+    serializer: oP,
+  },
+  lP = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `PUT`,
+    responses: { 201: { headersMapper: qk }, default: { bodyMapper: K, headersMapper: Jk } },
+    queryParameters: [J, PM],
+    urlParameters: [q],
+    headerParameters: [
+      Y,
+      X,
+      Z,
+      TA,
+      PA,
+      FA,
+      IA,
+      dj,
+      fj,
+      pj,
+      mj,
+      hj,
+      gj,
+      Nj,
+      Lj,
+      Rj,
+      zj,
+      Bj,
+      qj,
+      Jj,
+      Xj,
+      uM,
+      wM,
+      EM,
+      FM,
+      IM,
+      LM,
+    ],
+    isXML: !0,
+    serializer: oP,
+  },
+  uP = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `PUT`,
+    responses: { 200: { headersMapper: Yk }, default: { bodyMapper: K, headersMapper: Xk } },
+    queryParameters: [J, RM],
+    urlParameters: [q],
+    headerParameters: [Y, X, Z, PA, FA, IA, mj, hj, IM],
+    isXML: !0,
+    serializer: oP,
+  },
+  dP = class {
+    client;
+    constructor(e) {
+      this.client = e;
+    }
+    upload(e, t, n) {
+      return this.client.sendOperationRequest({ contentLength: e, body: t, options: n }, pP);
+    }
+    putBlobFromUrl(e, t, n) {
+      return this.client.sendOperationRequest({ contentLength: e, copySource: t, options: n }, mP);
+    }
+    stageBlock(e, t, n, r) {
+      return this.client.sendOperationRequest(
+        { blockId: e, contentLength: t, body: n, options: r },
+        hP,
+      );
+    }
+    stageBlockFromURL(e, t, n, r) {
+      return this.client.sendOperationRequest(
+        { blockId: e, contentLength: t, sourceUrl: n, options: r },
+        gP,
+      );
+    }
+    commitBlockList(e, t) {
+      return this.client.sendOperationRequest({ blocks: e, options: t }, _P);
+    }
+    getBlockList(e, t) {
+      return this.client.sendOperationRequest({ listType: e, options: t }, vP);
+    }
+  },
+  fP = Nb(KE, !0),
+  pP = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `PUT`,
+    responses: { 201: { headersMapper: Zk }, default: { bodyMapper: K, headersMapper: Qk } },
+    requestBody: gM,
+    queryParameters: [J],
+    urlParameters: [q],
+    headerParameters: [
+      Y,
+      X,
+      TA,
+      AA,
+      PA,
+      FA,
+      IA,
+      dj,
+      fj,
+      pj,
+      mj,
+      hj,
+      gj,
+      Sj,
+      Cj,
+      wj,
+      Tj,
+      Ej,
+      Dj,
+      kj,
+      Aj,
+      Nj,
+      Fj,
+      Uj,
+      Gj,
+      uM,
+      dM,
+      hM,
+      _M,
+      zM,
+    ],
+    isXML: !0,
+    contentType: `application/xml; charset=utf-8`,
+    mediaType: `binary`,
+    serializer: fP,
+  },
+  mP = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `PUT`,
+    responses: { 201: { headersMapper: $k }, default: { bodyMapper: K, headersMapper: eA } },
+    queryParameters: [J],
+    urlParameters: [q],
+    headerParameters: [
+      Y,
+      X,
+      Z,
+      TA,
+      AA,
+      PA,
+      FA,
+      IA,
+      dj,
+      fj,
+      pj,
+      mj,
+      hj,
+      gj,
+      Sj,
+      Cj,
+      wj,
+      Tj,
+      Ej,
+      Dj,
+      Nj,
+      Fj,
+      Lj,
+      Rj,
+      zj,
+      Bj,
+      Vj,
+      Hj,
+      Uj,
+      qj,
+      Jj,
+      Yj,
+      Xj,
+      uM,
+      zM,
+      BM,
+    ],
+    isXML: !0,
+    serializer: fP,
+  },
+  hP = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `PUT`,
+    responses: { 201: { headersMapper: tA }, default: { bodyMapper: K, headersMapper: nA } },
+    requestBody: gM,
+    queryParameters: [J, VM, HM],
+    urlParameters: [q],
+    headerParameters: [Y, X, TA, PA, dj, fj, pj, Nj, uM, dM, hM, _M],
+    isXML: !0,
+    contentType: `application/xml; charset=utf-8`,
+    mediaType: `binary`,
+    serializer: fP,
+  },
+  gP = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `PUT`,
+    responses: { 201: { headersMapper: rA }, default: { bodyMapper: K, headersMapper: iA } },
+    queryParameters: [J, VM, HM],
+    urlParameters: [q],
+    headerParameters: [Y, X, Z, TA, PA, dj, fj, pj, Nj, Lj, Rj, zj, Bj, qj, Jj, Xj, wM, EM, LM],
+    isXML: !0,
+    serializer: fP,
+  },
+  _P = {
+    path: `/{containerName}/{blob}`,
+    httpMethod: `PUT`,
+    responses: { 201: { headersMapper: aA }, default: { bodyMapper: K, headersMapper: oA } },
+    requestBody: UM,
+    queryParameters: [J, WM],
+    urlParameters: [q],
+    headerParameters: [
+      lA,
+      dA,
+      Y,
+      X,
+      AA,
+      PA,
+      FA,
+      IA,
+      dj,
+      fj,
+      pj,
+      mj,
+      hj,
+      gj,
+      Sj,
+      Cj,
+      wj,
+      Tj,
+      Ej,
+      Dj,
+      kj,
+      Aj,
+      Nj,
+      Fj,
+      Uj,
+      Gj,
+      uM,
+      dM,
     ],
     isXML: !0,
     contentType: `application/xml; charset=utf-8`,
     mediaType: `xml`,
-    serializer: uP,
+    serializer: fP,
   },
-  gP = {
+  vP = {
     path: `/{containerName}/{blob}`,
     httpMethod: `GET`,
     responses: {
-      200: { bodyMapper: yD, headersMapper: aA },
-      default: { bodyMapper: K, headersMapper: oA },
+      200: { bodyMapper: xD, headersMapper: sA },
+      default: { bodyMapper: K, headersMapper: cA },
     },
-    queryParameters: [J, ij, HM, UM],
+    queryParameters: [J, oj, WM, GM],
     urlParameters: [q],
-    headerParameters: [Y, X, Z, MA, mj],
+    headerParameters: [Y, X, Z, PA, gj],
     isXML: !0,
-    serializer: uP,
+    serializer: fP,
   },
-  _P = class extends uS {
+  yP = class extends fS {
     url;
     version;
     constructor(e, t) {
@@ -45769,12 +45815,12 @@ var WE = De({
       (super(a),
         (this.url = e),
         (this.version = t.version || `2026-02-06`),
-        (this.service = new WM(this)),
-        (this.container = new eN(this)),
-        (this.blob = new bN(this)),
-        (this.pageBlob = new KN(this)),
-        (this.appendBlob = new rP(this)),
-        (this.blockBlob = new lP(this)));
+        (this.service = new KM(this)),
+        (this.container = new nN(this)),
+        (this.blob = new SN(this)),
+        (this.pageBlob = new JN(this)),
+        (this.appendBlob = new aP(this)),
+        (this.blockBlob = new dP(this)));
     }
     service;
     container;
@@ -45783,7 +45829,7 @@ var WE = De({
     appendBlob;
     blockBlob;
   },
-  vP = class extends _P {
+  bP = class extends yP {
     async sendOperationRequest(e, t) {
       let n = { ...t };
       return (
@@ -45792,12 +45838,12 @@ var WE = De({
       );
     }
   };
-function yP(e) {
+function xP(e) {
   let t = new URL(e),
     n = t.pathname;
-  return ((n ||= `/`), (n = CP(n)), (t.pathname = n), t.toString());
+  return ((n ||= `/`), (n = TP(n)), (t.pathname = n), t.toString());
 }
-function bP(e) {
+function SP(e) {
   let t = ``;
   if (e.search(`DevelopmentStorageProxyUri=`) !== -1) {
     let n = e.split(`;`);
@@ -45807,15 +45853,15 @@ function bP(e) {
   }
   return t;
 }
-function xP(e, t) {
+function CP(e, t) {
   let n = e.split(`;`);
   for (let e of n) if (e.trim().startsWith(t)) return e.trim().match(t + `=(.*)`)[1];
   return ``;
 }
-function SP(e) {
+function wP(e) {
   let t = ``;
-  e.startsWith(`UseDevelopmentStorage=true`) && ((t = bP(e)), (e = EE));
-  let n = xP(e, `BlobEndpoint`);
+  e.startsWith(`UseDevelopmentStorage=true`) && ((t = SP(e)), (e = OE));
+  let n = CP(e, `BlobEndpoint`);
   if (
     ((n = n.endsWith(`/`) ? n.slice(0, -1) : n),
     e.search(`DefaultEndpointsProtocol=`) !== -1 && e.search(`AccountKey=`) !== -1)
@@ -45824,14 +45870,14 @@ function SP(e) {
       i = ``,
       a = Buffer.from(`accountKey`, `base64`),
       o = ``;
-    if (((i = xP(e, `AccountName`)), (a = Buffer.from(xP(e, `AccountKey`), `base64`)), !n)) {
-      r = xP(e, `DefaultEndpointsProtocol`);
+    if (((i = CP(e, `AccountName`)), (a = Buffer.from(CP(e, `AccountKey`), `base64`)), !n)) {
+      r = CP(e, `DefaultEndpointsProtocol`);
       let t = r.toLowerCase();
       if (t !== `https` && t !== `http`)
         throw Error(
           `Invalid DefaultEndpointsProtocol in the provided Connection String. Expecting 'https' or 'http'`,
         );
-      if (((o = xP(e, `EndpointSuffix`)), !o))
+      if (((o = CP(e, `EndpointSuffix`)), !o))
         throw Error(`Invalid EndpointSuffix in the provided Connection String`);
       n = `${r}://${i}.blob.${o}`;
     }
@@ -45840,9 +45886,9 @@ function SP(e) {
     return { kind: `AccountConnString`, url: n, accountName: i, accountKey: a, proxyUri: t };
   }
   {
-    let t = xP(e, `SharedAccessSignature`),
-      r = xP(e, `AccountName`);
-    if (((r ||= PP(n)), !n))
+    let t = CP(e, `SharedAccessSignature`),
+      r = CP(e, `AccountName`);
+    if (((r ||= IP(n)), !n))
       throw Error(`Invalid BlobEndpoint in the provided SAS Connection String`);
     if (!t) throw Error(`Invalid SharedAccessSignature in the provided SAS Connection String`);
     return (
@@ -45851,21 +45897,21 @@ function SP(e) {
     );
   }
 }
-function CP(e) {
+function TP(e) {
   return encodeURIComponent(e)
     .replace(/%2F/g, `/`)
     .replace(/'/g, `%27`)
     .replace(/\+/g, `%20`)
     .replace(/%25/g, `%`);
 }
-function wP(e, t) {
+function EP(e, t) {
   let n = new URL(e),
     r = n.pathname;
   return (
     (r = r ? (r.endsWith(`/`) ? `${r}${t}` : `${r}/${t}`) : t), (n.pathname = r), n.toString()
   );
 }
-function TP(e, t, n) {
+function DP(e, t, n) {
   let r = new URL(e),
     i = encodeURIComponent(t),
     a = n ? encodeURIComponent(n) : void 0,
@@ -45878,10 +45924,10 @@ function TP(e, t, n) {
     }
   return (a && s.push(`${i}=${a}`), (r.search = s.length ? `?${s.join(`&`)}` : ``), r.toString());
 }
-function EP(e, t) {
+function OP(e, t) {
   return new URL(e).searchParams.get(t) ?? void 0;
 }
-function DP(e) {
+function kP(e) {
   try {
     let t = new URL(e);
     return t.protocol.endsWith(`:`) ? t.protocol.slice(0, -1) : t.protocol;
@@ -45889,22 +45935,22 @@ function DP(e) {
     return;
   }
 }
-function OP(e, t) {
+function AP(e, t) {
   let n = new URL(e),
     r = n.search;
   return (r ? (r += `&` + t) : (r = t), (n.search = r), n.toString());
 }
-function kP(e, t = !0) {
+function jP(e, t = !0) {
   let n = e.toISOString();
   return t ? n.substring(0, n.length - 1) + `0000Z` : n.substring(0, n.length - 5) + `Z`;
 }
-function AP(e) {
-  return yy ? Buffer.from(e).toString(`base64`) : btoa(e);
+function MP(e) {
+  return xy ? Buffer.from(e).toString(`base64`) : btoa(e);
 }
-function jP(e, t) {
-  return (e.length > 42 && (e = e.slice(0, 42)), AP(e + MP(t.toString(), 48 - e.length, `0`)));
+function NP(e, t) {
+  return (e.length > 42 && (e = e.slice(0, 42)), MP(e + PP(t.toString(), 48 - e.length, `0`)));
 }
-function MP(e, t, n = ` `) {
+function PP(e, t, n = ` `) {
   return String.prototype.padStart
     ? e.padStart(t, n)
     : ((n ||= ` `),
@@ -45912,10 +45958,10 @@ function MP(e, t, n = ` `) {
         ? e
         : ((t -= e.length), t > n.length && (n += n.repeat(t / n.length)), n.slice(0, t) + e));
 }
-function NP(e, t) {
+function FP(e, t) {
   return e.toLocaleLowerCase() === t.toLocaleLowerCase();
 }
-function PP(e) {
+function IP(e) {
   let t = new URL(e),
     n;
   try {
@@ -45923,7 +45969,7 @@ function PP(e) {
       (n =
         t.hostname.split(`.`)[1] === `blob`
           ? t.hostname.split(`.`)[0]
-          : FP(t)
+          : LP(t)
             ? t.pathname.split(`/`)[1]
             : ``),
       n
@@ -45932,16 +45978,16 @@ function PP(e) {
     throw Error(`Unable to extract accountName with provided information.`);
   }
 }
-function FP(e) {
+function LP(e) {
   let t = e.host;
   return (
     /^.*:.*:.*$|^(localhost|host.docker.internal)(:[0-9]+)?$|^(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])(\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])){3}(:[0-9]+)?$/.test(
       t,
     ) ||
-    (!!e.port && kE.includes(e.port))
+    (!!e.port && jE.includes(e.port))
   );
 }
-function IP(e) {
+function RP(e) {
   if (e === void 0) return;
   let t = [];
   for (let n in e)
@@ -45951,7 +45997,7 @@ function IP(e) {
     }
   return t.join(`&`);
 }
-function LP(e) {
+function zP(e) {
   if (e === void 0) return;
   let t = { blobTagSet: [] };
   for (let n in e)
@@ -45961,13 +46007,13 @@ function LP(e) {
     }
   return t;
 }
-function RP(e) {
+function BP(e) {
   if (e === void 0) return;
   let t = {};
   for (let n of e.blobTagSet) t[n.key] = n.value;
   return t;
 }
-function zP(e) {
+function VP(e) {
   if (e !== void 0)
     switch (e.kind) {
       case `csv`:
@@ -45995,7 +46041,7 @@ function zP(e) {
         throw Error(`Invalid BlobQueryTextConfiguration.`);
     }
 }
-function BP(e) {
+function HP(e) {
   if (!e || `policy-id` in e) return;
   let t = [];
   for (let n in e) {
@@ -46007,10 +46053,10 @@ function BP(e) {
   }
   return t;
 }
-function VP(e) {
+function UP(e) {
   return e ? e.scheme + ` ` + e.value : void 0;
 }
-function* HP(e) {
+function* WP(e) {
   let t = [],
     n = [];
   (e.pageRange && (t = e.pageRange), e.clearRange && (n = e.clearRange));
@@ -46023,11 +46069,11 @@ function* HP(e) {
   for (; r < t.length; ++r) yield { start: t[r].start, end: t[r].end, isClear: !1 };
   for (; i < n.length; ++i) yield { start: n[i].start, end: n[i].end, isClear: !0 };
 }
-function UP(e) {
+function GP(e) {
   if (`_response` in e) return e;
   throw TypeError(`Unexpected response object ${e}`);
 }
-var WP = class {
+var KP = class {
     url;
     accountName;
     pipeline;
@@ -46035,22 +46081,22 @@ var WP = class {
     storageClientContext;
     isHttps;
     constructor(e, t) {
-      ((this.url = yP(e)),
-        (this.accountName = PP(e)),
+      ((this.url = xP(e)),
+        (this.accountName = IP(e)),
         (this.pipeline = t),
-        (this.storageClientContext = new vP(this.url, PE(t))),
-        (this.isHttps = NP(DP(this.url) || ``, `https`)),
-        (this.credential = FE(t)));
+        (this.storageClientContext = new bP(this.url, IE(t))),
+        (this.isHttps = FP(kP(this.url) || ``, `https`)),
+        (this.credential = LE(t)));
       let n = this.storageClientContext;
       n.requestContentType = void 0;
     }
   },
-  Q = Wy({
+  Q = Ky({
     packageName: `@azure/storage-blob`,
-    packageVersion: gE,
+    packageVersion: vE,
     namespace: `Microsoft.Storage`,
   }),
-  GP = class e {
+  qP = class e {
     static parse(t) {
       let n = new e();
       for (let e of t)
@@ -46139,7 +46185,7 @@ var WP = class {
       );
     }
   },
-  KP = class e {
+  JP = class e {
     static parse(t) {
       let n = new e();
       for (let e of t)
@@ -46240,14 +46286,14 @@ var WP = class {
       );
     }
   };
-function qP(e) {
+function YP(e) {
   return e.end ? `${e.start}-${e.end}` : e.start;
 }
-var JP;
+var XP;
 (function (e) {
   ((e.Https = `https`), (e.HttpsAndHttp = `https,http`));
-})((JP ||= {}));
-var YP = class {
+})((XP ||= {}));
+var ZP = class {
   version;
   protocol;
   startsOn;
@@ -46353,13 +46399,13 @@ var YP = class {
           this.tryAppendQueryParameter(t, n, this.protocol);
           break;
         case `st`:
-          this.tryAppendQueryParameter(t, n, this.startsOn ? kP(this.startsOn, !1) : void 0);
+          this.tryAppendQueryParameter(t, n, this.startsOn ? jP(this.startsOn, !1) : void 0);
           break;
         case `se`:
-          this.tryAppendQueryParameter(t, n, this.expiresOn ? kP(this.expiresOn, !1) : void 0);
+          this.tryAppendQueryParameter(t, n, this.expiresOn ? jP(this.expiresOn, !1) : void 0);
           break;
         case `sip`:
-          this.tryAppendQueryParameter(t, n, this.ipRange ? qP(this.ipRange) : void 0);
+          this.tryAppendQueryParameter(t, n, this.ipRange ? YP(this.ipRange) : void 0);
           break;
         case `si`:
           this.tryAppendQueryParameter(t, n, this.identifier);
@@ -46377,14 +46423,14 @@ var YP = class {
           this.tryAppendQueryParameter(
             t,
             n,
-            this.signedStartsOn ? kP(this.signedStartsOn, !1) : void 0,
+            this.signedStartsOn ? jP(this.signedStartsOn, !1) : void 0,
           );
           break;
         case `ske`:
           this.tryAppendQueryParameter(
             t,
             n,
-            this.signedExpiresOn ? kP(this.signedExpiresOn, !1) : void 0,
+            this.signedExpiresOn ? jP(this.signedExpiresOn, !1) : void 0,
           );
           break;
         case `sks`:
@@ -46435,27 +46481,27 @@ var YP = class {
       t.length > 0 && n.length > 0 && e.push(`${t}=${n}`));
   }
 };
-function XP(e, t, n) {
-  return ZP(e, t, n).sasQueryParameters;
+function QP(e, t, n) {
+  return $P(e, t, n).sasQueryParameters;
 }
-function ZP(e, t, n) {
-  let r = e.version ? e.version : _E,
-    i = t instanceof YT ? t : void 0,
+function $P(e, t, n) {
+  let r = e.version ? e.version : yE,
+    i = t instanceof ZT ? t : void 0,
     a;
-  if ((i === void 0 && n !== void 0 && (a = new hE(n, t)), i === void 0 && a === void 0))
+  if ((i === void 0 && n !== void 0 && (a = new _E(n, t)), i === void 0 && a === void 0))
     throw TypeError(`Invalid sharedKeyCredential, userDelegationKey or accountName.`);
-  if (r >= `2020-12-06`) return i === void 0 ? (r >= `2025-07-05` ? iF(e, a) : rF(e, a)) : eF(e, i);
-  if (r >= `2018-11-09`) return i === void 0 ? (r >= `2020-02-10` ? nF(e, a) : tF(e, a)) : $P(e, i);
+  if (r >= `2020-12-06`) return i === void 0 ? (r >= `2025-07-05` ? oF(e, a) : aF(e, a)) : nF(e, i);
+  if (r >= `2018-11-09`) return i === void 0 ? (r >= `2020-02-10` ? iF(e, a) : rF(e, a)) : tF(e, i);
   if (r >= `2015-04-05`) {
-    if (i !== void 0) return QP(e, i);
+    if (i !== void 0) return eF(e, i);
     throw RangeError(
       `'version' must be >= '2018-11-09' when generating user delegation SAS using user delegation key.`,
     );
   }
   throw RangeError(`'version' must be >= '2015-04-05'.`);
 }
-function QP(e, t) {
-  if (((e = oF(e)), !e.identifier && !(e.permissions && e.expiresOn)))
+function eF(e, t) {
+  if (((e = cF(e)), !e.identifier && !(e.permissions && e.expiresOn)))
     throw RangeError(
       `Must provide 'permissions' and 'expiresOn' for Blob SAS generation when 'identifier' is not provided.`,
     );
@@ -46464,15 +46510,15 @@ function QP(e, t) {
   let r;
   e.permissions &&
     (r = e.blobName
-      ? GP.parse(e.permissions.toString()).toString()
-      : KP.parse(e.permissions.toString()).toString());
+      ? qP.parse(e.permissions.toString()).toString()
+      : JP.parse(e.permissions.toString()).toString());
   let i = [
       r || ``,
-      e.startsOn ? kP(e.startsOn, !1) : ``,
-      e.expiresOn ? kP(e.expiresOn, !1) : ``,
-      aF(t.accountName, e.containerName, e.blobName),
+      e.startsOn ? jP(e.startsOn, !1) : ``,
+      e.expiresOn ? jP(e.expiresOn, !1) : ``,
+      sF(t.accountName, e.containerName, e.blobName),
       e.identifier,
-      e.ipRange ? qP(e.ipRange) : ``,
+      e.ipRange ? YP(e.ipRange) : ``,
       e.protocol ? e.protocol : ``,
       e.version,
       e.cacheControl ? e.cacheControl : ``,
@@ -46484,7 +46530,7 @@ function QP(e, t) {
 `),
     a = t.computeHMACSHA256(i);
   return {
-    sasQueryParameters: new YP(
+    sasQueryParameters: new ZP(
       e.version,
       a,
       r,
@@ -46505,125 +46551,10 @@ function QP(e, t) {
     stringToSign: i,
   };
 }
-function $P(e, t) {
-  if (((e = oF(e)), !e.identifier && !(e.permissions && e.expiresOn)))
-    throw RangeError(
-      `Must provide 'permissions' and 'expiresOn' for Blob SAS generation when 'identifier' is not provided.`,
-    );
-  let n = `c`,
-    r = e.snapshotTime;
-  e.blobName &&
-    ((n = `b`), e.snapshotTime ? (n = `bs`) : e.versionId && ((n = `bv`), (r = e.versionId)));
-  let i;
-  e.permissions &&
-    (i = e.blobName
-      ? GP.parse(e.permissions.toString()).toString()
-      : KP.parse(e.permissions.toString()).toString());
-  let a = [
-      i || ``,
-      e.startsOn ? kP(e.startsOn, !1) : ``,
-      e.expiresOn ? kP(e.expiresOn, !1) : ``,
-      aF(t.accountName, e.containerName, e.blobName),
-      e.identifier,
-      e.ipRange ? qP(e.ipRange) : ``,
-      e.protocol ? e.protocol : ``,
-      e.version,
-      n,
-      r,
-      e.cacheControl ? e.cacheControl : ``,
-      e.contentDisposition ? e.contentDisposition : ``,
-      e.contentEncoding ? e.contentEncoding : ``,
-      e.contentLanguage ? e.contentLanguage : ``,
-      e.contentType ? e.contentType : ``,
-    ].join(`
-`),
-    o = t.computeHMACSHA256(a);
-  return {
-    sasQueryParameters: new YP(
-      e.version,
-      o,
-      i,
-      void 0,
-      void 0,
-      e.protocol,
-      e.startsOn,
-      e.expiresOn,
-      e.ipRange,
-      e.identifier,
-      n,
-      e.cacheControl,
-      e.contentDisposition,
-      e.contentEncoding,
-      e.contentLanguage,
-      e.contentType,
-    ),
-    stringToSign: a,
-  };
-}
-function eF(e, t) {
-  if (((e = oF(e)), !e.identifier && !(e.permissions && e.expiresOn)))
-    throw RangeError(
-      `Must provide 'permissions' and 'expiresOn' for Blob SAS generation when 'identifier' is not provided.`,
-    );
-  let n = `c`,
-    r = e.snapshotTime;
-  e.blobName &&
-    ((n = `b`), e.snapshotTime ? (n = `bs`) : e.versionId && ((n = `bv`), (r = e.versionId)));
-  let i;
-  e.permissions &&
-    (i = e.blobName
-      ? GP.parse(e.permissions.toString()).toString()
-      : KP.parse(e.permissions.toString()).toString());
-  let a = [
-      i || ``,
-      e.startsOn ? kP(e.startsOn, !1) : ``,
-      e.expiresOn ? kP(e.expiresOn, !1) : ``,
-      aF(t.accountName, e.containerName, e.blobName),
-      e.identifier,
-      e.ipRange ? qP(e.ipRange) : ``,
-      e.protocol ? e.protocol : ``,
-      e.version,
-      n,
-      r,
-      e.encryptionScope,
-      e.cacheControl ? e.cacheControl : ``,
-      e.contentDisposition ? e.contentDisposition : ``,
-      e.contentEncoding ? e.contentEncoding : ``,
-      e.contentLanguage ? e.contentLanguage : ``,
-      e.contentType ? e.contentType : ``,
-    ].join(`
-`),
-    o = t.computeHMACSHA256(a);
-  return {
-    sasQueryParameters: new YP(
-      e.version,
-      o,
-      i,
-      void 0,
-      void 0,
-      e.protocol,
-      e.startsOn,
-      e.expiresOn,
-      e.ipRange,
-      e.identifier,
-      n,
-      e.cacheControl,
-      e.contentDisposition,
-      e.contentEncoding,
-      e.contentLanguage,
-      e.contentType,
-      void 0,
-      void 0,
-      void 0,
-      e.encryptionScope,
-    ),
-    stringToSign: a,
-  };
-}
 function tF(e, t) {
-  if (((e = oF(e)), !e.permissions || !e.expiresOn))
+  if (((e = cF(e)), !e.identifier && !(e.permissions && e.expiresOn)))
     throw RangeError(
-      `Must provide 'permissions' and 'expiresOn' for Blob SAS generation when generating user delegation SAS.`,
+      `Must provide 'permissions' and 'expiresOn' for Blob SAS generation when 'identifier' is not provided.`,
     );
   let n = `c`,
     r = e.snapshotTime;
@@ -46632,34 +46563,29 @@ function tF(e, t) {
   let i;
   e.permissions &&
     (i = e.blobName
-      ? GP.parse(e.permissions.toString()).toString()
-      : KP.parse(e.permissions.toString()).toString());
+      ? qP.parse(e.permissions.toString()).toString()
+      : JP.parse(e.permissions.toString()).toString());
   let a = [
       i || ``,
-      e.startsOn ? kP(e.startsOn, !1) : ``,
-      e.expiresOn ? kP(e.expiresOn, !1) : ``,
-      aF(t.accountName, e.containerName, e.blobName),
-      t.userDelegationKey.signedObjectId,
-      t.userDelegationKey.signedTenantId,
-      t.userDelegationKey.signedStartsOn ? kP(t.userDelegationKey.signedStartsOn, !1) : ``,
-      t.userDelegationKey.signedExpiresOn ? kP(t.userDelegationKey.signedExpiresOn, !1) : ``,
-      t.userDelegationKey.signedService,
-      t.userDelegationKey.signedVersion,
-      e.ipRange ? qP(e.ipRange) : ``,
+      e.startsOn ? jP(e.startsOn, !1) : ``,
+      e.expiresOn ? jP(e.expiresOn, !1) : ``,
+      sF(t.accountName, e.containerName, e.blobName),
+      e.identifier,
+      e.ipRange ? YP(e.ipRange) : ``,
       e.protocol ? e.protocol : ``,
       e.version,
       n,
       r,
-      e.cacheControl,
-      e.contentDisposition,
-      e.contentEncoding,
-      e.contentLanguage,
-      e.contentType,
+      e.cacheControl ? e.cacheControl : ``,
+      e.contentDisposition ? e.contentDisposition : ``,
+      e.contentEncoding ? e.contentEncoding : ``,
+      e.contentLanguage ? e.contentLanguage : ``,
+      e.contentType ? e.contentType : ``,
     ].join(`
 `),
     o = t.computeHMACSHA256(a);
   return {
-    sasQueryParameters: new YP(
+    sasQueryParameters: new ZP(
       e.version,
       o,
       i,
@@ -46676,15 +46602,14 @@ function tF(e, t) {
       e.contentEncoding,
       e.contentLanguage,
       e.contentType,
-      t.userDelegationKey,
     ),
     stringToSign: a,
   };
 }
 function nF(e, t) {
-  if (((e = oF(e)), !e.permissions || !e.expiresOn))
+  if (((e = cF(e)), !e.identifier && !(e.permissions && e.expiresOn)))
     throw RangeError(
-      `Must provide 'permissions' and 'expiresOn' for Blob SAS generation when generating user delegation SAS.`,
+      `Must provide 'permissions' and 'expiresOn' for Blob SAS generation when 'identifier' is not provided.`,
     );
   let n = `c`,
     r = e.snapshotTime;
@@ -46693,37 +46618,30 @@ function nF(e, t) {
   let i;
   e.permissions &&
     (i = e.blobName
-      ? GP.parse(e.permissions.toString()).toString()
-      : KP.parse(e.permissions.toString()).toString());
+      ? qP.parse(e.permissions.toString()).toString()
+      : JP.parse(e.permissions.toString()).toString());
   let a = [
       i || ``,
-      e.startsOn ? kP(e.startsOn, !1) : ``,
-      e.expiresOn ? kP(e.expiresOn, !1) : ``,
-      aF(t.accountName, e.containerName, e.blobName),
-      t.userDelegationKey.signedObjectId,
-      t.userDelegationKey.signedTenantId,
-      t.userDelegationKey.signedStartsOn ? kP(t.userDelegationKey.signedStartsOn, !1) : ``,
-      t.userDelegationKey.signedExpiresOn ? kP(t.userDelegationKey.signedExpiresOn, !1) : ``,
-      t.userDelegationKey.signedService,
-      t.userDelegationKey.signedVersion,
-      e.preauthorizedAgentObjectId,
-      void 0,
-      e.correlationId,
-      e.ipRange ? qP(e.ipRange) : ``,
+      e.startsOn ? jP(e.startsOn, !1) : ``,
+      e.expiresOn ? jP(e.expiresOn, !1) : ``,
+      sF(t.accountName, e.containerName, e.blobName),
+      e.identifier,
+      e.ipRange ? YP(e.ipRange) : ``,
       e.protocol ? e.protocol : ``,
       e.version,
       n,
       r,
-      e.cacheControl,
-      e.contentDisposition,
-      e.contentEncoding,
-      e.contentLanguage,
-      e.contentType,
+      e.encryptionScope,
+      e.cacheControl ? e.cacheControl : ``,
+      e.contentDisposition ? e.contentDisposition : ``,
+      e.contentEncoding ? e.contentEncoding : ``,
+      e.contentLanguage ? e.contentLanguage : ``,
+      e.contentType ? e.contentType : ``,
     ].join(`
 `),
     o = t.computeHMACSHA256(a);
   return {
-    sasQueryParameters: new YP(
+    sasQueryParameters: new ZP(
       e.version,
       o,
       i,
@@ -46740,15 +46658,16 @@ function nF(e, t) {
       e.contentEncoding,
       e.contentLanguage,
       e.contentType,
-      t.userDelegationKey,
-      e.preauthorizedAgentObjectId,
-      e.correlationId,
+      void 0,
+      void 0,
+      void 0,
+      e.encryptionScope,
     ),
     stringToSign: a,
   };
 }
 function rF(e, t) {
-  if (((e = oF(e)), !e.permissions || !e.expiresOn))
+  if (((e = cF(e)), !e.permissions || !e.expiresOn))
     throw RangeError(
       `Must provide 'permissions' and 'expiresOn' for Blob SAS generation when generating user delegation SAS.`,
     );
@@ -46759,28 +46678,24 @@ function rF(e, t) {
   let i;
   e.permissions &&
     (i = e.blobName
-      ? GP.parse(e.permissions.toString()).toString()
-      : KP.parse(e.permissions.toString()).toString());
+      ? qP.parse(e.permissions.toString()).toString()
+      : JP.parse(e.permissions.toString()).toString());
   let a = [
       i || ``,
-      e.startsOn ? kP(e.startsOn, !1) : ``,
-      e.expiresOn ? kP(e.expiresOn, !1) : ``,
-      aF(t.accountName, e.containerName, e.blobName),
+      e.startsOn ? jP(e.startsOn, !1) : ``,
+      e.expiresOn ? jP(e.expiresOn, !1) : ``,
+      sF(t.accountName, e.containerName, e.blobName),
       t.userDelegationKey.signedObjectId,
       t.userDelegationKey.signedTenantId,
-      t.userDelegationKey.signedStartsOn ? kP(t.userDelegationKey.signedStartsOn, !1) : ``,
-      t.userDelegationKey.signedExpiresOn ? kP(t.userDelegationKey.signedExpiresOn, !1) : ``,
+      t.userDelegationKey.signedStartsOn ? jP(t.userDelegationKey.signedStartsOn, !1) : ``,
+      t.userDelegationKey.signedExpiresOn ? jP(t.userDelegationKey.signedExpiresOn, !1) : ``,
       t.userDelegationKey.signedService,
       t.userDelegationKey.signedVersion,
-      e.preauthorizedAgentObjectId,
-      void 0,
-      e.correlationId,
-      e.ipRange ? qP(e.ipRange) : ``,
+      e.ipRange ? YP(e.ipRange) : ``,
       e.protocol ? e.protocol : ``,
       e.version,
       n,
       r,
-      e.encryptionScope,
       e.cacheControl,
       e.contentDisposition,
       e.contentEncoding,
@@ -46790,7 +46705,7 @@ function rF(e, t) {
 `),
     o = t.computeHMACSHA256(a);
   return {
-    sasQueryParameters: new YP(
+    sasQueryParameters: new ZP(
       e.version,
       o,
       i,
@@ -46808,15 +46723,12 @@ function rF(e, t) {
       e.contentLanguage,
       e.contentType,
       t.userDelegationKey,
-      e.preauthorizedAgentObjectId,
-      e.correlationId,
-      e.encryptionScope,
     ),
     stringToSign: a,
   };
 }
 function iF(e, t) {
-  if (((e = oF(e)), !e.permissions || !e.expiresOn))
+  if (((e = cF(e)), !e.permissions || !e.expiresOn))
     throw RangeError(
       `Must provide 'permissions' and 'expiresOn' for Blob SAS generation when generating user delegation SAS.`,
     );
@@ -46827,25 +46739,89 @@ function iF(e, t) {
   let i;
   e.permissions &&
     (i = e.blobName
-      ? GP.parse(e.permissions.toString()).toString()
-      : KP.parse(e.permissions.toString()).toString());
+      ? qP.parse(e.permissions.toString()).toString()
+      : JP.parse(e.permissions.toString()).toString());
   let a = [
       i || ``,
-      e.startsOn ? kP(e.startsOn, !1) : ``,
-      e.expiresOn ? kP(e.expiresOn, !1) : ``,
-      aF(t.accountName, e.containerName, e.blobName),
+      e.startsOn ? jP(e.startsOn, !1) : ``,
+      e.expiresOn ? jP(e.expiresOn, !1) : ``,
+      sF(t.accountName, e.containerName, e.blobName),
       t.userDelegationKey.signedObjectId,
       t.userDelegationKey.signedTenantId,
-      t.userDelegationKey.signedStartsOn ? kP(t.userDelegationKey.signedStartsOn, !1) : ``,
-      t.userDelegationKey.signedExpiresOn ? kP(t.userDelegationKey.signedExpiresOn, !1) : ``,
+      t.userDelegationKey.signedStartsOn ? jP(t.userDelegationKey.signedStartsOn, !1) : ``,
+      t.userDelegationKey.signedExpiresOn ? jP(t.userDelegationKey.signedExpiresOn, !1) : ``,
       t.userDelegationKey.signedService,
       t.userDelegationKey.signedVersion,
       e.preauthorizedAgentObjectId,
       void 0,
       e.correlationId,
+      e.ipRange ? YP(e.ipRange) : ``,
+      e.protocol ? e.protocol : ``,
+      e.version,
+      n,
+      r,
+      e.cacheControl,
+      e.contentDisposition,
+      e.contentEncoding,
+      e.contentLanguage,
+      e.contentType,
+    ].join(`
+`),
+    o = t.computeHMACSHA256(a);
+  return {
+    sasQueryParameters: new ZP(
+      e.version,
+      o,
+      i,
       void 0,
-      e.delegatedUserObjectId,
-      e.ipRange ? qP(e.ipRange) : ``,
+      void 0,
+      e.protocol,
+      e.startsOn,
+      e.expiresOn,
+      e.ipRange,
+      e.identifier,
+      n,
+      e.cacheControl,
+      e.contentDisposition,
+      e.contentEncoding,
+      e.contentLanguage,
+      e.contentType,
+      t.userDelegationKey,
+      e.preauthorizedAgentObjectId,
+      e.correlationId,
+    ),
+    stringToSign: a,
+  };
+}
+function aF(e, t) {
+  if (((e = cF(e)), !e.permissions || !e.expiresOn))
+    throw RangeError(
+      `Must provide 'permissions' and 'expiresOn' for Blob SAS generation when generating user delegation SAS.`,
+    );
+  let n = `c`,
+    r = e.snapshotTime;
+  e.blobName &&
+    ((n = `b`), e.snapshotTime ? (n = `bs`) : e.versionId && ((n = `bv`), (r = e.versionId)));
+  let i;
+  e.permissions &&
+    (i = e.blobName
+      ? qP.parse(e.permissions.toString()).toString()
+      : JP.parse(e.permissions.toString()).toString());
+  let a = [
+      i || ``,
+      e.startsOn ? jP(e.startsOn, !1) : ``,
+      e.expiresOn ? jP(e.expiresOn, !1) : ``,
+      sF(t.accountName, e.containerName, e.blobName),
+      t.userDelegationKey.signedObjectId,
+      t.userDelegationKey.signedTenantId,
+      t.userDelegationKey.signedStartsOn ? jP(t.userDelegationKey.signedStartsOn, !1) : ``,
+      t.userDelegationKey.signedExpiresOn ? jP(t.userDelegationKey.signedExpiresOn, !1) : ``,
+      t.userDelegationKey.signedService,
+      t.userDelegationKey.signedVersion,
+      e.preauthorizedAgentObjectId,
+      void 0,
+      e.correlationId,
+      e.ipRange ? YP(e.ipRange) : ``,
       e.protocol ? e.protocol : ``,
       e.version,
       n,
@@ -46860,7 +46836,77 @@ function iF(e, t) {
 `),
     o = t.computeHMACSHA256(a);
   return {
-    sasQueryParameters: new YP(
+    sasQueryParameters: new ZP(
+      e.version,
+      o,
+      i,
+      void 0,
+      void 0,
+      e.protocol,
+      e.startsOn,
+      e.expiresOn,
+      e.ipRange,
+      e.identifier,
+      n,
+      e.cacheControl,
+      e.contentDisposition,
+      e.contentEncoding,
+      e.contentLanguage,
+      e.contentType,
+      t.userDelegationKey,
+      e.preauthorizedAgentObjectId,
+      e.correlationId,
+      e.encryptionScope,
+    ),
+    stringToSign: a,
+  };
+}
+function oF(e, t) {
+  if (((e = cF(e)), !e.permissions || !e.expiresOn))
+    throw RangeError(
+      `Must provide 'permissions' and 'expiresOn' for Blob SAS generation when generating user delegation SAS.`,
+    );
+  let n = `c`,
+    r = e.snapshotTime;
+  e.blobName &&
+    ((n = `b`), e.snapshotTime ? (n = `bs`) : e.versionId && ((n = `bv`), (r = e.versionId)));
+  let i;
+  e.permissions &&
+    (i = e.blobName
+      ? qP.parse(e.permissions.toString()).toString()
+      : JP.parse(e.permissions.toString()).toString());
+  let a = [
+      i || ``,
+      e.startsOn ? jP(e.startsOn, !1) : ``,
+      e.expiresOn ? jP(e.expiresOn, !1) : ``,
+      sF(t.accountName, e.containerName, e.blobName),
+      t.userDelegationKey.signedObjectId,
+      t.userDelegationKey.signedTenantId,
+      t.userDelegationKey.signedStartsOn ? jP(t.userDelegationKey.signedStartsOn, !1) : ``,
+      t.userDelegationKey.signedExpiresOn ? jP(t.userDelegationKey.signedExpiresOn, !1) : ``,
+      t.userDelegationKey.signedService,
+      t.userDelegationKey.signedVersion,
+      e.preauthorizedAgentObjectId,
+      void 0,
+      e.correlationId,
+      void 0,
+      e.delegatedUserObjectId,
+      e.ipRange ? YP(e.ipRange) : ``,
+      e.protocol ? e.protocol : ``,
+      e.version,
+      n,
+      r,
+      e.encryptionScope,
+      e.cacheControl,
+      e.contentDisposition,
+      e.contentEncoding,
+      e.contentLanguage,
+      e.contentType,
+    ].join(`
+`),
+    o = t.computeHMACSHA256(a);
+  return {
+    sasQueryParameters: new ZP(
       e.version,
       o,
       i,
@@ -46886,12 +46932,12 @@ function iF(e, t) {
     stringToSign: a,
   };
 }
-function aF(e, t, n) {
+function sF(e, t, n) {
   let r = [`/blob/${e}/${t}`];
   return (n && r.push(`/${n}`), r.join(``));
 }
-function oF(e) {
-  let t = e.version ? e.version : _E;
+function cF(e) {
+  let t = e.version ? e.version : yE;
   if (e.snapshotTime && t < `2018-11-09`)
     throw RangeError(`'version' must be >= '2018-11-09' when providing 'snapshotTime'.`);
   if (e.blobName === void 0 && e.snapshotTime)
@@ -46920,7 +46966,7 @@ function oF(e) {
     throw RangeError(`'version' must be >= '2020-12-06' when provided 'encryptionScope' in SAS.`);
   return ((e.version = t), e);
 }
-var sF = class {
+var lF = class {
     _leaseId;
     _url;
     _containerOrBlobOperation;
@@ -46937,7 +46983,7 @@ var sF = class {
         e.name === void 0
           ? ((this._isContainer = !0), (this._containerOrBlobOperation = n.container))
           : ((this._isContainer = !1), (this._containerOrBlobOperation = n.blob)),
-        (t ||= vy()),
+        (t ||= by()),
         (this._leaseId = t));
     }
     async acquireLease(e, t = {}) {
@@ -46951,7 +46997,7 @@ var sF = class {
           `The IfMatch, IfNoneMatch and tags access conditions are ignored by the service. Values other than undefined or their default values are not acceptable.`,
         );
       return Q.withSpan(`BlobLeaseClient-acquireLease`, t, async (n) =>
-        UP(
+        GP(
           await this._containerOrBlobOperation.acquireLease({
             abortSignal: t.abortSignal,
             duration: e,
@@ -46973,7 +47019,7 @@ var sF = class {
           `The IfMatch, IfNoneMatch and tags access conditions are ignored by the service. Values other than undefined or their default values are not acceptable.`,
         );
       return Q.withSpan(`BlobLeaseClient-changeLease`, t, async (n) => {
-        let r = UP(
+        let r = GP(
           await this._containerOrBlobOperation.changeLease(this._leaseId, e, {
             abortSignal: t.abortSignal,
             modifiedAccessConditions: { ...t.conditions, ifTags: t.conditions?.tagConditions },
@@ -46994,7 +47040,7 @@ var sF = class {
           `The IfMatch, IfNoneMatch and tags access conditions are ignored by the service. Values other than undefined or their default values are not acceptable.`,
         );
       return Q.withSpan(`BlobLeaseClient-releaseLease`, e, async (t) =>
-        UP(
+        GP(
           await this._containerOrBlobOperation.releaseLease(this._leaseId, {
             abortSignal: e.abortSignal,
             modifiedAccessConditions: { ...e.conditions, ifTags: e.conditions?.tagConditions },
@@ -47038,11 +47084,11 @@ var sF = class {
           modifiedAccessConditions: { ...t.conditions, ifTags: t.conditions?.tagConditions },
           tracingOptions: n.tracingOptions,
         };
-        return UP(await this._containerOrBlobOperation.breakLease(r));
+        return GP(await this._containerOrBlobOperation.breakLease(r));
       });
     }
   },
-  cF = class extends b {
+  uF = class extends b {
     start;
     offset;
     end;
@@ -47093,7 +47139,7 @@ var sF = class {
         this.push(e) || this.source.pause());
     };
     sourceAbortedHandler = () => {
-      let e = new fy(`The operation was aborted.`);
+      let e = new my(`The operation was aborted.`);
       this.destroy(e);
     };
     sourceErrorOrEndHandler = (e) => {
@@ -47129,7 +47175,7 @@ var sF = class {
       (this.removeSourceEventHandlers(), this.source.destroy(), t(e === null ? void 0 : e));
     }
   },
-  lF = class {
+  dF = class {
     get acceptRanges() {
       return this.originalResponse.acceptRanges;
     }
@@ -47266,7 +47312,7 @@ var sF = class {
       return this.originalResponse.blobBody;
     }
     get readableStreamBody() {
-      return yy ? this.blobDownloadStream : void 0;
+      return xy ? this.blobDownloadStream : void 0;
     }
     get _response() {
       return this.originalResponse._response;
@@ -47275,13 +47321,13 @@ var sF = class {
     blobDownloadStream;
     constructor(e, t, n, r, i = {}) {
       ((this.originalResponse = e),
-        (this.blobDownloadStream = new cF(this.originalResponse.readableStreamBody, t, n, r, i)));
+        (this.blobDownloadStream = new uF(this.originalResponse.readableStreamBody, t, n, r, i)));
     }
   },
-  uF = new Uint8Array([79, 98, 106, 1]),
-  dF = `avro.codec`,
-  fF = `avro.schema`,
-  pF = class e {
+  fF = new Uint8Array([79, 98, 106, 1]),
+  pF = `avro.codec`,
+  mF = `avro.schema`,
+  hF = class e {
     static async readFixedBytes(e, t, n = {}) {
       let r = await e.read(t, { abortSignal: n.abortSignal });
       if (r.length !== t) throw Error(`Hit stream end.`);
@@ -47359,7 +47405,7 @@ var sF = class {
       return i;
     }
   },
-  mF;
+  gF;
 (function (e) {
   ((e.RECORD = `record`),
     (e.ENUM = `enum`),
@@ -47367,8 +47413,8 @@ var sF = class {
     (e.MAP = `map`),
     (e.UNION = `union`),
     (e.FIXED = `fixed`));
-})((mF ||= {}));
-var hF;
+})((gF ||= {}));
+var _F;
 (function (e) {
   ((e.NULL = `null`),
     (e.BOOLEAN = `boolean`),
@@ -47378,8 +47424,8 @@ var hF;
     (e.DOUBLE = `double`),
     (e.BYTES = `bytes`),
     (e.STRING = `string`));
-})((hF ||= {}));
-var gF = class e {
+})((_F ||= {}));
+var vF = class e {
     static fromSchema(t) {
       return typeof t == `string`
         ? e.fromStringSchema(t)
@@ -47389,21 +47435,21 @@ var gF = class e {
     }
     static fromStringSchema(e) {
       switch (e) {
-        case hF.NULL:
-        case hF.BOOLEAN:
-        case hF.INT:
-        case hF.LONG:
-        case hF.FLOAT:
-        case hF.DOUBLE:
-        case hF.BYTES:
-        case hF.STRING:
-          return new _F(e);
+        case _F.NULL:
+        case _F.BOOLEAN:
+        case _F.INT:
+        case _F.LONG:
+        case _F.FLOAT:
+        case _F.DOUBLE:
+        case _F.BYTES:
+        case _F.STRING:
+          return new yF(e);
         default:
           throw Error(`Unexpected Avro type ${e}`);
       }
     }
     static fromArraySchema(t) {
-      return new yF(t.map(e.fromSchema));
+      return new xF(t.map(e.fromSchema));
     }
     static fromObjectSchema(t) {
       let n = t.type;
@@ -47411,85 +47457,85 @@ var gF = class e {
         return e.fromStringSchema(n);
       } catch {}
       switch (n) {
-        case mF.RECORD:
+        case gF.RECORD:
           if (t.aliases) throw Error(`aliases currently is not supported, schema: ${t}`);
           if (!t.name) throw Error(`Required attribute 'name' doesn't exist on schema: ${t}`);
           let r = {};
           if (!t.fields) throw Error(`Required attribute 'fields' doesn't exist on schema: ${t}`);
           for (let n of t.fields) r[n.name] = e.fromSchema(n.type);
-          return new xF(r, t.name);
-        case mF.ENUM:
+          return new CF(r, t.name);
+        case gF.ENUM:
           if (t.aliases) throw Error(`aliases currently is not supported, schema: ${t}`);
           if (!t.symbols) throw Error(`Required attribute 'symbols' doesn't exist on schema: ${t}`);
-          return new vF(t.symbols);
-        case mF.MAP:
+          return new bF(t.symbols);
+        case gF.MAP:
           if (!t.values) throw Error(`Required attribute 'values' doesn't exist on schema: ${t}`);
-          return new bF(e.fromSchema(t.values));
-        case mF.ARRAY:
-        case mF.FIXED:
+          return new SF(e.fromSchema(t.values));
+        case gF.ARRAY:
+        case gF.FIXED:
         default:
           throw Error(`Unexpected Avro type ${n} in ${t}`);
       }
     }
   },
-  _F = class extends gF {
+  yF = class extends vF {
     _primitive;
     constructor(e) {
       (super(), (this._primitive = e));
     }
     read(e, t = {}) {
       switch (this._primitive) {
-        case hF.NULL:
-          return pF.readNull();
-        case hF.BOOLEAN:
-          return pF.readBoolean(e, t);
-        case hF.INT:
-          return pF.readInt(e, t);
-        case hF.LONG:
-          return pF.readLong(e, t);
-        case hF.FLOAT:
-          return pF.readFloat(e, t);
-        case hF.DOUBLE:
-          return pF.readDouble(e, t);
-        case hF.BYTES:
-          return pF.readBytes(e, t);
-        case hF.STRING:
-          return pF.readString(e, t);
+        case _F.NULL:
+          return hF.readNull();
+        case _F.BOOLEAN:
+          return hF.readBoolean(e, t);
+        case _F.INT:
+          return hF.readInt(e, t);
+        case _F.LONG:
+          return hF.readLong(e, t);
+        case _F.FLOAT:
+          return hF.readFloat(e, t);
+        case _F.DOUBLE:
+          return hF.readDouble(e, t);
+        case _F.BYTES:
+          return hF.readBytes(e, t);
+        case _F.STRING:
+          return hF.readString(e, t);
         default:
           throw Error(`Unknown Avro Primitive`);
       }
     }
   },
-  vF = class extends gF {
+  bF = class extends vF {
     _symbols;
     constructor(e) {
       (super(), (this._symbols = e));
     }
     async read(e, t = {}) {
-      let n = await pF.readInt(e, t);
+      let n = await hF.readInt(e, t);
       return this._symbols[n];
     }
   },
-  yF = class extends gF {
+  xF = class extends vF {
     _types;
     constructor(e) {
       (super(), (this._types = e));
     }
     async read(e, t = {}) {
-      let n = await pF.readInt(e, t);
+      let n = await hF.readInt(e, t);
       return this._types[n].read(e, t);
     }
   },
-  bF = class extends gF {
+  SF = class extends vF {
     _itemType;
     constructor(e) {
       (super(), (this._itemType = e));
     }
     read(e, t = {}) {
-      return pF.readMap(e, (e, t) => this._itemType.read(e, t), t);
+      return hF.readMap(e, (e, t) => this._itemType.read(e, t), t);
     }
   },
-  xF = class extends gF {
+  CF = class extends vF {
     _name;
     _fields;
     constructor(e, t) {
@@ -47504,13 +47550,13 @@ var gF = class e {
       return n;
     }
   };
-function SF(e, t) {
+function wF(e, t) {
   if (e === t) return !0;
   if (e == null || t == null || e.length !== t.length) return !1;
   for (let n = 0; n < e.length; ++n) if (e[n] !== t[n]) return !1;
   return !0;
 }
-var CF = class {
+var TF = class {
     _dataStream;
     _headerStream;
     _syncMarker;
@@ -47537,29 +47583,29 @@ var CF = class {
     }
     async initialize(e = {}) {
       if (
-        !SF(
-          await pF.readFixedBytes(this._headerStream, uF.length, { abortSignal: e.abortSignal }),
-          uF,
+        !wF(
+          await hF.readFixedBytes(this._headerStream, fF.length, { abortSignal: e.abortSignal }),
+          fF,
         )
       )
         throw Error(`Stream is not an Avro file.`);
-      this._metadata = await pF.readMap(this._headerStream, pF.readString, {
+      this._metadata = await hF.readMap(this._headerStream, hF.readString, {
         abortSignal: e.abortSignal,
       });
-      let t = this._metadata[dF];
+      let t = this._metadata[pF];
       if (t != null && t !== `null`) throw Error(`Codecs are not supported`);
-      this._syncMarker = await pF.readFixedBytes(this._headerStream, 16, {
+      this._syncMarker = await hF.readFixedBytes(this._headerStream, 16, {
         abortSignal: e.abortSignal,
       });
-      let n = JSON.parse(this._metadata[fF]);
+      let n = JSON.parse(this._metadata[mF]);
       if (
-        ((this._itemType = gF.fromSchema(n)),
+        ((this._itemType = vF.fromSchema(n)),
         this._blockOffset === 0 &&
           (this._blockOffset = this._initialBlockOffset + this._dataStream.position),
-        (this._itemsRemainingInBlock = await pF.readLong(this._dataStream, {
+        (this._itemsRemainingInBlock = await hF.readLong(this._dataStream, {
           abortSignal: e.abortSignal,
         })),
-        await pF.readLong(this._dataStream, { abortSignal: e.abortSignal }),
+        await hF.readLong(this._dataStream, { abortSignal: e.abortSignal }),
         (this._initialized = !0),
         this._objectIndex && this._objectIndex > 0)
       )
@@ -47576,30 +47622,30 @@ var CF = class {
         if (
           (this._itemsRemainingInBlock--, this._objectIndex++, this._itemsRemainingInBlock === 0)
         ) {
-          let t = await pF.readFixedBytes(this._dataStream, 16, { abortSignal: e.abortSignal });
+          let t = await hF.readFixedBytes(this._dataStream, 16, { abortSignal: e.abortSignal });
           if (
             ((this._blockOffset = this._initialBlockOffset + this._dataStream.position),
             (this._objectIndex = 0),
-            !SF(this._syncMarker, t))
+            !wF(this._syncMarker, t))
           )
             throw Error(`Stream is not a valid Avro file.`);
           try {
-            this._itemsRemainingInBlock = await pF.readLong(this._dataStream, {
+            this._itemsRemainingInBlock = await hF.readLong(this._dataStream, {
               abortSignal: e.abortSignal,
             });
           } catch {
             this._itemsRemainingInBlock = 0;
           }
           this._itemsRemainingInBlock > 0 &&
-            (await pF.readLong(this._dataStream, { abortSignal: e.abortSignal }));
+            (await hF.readLong(this._dataStream, { abortSignal: e.abortSignal }));
         }
         yield t;
       }
     }
   },
-  wF = class {},
-  TF = new fy(`Reading from the avro stream was aborted.`),
-  EF = class extends wF {
+  EF = class {},
+  DF = new my(`Reading from the avro stream was aborted.`),
+  OF = class extends EF {
     _position;
     _readable;
     toUint8Array(e) {
@@ -47612,7 +47658,7 @@ var CF = class {
       return this._position;
     }
     async read(e, t = {}) {
-      if (t.abortSignal?.aborted) throw TF;
+      if (t.abortSignal?.aborted) throw DF;
       if (e < 0) throw Error(`size parameter should be positive: ${e}`);
       if (e === 0) return new Uint8Array();
       if (!this._readable.readable) throw Error(`Stream no longer readable.`);
@@ -47635,7 +47681,7 @@ var CF = class {
                 (i(), r());
               },
               s = () => {
-                (i(), r(TF));
+                (i(), r(DF));
               };
             (this._readable.on(`readable`, a),
               this._readable.once(`error`, o),
@@ -47645,7 +47691,7 @@ var CF = class {
           });
     }
   },
-  DF = class extends b {
+  kF = class extends b {
     source;
     avroReader;
     avroIter;
@@ -47657,7 +47703,7 @@ var CF = class {
         (this.source = e),
         (this.onProgress = t.onProgress),
         (this.onError = t.onError),
-        (this.avroReader = new CF(new EF(this.source))),
+        (this.avroReader = new TF(new OF(this.source))),
         (this.avroIter = this.avroReader.parseObjects({ abortSignal: t.abortSignal })));
     }
     _read() {
@@ -47717,7 +47763,7 @@ var CF = class {
       } while (!e.done && !this.avroPaused);
     }
   },
-  OF = class {
+  AF = class {
     get acceptRanges() {
       return this.originalResponse.acceptRanges;
     }
@@ -47817,7 +47863,7 @@ var CF = class {
     }
     get blobBody() {}
     get readableStreamBody() {
-      return yy ? this.blobDownloadStream : void 0;
+      return xy ? this.blobDownloadStream : void 0;
     }
     get _response() {
       return this.originalResponse._response;
@@ -47826,14 +47872,14 @@ var CF = class {
     blobDownloadStream;
     constructor(e, t = {}) {
       ((this.originalResponse = e),
-        (this.blobDownloadStream = new DF(this.originalResponse.readableStreamBody, t)));
+        (this.blobDownloadStream = new kF(this.originalResponse.readableStreamBody, t)));
     }
   },
-  kF;
+  jF;
 (function (e) {
   ((e.Hot = `Hot`), (e.Cool = `Cool`), (e.Cold = `Cold`), (e.Archive = `Archive`));
-})((kF ||= {}));
-var AF;
+})((jF ||= {}));
+var MF;
 (function (e) {
   ((e.P4 = `P4`),
     (e.P6 = `P6`),
@@ -47846,20 +47892,20 @@ var AF;
     (e.P60 = `P60`),
     (e.P70 = `P70`),
     (e.P80 = `P80`));
-})((AF ||= {}));
-function jF(e) {
+})((MF ||= {}));
+function NF(e) {
   if (e !== void 0) return e;
 }
-function MF(e, t) {
+function PF(e, t) {
   if (e && !t) throw RangeError(`Customer-provided encryption key must be used over HTTPS.`);
-  e && !e.encryptionAlgorithm && (e.encryptionAlgorithm = TE);
+  e && !e.encryptionAlgorithm && (e.encryptionAlgorithm = DE);
 }
-var NF;
+var FF;
 (function (e) {
   ((e.StorageOAuthScopes = `https://storage.azure.com/.default`),
     (e.DiskComputeOAuthScopes = `https://disk.compute.azure.com/.default`));
-})((NF ||= {}));
-function PF(e) {
+})((FF ||= {}));
+function IF(e) {
   let t = (e._response.parsedBody.pageRange || []).map((e) => ({
       offset: e.start,
       count: e.end - e.start,
@@ -47875,17 +47921,17 @@ function PF(e) {
     _response: { ...e._response, parsedBody: { pageRange: t, clearRange: n } },
   };
 }
-var FF = class e extends Error {
+var LF = class e extends Error {
     constructor(t) {
       (super(t), (this.name = `PollerStoppedError`), Object.setPrototypeOf(this, e.prototype));
     }
   },
-  IF = class e extends Error {
+  RF = class e extends Error {
     constructor(t) {
       (super(t), (this.name = `PollerCancelledError`), Object.setPrototypeOf(this, e.prototype));
     }
   },
-  LF = class {
+  zF = class {
     constructor(e) {
       ((this.resolveOnUnsuccessful = !1),
         (this.stopped = !0),
@@ -47928,7 +47974,7 @@ var FF = class e extends Error {
       if (this.operation.state.error && ((this.stopped = !0), !this.resolveOnUnsuccessful))
         throw (this.reject(this.operation.state.error), this.operation.state.error);
       if (this.operation.state.isCancelled && ((this.stopped = !0), !this.resolveOnUnsuccessful)) {
-        let e = new IF(`Operation was canceled`);
+        let e = new RF(`Operation was canceled`);
         throw (this.reject(e), e);
       }
       this.isDone() && this.resolve && this.resolve(this.getResult());
@@ -47954,7 +48000,7 @@ var FF = class e extends Error {
     }
     stopPolling() {
       this.stopped ||
-        ((this.stopped = !0), this.reject && this.reject(new FF(`This poller is already stopped`)));
+        ((this.stopped = !0), this.reject && this.reject(new LF(`This poller is already stopped`)));
     }
     isStopped() {
       return this.stopped;
@@ -47974,7 +48020,7 @@ var FF = class e extends Error {
       return this.operation.toString();
     }
   },
-  RF = class extends LF {
+  BF = class extends zF {
     intervalInMs;
     constructor(e) {
       let {
@@ -47987,25 +48033,25 @@ var FF = class e extends Error {
         } = e,
         s;
       a && (s = JSON.parse(a).state);
-      let c = HF({ ...s, blobClient: t, copySource: n, startCopyFromURLOptions: o });
+      let c = WF({ ...s, blobClient: t, copySource: n, startCopyFromURLOptions: o });
       (super(c), typeof i == `function` && this.onProgress(i), (this.intervalInMs = r));
     }
     delay() {
-      return hy(this.intervalInMs);
+      return _y(this.intervalInMs);
     }
   },
-  zF = async function (e = {}) {
+  VF = async function (e = {}) {
     let t = this.state,
       { copyId: n } = t;
     return t.isCompleted
-      ? HF(t)
+      ? WF(t)
       : n
         ? (await t.blobClient.abortCopyFromURL(n, { abortSignal: e.abortSignal }),
           (t.isCancelled = !0),
-          HF(t))
-        : ((t.isCancelled = !0), HF(t));
+          WF(t))
+        : ((t.isCancelled = !0), WF(t));
   },
-  BF = async function (e = {}) {
+  HF = async function (e = {}) {
     let t = this.state,
       { blobClient: n, copySource: r, startCopyFromURLOptions: i } = t;
     if (!t.isStarted) {
@@ -48030,17 +48076,17 @@ var FF = class e extends Error {
       } catch (e) {
         ((t.error = e), (t.isCompleted = !0));
       }
-    return HF(t);
+    return WF(t);
   },
-  VF = function () {
+  UF = function () {
     return JSON.stringify({ state: this.state }, (e, t) => {
       if (e !== `blobClient`) return t;
     });
   };
-function HF(e) {
-  return { state: { ...e }, cancel: zF, toString: VF, update: BF };
+function WF(e) {
+  return { state: { ...e }, cancel: VF, toString: UF, update: HF };
 }
-function UF(e) {
+function GF(e) {
   if (e.offset < 0) throw RangeError(`Range.offset cannot be smaller than 0.`);
   if (e.count && e.count <= 0)
     throw RangeError(
@@ -48048,17 +48094,17 @@ function UF(e) {
     );
   return e.count ? `bytes=${e.offset}-${e.offset + e.count - 1}` : `bytes=${e.offset}-`;
 }
-var WF;
+var KF;
 (function (e) {
   ((e[(e.Good = 0)] = `Good`), (e[(e.Error = 1)] = `Error`));
-})((WF ||= {}));
-var GF = class {
+})((KF ||= {}));
+var qF = class {
   concurrency;
   actives = 0;
   completed = 0;
   offset = 0;
   operations = [];
-  state = WF.Good;
+  state = KF.Good;
   emitter;
   constructor(e = 5) {
     if (e < 1) throw RangeError(`concurrency must be larger than 0`);
@@ -48080,7 +48126,7 @@ var GF = class {
         new Promise((e, t) => {
           (this.emitter.on(`finish`, e),
             this.emitter.on(`error`, (e) => {
-              ((this.state = WF.Error), t(e));
+              ((this.state = KF.Error), t(e));
             }));
         }));
   }
@@ -48088,7 +48134,7 @@ var GF = class {
     return this.offset < this.operations.length ? this.operations[this.offset++] : null;
   }
   parallelExecute() {
-    if (this.state !== WF.Error) {
+    if (this.state !== KF.Error) {
       if (this.completed >= this.operations.length) {
         this.emitter.emit(`finish`);
         return;
@@ -48101,11 +48147,11 @@ var GF = class {
     }
   }
 };
-async function KF(e, t, n, r, i) {
+async function JF(e, t, n, r, i) {
   let a = 0,
     o = r - n;
   return new Promise((r, s) => {
-    let c = setTimeout(() => s(Error(`The operation cannot be completed in timeout.`)), CE);
+    let c = setTimeout(() => s(Error(`The operation cannot be completed in timeout.`)), TE);
     (e.on(`readable`, () => {
       if (a >= o) {
         (clearTimeout(c), r());
@@ -48132,7 +48178,7 @@ async function KF(e, t, n, r, i) {
       }));
   });
 }
-async function qF(e, t) {
+async function YF(e, t) {
   return new Promise((n, r) => {
     let i = k.createWriteStream(t);
     (e.on(`error`, (e) => {
@@ -48145,9 +48191,9 @@ async function qF(e, t) {
       e.pipe(i));
   });
 }
-var JF = C.promisify(k.stat),
-  YF = k.createReadStream,
-  XF = class e extends WP {
+var XF = C.promisify(k.stat),
+  ZF = k.createReadStream,
+  QF = class e extends KP {
     blobContext;
     _name;
     _containerName;
@@ -48162,25 +48208,25 @@ var JF = C.promisify(k.stat),
     constructor(e, t, n, r) {
       r ||= {};
       let i, a;
-      if (AE(t)) ((a = e), (i = t));
-      else if ((yy && t instanceof YT) || t instanceof FT || _b(t))
-        ((a = e), (r = n), (i = ME(t, r)));
+      if (ME(t)) ((a = e), (i = t));
+      else if ((xy && t instanceof ZT) || t instanceof LT || yb(t))
+        ((a = e), (r = n), (i = PE(t, r)));
       else if (!t && typeof t != `string`)
-        ((a = e), n && typeof n != `string` && (r = n), (i = ME(new FT(), r)));
+        ((a = e), n && typeof n != `string` && (r = n), (i = PE(new LT(), r)));
       else if (t && typeof t == `string` && n && typeof n == `string`) {
         let o = t,
           s = n,
-          c = SP(e);
+          c = wP(e);
         if (c.kind === `AccountConnString`) {
-          if (yy) {
-            let e = new YT(c.accountName, c.accountKey);
-            ((a = wP(wP(c.url, encodeURIComponent(o)), encodeURIComponent(s))),
-              r.proxyOptions || (r.proxyOptions = jy(c.proxyUri)),
-              (i = ME(e, r)));
+          if (xy) {
+            let e = new ZT(c.accountName, c.accountKey);
+            ((a = EP(EP(c.url, encodeURIComponent(o)), encodeURIComponent(s))),
+              r.proxyOptions || (r.proxyOptions = Ny(c.proxyUri)),
+              (i = PE(e, r)));
           } else throw Error(`Account connection string is only supported in Node.js environment`);
         } else if (c.kind === `SASConnString`)
-          ((a = wP(wP(c.url, encodeURIComponent(o)), encodeURIComponent(s)) + `?` + c.accountSas),
-            (i = ME(new FT(), r)));
+          ((a = EP(EP(c.url, encodeURIComponent(o)), encodeURIComponent(s)) + `?` + c.accountSas),
+            (i = PE(new LT(), r)));
         else
           throw Error(
             `Connection string must be either an Account connection string or a SAS connection string`,
@@ -48190,43 +48236,43 @@ var JF = C.promisify(k.stat),
         ({ blobName: this._name, containerName: this._containerName } =
           this.getBlobAndContainerNamesFromUrl()),
         (this.blobContext = this.storageClientContext.blob),
-        (this._snapshot = EP(this.url, wE.Parameters.SNAPSHOT)),
-        (this._versionId = EP(this.url, wE.Parameters.VERSIONID)));
+        (this._snapshot = OP(this.url, EE.Parameters.SNAPSHOT)),
+        (this._versionId = OP(this.url, EE.Parameters.VERSIONID)));
     }
     withSnapshot(t) {
       return new e(
-        TP(this.url, wE.Parameters.SNAPSHOT, t.length === 0 ? void 0 : t),
+        DP(this.url, EE.Parameters.SNAPSHOT, t.length === 0 ? void 0 : t),
         this.pipeline,
       );
     }
     withVersion(t) {
       return new e(
-        TP(this.url, wE.Parameters.VERSIONID, t.length === 0 ? void 0 : t),
+        DP(this.url, EE.Parameters.VERSIONID, t.length === 0 ? void 0 : t),
         this.pipeline,
       );
     }
     getAppendBlobClient() {
-      return new ZF(this.url, this.pipeline);
+      return new $F(this.url, this.pipeline);
     }
     getBlockBlobClient() {
-      return new QF(this.url, this.pipeline);
+      return new eI(this.url, this.pipeline);
     }
     getPageBlobClient() {
-      return new $F(this.url, this.pipeline);
+      return new tI(this.url, this.pipeline);
     }
     async download(e = 0, t, n = {}) {
       return (
         (n.conditions = n.conditions || {}),
         (n.conditions = n.conditions || {}),
-        MF(n.customerProvidedKey, this.isHttps),
+        PF(n.customerProvidedKey, this.isHttps),
         Q.withSpan(`BlobClient-download`, n, async (r) => {
-          let i = UP(
+          let i = GP(
               await this.blobContext.download({
                 abortSignal: n.abortSignal,
                 leaseAccessConditions: n.conditions,
                 modifiedAccessConditions: { ...n.conditions, ifTags: n.conditions?.tagConditions },
-                requestOptions: { onDownloadProgress: yy ? void 0 : n.onProgress },
-                range: e === 0 && !t ? void 0 : UF({ offset: e, count: t }),
+                requestOptions: { onDownloadProgress: xy ? void 0 : n.onProgress },
+                range: e === 0 && !t ? void 0 : GF({ offset: e, count: t }),
                 rangeGetContentMD5: n.rangeGetContentMD5,
                 rangeGetContentCRC64: n.rangeGetContentCrc64,
                 snapshot: n.snapshot,
@@ -48238,16 +48284,16 @@ var JF = C.promisify(k.stat),
               ...i,
               _response: i._response,
               objectReplicationDestinationPolicyId: i.objectReplicationPolicyId,
-              objectReplicationSourceProperties: BP(i.objectReplicationRules),
+              objectReplicationSourceProperties: HP(i.objectReplicationRules),
             };
-          if (!yy) return a;
+          if (!xy) return a;
           if (
             ((n.maxRetryRequests === void 0 || n.maxRetryRequests < 0) && (n.maxRetryRequests = 5),
             i.contentLength === void 0)
           )
             throw RangeError(`File download response doesn't contain valid content length header`);
           if (!i.etag) throw RangeError(`File download response doesn't contain valid etag header`);
-          return new lF(
+          return new dF(
             a,
             async (t) => {
               let r = {
@@ -48259,7 +48305,7 @@ var JF = C.promisify(k.stat),
                   ifUnmodifiedSince: n.conditions.ifUnmodifiedSince,
                   ifTags: n.conditions?.tagConditions,
                 },
-                range: UF({ count: e + i.contentLength - t, offset: t }),
+                range: GF({ count: e + i.contentLength - t, offset: t }),
                 rangeGetContentMD5: n.rangeGetContentMD5,
                 rangeGetContentCRC64: n.rangeGetContentCrc64,
                 snapshot: n.snapshot,
@@ -48279,7 +48325,7 @@ var JF = C.promisify(k.stat),
       return Q.withSpan(`BlobClient-exists`, e, async (t) => {
         try {
           return (
-            MF(e.customerProvidedKey, this.isHttps),
+            PF(e.customerProvidedKey, this.isHttps),
             await this.getProperties({
               abortSignal: e.abortSignal,
               customerProvidedKey: e.customerProvidedKey,
@@ -48303,9 +48349,9 @@ var JF = C.promisify(k.stat),
     async getProperties(e = {}) {
       return (
         (e.conditions = e.conditions || {}),
-        MF(e.customerProvidedKey, this.isHttps),
+        PF(e.customerProvidedKey, this.isHttps),
         Q.withSpan(`BlobClient-getProperties`, e, async (t) => {
-          let n = UP(
+          let n = GP(
             await this.blobContext.getProperties({
               abortSignal: e.abortSignal,
               leaseAccessConditions: e.conditions,
@@ -48318,7 +48364,7 @@ var JF = C.promisify(k.stat),
             ...n,
             _response: n._response,
             objectReplicationDestinationPolicyId: n.objectReplicationPolicyId,
-            objectReplicationSourceProperties: BP(n.objectReplicationRules),
+            objectReplicationSourceProperties: HP(n.objectReplicationRules),
           };
         })
       );
@@ -48327,7 +48373,7 @@ var JF = C.promisify(k.stat),
       return (
         (e.conditions = e.conditions || {}),
         Q.withSpan(`BlobClient-delete`, e, async (t) =>
-          UP(
+          GP(
             await this.blobContext.delete({
               abortSignal: e.abortSignal,
               deleteSnapshots: e.deleteSnapshots,
@@ -48342,7 +48388,7 @@ var JF = C.promisify(k.stat),
     async deleteIfExists(e = {}) {
       return Q.withSpan(`BlobClient-deleteIfExists`, e, async (e) => {
         try {
-          let t = UP(await this.delete(e));
+          let t = GP(await this.delete(e));
           return { succeeded: !0, ...t, _response: t._response };
         } catch (e) {
           if (e.details?.errorCode === `BlobNotFound`)
@@ -48353,7 +48399,7 @@ var JF = C.promisify(k.stat),
     }
     async undelete(e = {}) {
       return Q.withSpan(`BlobClient-undelete`, e, async (t) =>
-        UP(
+        GP(
           await this.blobContext.undelete({
             abortSignal: e.abortSignal,
             tracingOptions: t.tracingOptions,
@@ -48364,9 +48410,9 @@ var JF = C.promisify(k.stat),
     async setHTTPHeaders(e, t = {}) {
       return (
         (t.conditions = t.conditions || {}),
-        MF(t.customerProvidedKey, this.isHttps),
+        PF(t.customerProvidedKey, this.isHttps),
         Q.withSpan(`BlobClient-setHTTPHeaders`, t, async (n) =>
-          UP(
+          GP(
             await this.blobContext.setHttpHeaders({
               abortSignal: t.abortSignal,
               blobHttpHeaders: e,
@@ -48381,9 +48427,9 @@ var JF = C.promisify(k.stat),
     async setMetadata(e, t = {}) {
       return (
         (t.conditions = t.conditions || {}),
-        MF(t.customerProvidedKey, this.isHttps),
+        PF(t.customerProvidedKey, this.isHttps),
         Q.withSpan(`BlobClient-setMetadata`, t, async (n) =>
-          UP(
+          GP(
             await this.blobContext.setMetadata({
               abortSignal: t.abortSignal,
               leaseAccessConditions: t.conditions,
@@ -48399,21 +48445,21 @@ var JF = C.promisify(k.stat),
     }
     async setTags(e, t = {}) {
       return Q.withSpan(`BlobClient-setTags`, t, async (n) =>
-        UP(
+        GP(
           await this.blobContext.setTags({
             abortSignal: t.abortSignal,
             leaseAccessConditions: t.conditions,
             modifiedAccessConditions: { ...t.conditions, ifTags: t.conditions?.tagConditions },
             blobModifiedAccessConditions: t.conditions,
             tracingOptions: n.tracingOptions,
-            tags: LP(e),
+            tags: zP(e),
           }),
         ),
       );
     }
     async getTags(e = {}) {
       return Q.withSpan(`BlobClient-getTags`, e, async (t) => {
-        let n = UP(
+        let n = GP(
           await this.blobContext.getTags({
             abortSignal: e.abortSignal,
             leaseAccessConditions: e.conditions,
@@ -48422,18 +48468,18 @@ var JF = C.promisify(k.stat),
             tracingOptions: t.tracingOptions,
           }),
         );
-        return { ...n, _response: n._response, tags: RP({ blobTagSet: n.blobTagSet }) || {} };
+        return { ...n, _response: n._response, tags: BP({ blobTagSet: n.blobTagSet }) || {} };
       });
     }
     getBlobLeaseClient(e) {
-      return new sF(this, e);
+      return new lF(this, e);
     }
     async createSnapshot(e = {}) {
       return (
         (e.conditions = e.conditions || {}),
-        MF(e.customerProvidedKey, this.isHttps),
+        PF(e.customerProvidedKey, this.isHttps),
         Q.withSpan(`BlobClient-createSnapshot`, e, async (t) =>
-          UP(
+          GP(
             await this.blobContext.createSnapshot({
               abortSignal: e.abortSignal,
               leaseAccessConditions: e.conditions,
@@ -48448,7 +48494,7 @@ var JF = C.promisify(k.stat),
       );
     }
     async beginCopyFromURL(e, t = {}) {
-      let n = new RF({
+      let n = new BF({
         blobClient: {
           abortCopyFromURL: (...e) => this.abortCopyFromURL(...e),
           getProperties: (...e) => this.getProperties(...e),
@@ -48464,7 +48510,7 @@ var JF = C.promisify(k.stat),
     }
     async abortCopyFromURL(e, t = {}) {
       return Q.withSpan(`BlobClient-abortCopyFromURL`, t, async (n) =>
-        UP(
+        GP(
           await this.blobContext.abortCopyFromURL(e, {
             abortSignal: t.abortSignal,
             leaseAccessConditions: t.conditions,
@@ -48478,7 +48524,7 @@ var JF = C.promisify(k.stat),
         (t.conditions = t.conditions || {}),
         (t.sourceConditions = t.sourceConditions || {}),
         Q.withSpan(`BlobClient-syncCopyFromURL`, t, async (n) =>
-          UP(
+          GP(
             await this.blobContext.copyFromURL(e, {
               abortSignal: t.abortSignal,
               metadata: t.metadata,
@@ -48491,9 +48537,9 @@ var JF = C.promisify(k.stat),
                 sourceIfUnmodifiedSince: t.sourceConditions?.ifUnmodifiedSince,
               },
               sourceContentMD5: t.sourceContentMD5,
-              copySourceAuthorization: VP(t.sourceAuthorization),
-              tier: jF(t.tier),
-              blobTagsString: IP(t.tags),
+              copySourceAuthorization: UP(t.sourceAuthorization),
+              tier: NF(t.tier),
+              blobTagsString: RP(t.tags),
               immutabilityPolicyExpiry: t.immutabilityPolicy?.expiriesOn,
               immutabilityPolicyMode: t.immutabilityPolicy?.policyMode,
               legalHold: t.legalHold,
@@ -48508,8 +48554,8 @@ var JF = C.promisify(k.stat),
     }
     async setAccessTier(e, t = {}) {
       return Q.withSpan(`BlobClient-setAccessTier`, t, async (n) =>
-        UP(
-          await this.blobContext.setTier(jF(e), {
+        GP(
+          await this.blobContext.setTier(NF(e), {
             abortSignal: t.abortSignal,
             leaseAccessConditions: t.conditions,
             modifiedAccessConditions: { ...t.conditions, ifTags: t.conditions?.tagConditions },
@@ -48529,7 +48575,7 @@ var JF = C.promisify(k.stat),
         : ((a = typeof e == `number` ? e : 0), (o = typeof t == `number` ? t : 0), (s = n || {}));
       let c = s.blockSize ?? 0;
       if (c < 0) throw RangeError(`blockSize option must be >= 0`);
-      if ((c === 0 && (c = SE), a < 0)) throw RangeError(`offset option must be >= 0`);
+      if ((c === 0 && (c = wE), a < 0)) throw RangeError(`offset option must be >= 0`);
       if (o && o <= 0) throw RangeError(`count option must be greater than 0`);
       return (
         s.conditions || (s.conditions = {}),
@@ -48552,7 +48598,7 @@ var JF = C.promisify(k.stat),
               `The buffer's size should be equal to or larger than the request count of bytes: ${o}`,
             );
           let t = 0,
-            n = new GF(s.concurrency);
+            n = new qF(s.concurrency);
           for (let r = a; r < a + o; r += c)
             n.addOperation(async () => {
               let n = a + o;
@@ -48566,7 +48612,7 @@ var JF = C.promisify(k.stat),
                   tracingOptions: e.tracingOptions,
                 })
               ).readableStreamBody;
-              (await KF(l, i, r - a, n - a),
+              (await JF(l, i, r - a, n - a),
                 (t += n - r),
                 s.onProgress && s.onProgress({ loadedBytes: t }));
             });
@@ -48578,7 +48624,7 @@ var JF = C.promisify(k.stat),
       return Q.withSpan(`BlobClient-downloadToFile`, r, async (i) => {
         let a = await this.download(t, n, { ...r, tracingOptions: i.tracingOptions });
         return (
-          a.readableStreamBody && (await qF(a.readableStreamBody, e)),
+          a.readableStreamBody && (await YF(a.readableStreamBody, e)),
           (a.blobDownloadStream = void 0),
           a
         );
@@ -48591,7 +48637,7 @@ var JF = C.promisify(k.stat),
         if (n.host.split(`.`)[1] === `blob`) {
           let r = n.pathname.match(`/([^/]*)(/(.*))?`);
           ((e = r[1]), (t = r[3]));
-        } else if (FP(n)) {
+        } else if (LP(n)) {
           let r = n.pathname.match(`/([^/]*)/([^/]*)(/(.*))?`);
           ((e = r[2]), (t = r[4]));
         } else {
@@ -48617,7 +48663,7 @@ var JF = C.promisify(k.stat),
         async (n) => (
           (t.conditions = t.conditions || {}),
           (t.sourceConditions = t.sourceConditions || {}),
-          UP(
+          GP(
             await this.blobContext.startCopyFromURL(e, {
               abortSignal: t.abortSignal,
               leaseAccessConditions: t.conditions,
@@ -48634,8 +48680,8 @@ var JF = C.promisify(k.stat),
               immutabilityPolicyMode: t.immutabilityPolicy?.policyMode,
               legalHold: t.legalHold,
               rehydratePriority: t.rehydratePriority,
-              tier: jF(t.tier),
-              blobTagsString: IP(t.tags),
+              tier: NF(t.tier),
+              blobTagsString: RP(t.tags),
               sealBlob: t.sealBlob,
               tracingOptions: n.tracingOptions,
             }),
@@ -48645,11 +48691,11 @@ var JF = C.promisify(k.stat),
     }
     generateSasUrl(e) {
       return new Promise((t) => {
-        if (!(this.credential instanceof YT))
+        if (!(this.credential instanceof ZT))
           throw RangeError(
             `Can only generate the SAS when the client is initialized with a shared key credential`,
           );
-        let n = XP(
+        let n = QP(
           {
             containerName: this._containerName,
             blobName: this._name,
@@ -48659,15 +48705,15 @@ var JF = C.promisify(k.stat),
           },
           this.credential,
         ).toString();
-        t(OP(this.url, n));
+        t(AP(this.url, n));
       });
     }
     generateSasStringToSign(e) {
-      if (!(this.credential instanceof YT))
+      if (!(this.credential instanceof ZT))
         throw RangeError(
           `Can only generate the SAS when the client is initialized with a shared key credential`,
         );
-      return ZP(
+      return $P(
         {
           containerName: this._containerName,
           blobName: this._name,
@@ -48680,7 +48726,7 @@ var JF = C.promisify(k.stat),
     }
     generateUserDelegationSasUrl(e, t) {
       return new Promise((n) => {
-        let r = XP(
+        let r = QP(
           {
             containerName: this._containerName,
             blobName: this._name,
@@ -48691,11 +48737,11 @@ var JF = C.promisify(k.stat),
           t,
           this.accountName,
         ).toString();
-        n(OP(this.url, r));
+        n(AP(this.url, r));
       });
     }
     generateUserDelegationSasStringToSign(e, t) {
-      return ZP(
+      return $P(
         {
           containerName: this._containerName,
           blobName: this._name,
@@ -48709,12 +48755,12 @@ var JF = C.promisify(k.stat),
     }
     async deleteImmutabilityPolicy(e = {}) {
       return Q.withSpan(`BlobClient-deleteImmutabilityPolicy`, e, async (e) =>
-        UP(await this.blobContext.deleteImmutabilityPolicy({ tracingOptions: e.tracingOptions })),
+        GP(await this.blobContext.deleteImmutabilityPolicy({ tracingOptions: e.tracingOptions })),
       );
     }
     async setImmutabilityPolicy(e, t = {}) {
       return Q.withSpan(`BlobClient-setImmutabilityPolicy`, t, async (t) =>
-        UP(
+        GP(
           await this.blobContext.setImmutabilityPolicy({
             immutabilityPolicyExpiry: e.expiriesOn,
             immutabilityPolicyMode: e.policyMode,
@@ -48725,12 +48771,12 @@ var JF = C.promisify(k.stat),
     }
     async setLegalHold(e, t = {}) {
       return Q.withSpan(`BlobClient-setLegalHold`, t, async (t) =>
-        UP(await this.blobContext.setLegalHold(e, { tracingOptions: t.tracingOptions })),
+        GP(await this.blobContext.setLegalHold(e, { tracingOptions: t.tracingOptions })),
       );
     }
     async getAccountInfo(e = {}) {
       return Q.withSpan(`BlobClient-getAccountInfo`, e, async (t) =>
-        UP(
+        GP(
           await this.blobContext.getAccountInfo({
             abortSignal: e.abortSignal,
             tracingOptions: t.tracingOptions,
@@ -48739,28 +48785,28 @@ var JF = C.promisify(k.stat),
       );
     }
   },
-  ZF = class e extends XF {
+  $F = class e extends QF {
     appendBlobContext;
     constructor(e, t, n, r) {
       let i, a;
-      if (((r ||= {}), AE(t))) ((a = e), (i = t));
-      else if ((yy && t instanceof YT) || t instanceof FT || _b(t))
-        ((a = e), (r = n), (i = ME(t, r)));
-      else if (!t && typeof t != `string`) ((a = e), (i = ME(new FT(), r)));
+      if (((r ||= {}), ME(t))) ((a = e), (i = t));
+      else if ((xy && t instanceof ZT) || t instanceof LT || yb(t))
+        ((a = e), (r = n), (i = PE(t, r)));
+      else if (!t && typeof t != `string`) ((a = e), (i = PE(new LT(), r)));
       else if (t && typeof t == `string` && n && typeof n == `string`) {
         let o = t,
           s = n,
-          c = SP(e);
+          c = wP(e);
         if (c.kind === `AccountConnString`) {
-          if (yy) {
-            let e = new YT(c.accountName, c.accountKey);
-            ((a = wP(wP(c.url, encodeURIComponent(o)), encodeURIComponent(s))),
-              r.proxyOptions || (r.proxyOptions = jy(c.proxyUri)),
-              (i = ME(e, r)));
+          if (xy) {
+            let e = new ZT(c.accountName, c.accountKey);
+            ((a = EP(EP(c.url, encodeURIComponent(o)), encodeURIComponent(s))),
+              r.proxyOptions || (r.proxyOptions = Ny(c.proxyUri)),
+              (i = PE(e, r)));
           } else throw Error(`Account connection string is only supported in Node.js environment`);
         } else if (c.kind === `SASConnString`)
-          ((a = wP(wP(c.url, encodeURIComponent(o)), encodeURIComponent(s)) + `?` + c.accountSas),
-            (i = ME(new FT(), r)));
+          ((a = EP(EP(c.url, encodeURIComponent(o)), encodeURIComponent(s)) + `?` + c.accountSas),
+            (i = PE(new LT(), r)));
         else
           throw Error(
             `Connection string must be either an Account connection string or a SAS connection string`,
@@ -48770,16 +48816,16 @@ var JF = C.promisify(k.stat),
     }
     withSnapshot(t) {
       return new e(
-        TP(this.url, wE.Parameters.SNAPSHOT, t.length === 0 ? void 0 : t),
+        DP(this.url, EE.Parameters.SNAPSHOT, t.length === 0 ? void 0 : t),
         this.pipeline,
       );
     }
     async create(e = {}) {
       return (
         (e.conditions = e.conditions || {}),
-        MF(e.customerProvidedKey, this.isHttps),
+        PF(e.customerProvidedKey, this.isHttps),
         Q.withSpan(`AppendBlobClient-create`, e, async (t) =>
-          UP(
+          GP(
             await this.appendBlobContext.create(0, {
               abortSignal: e.abortSignal,
               blobHttpHeaders: e.blobHTTPHeaders,
@@ -48791,7 +48837,7 @@ var JF = C.promisify(k.stat),
               immutabilityPolicyExpiry: e.immutabilityPolicy?.expiriesOn,
               immutabilityPolicyMode: e.immutabilityPolicy?.policyMode,
               legalHold: e.legalHold,
-              blobTagsString: IP(e.tags),
+              blobTagsString: RP(e.tags),
               tracingOptions: t.tracingOptions,
             }),
           ),
@@ -48802,7 +48848,7 @@ var JF = C.promisify(k.stat),
       let t = { ifNoneMatch: `*` };
       return Q.withSpan(`AppendBlobClient-createIfNotExists`, e, async (e) => {
         try {
-          let n = UP(await this.create({ ...e, conditions: t }));
+          let n = GP(await this.create({ ...e, conditions: t }));
           return { succeeded: !0, ...n, _response: n._response };
         } catch (e) {
           if (e.details?.errorCode === `BlobAlreadyExists`)
@@ -48815,7 +48861,7 @@ var JF = C.promisify(k.stat),
       return (
         (e.conditions = e.conditions || {}),
         Q.withSpan(`AppendBlobClient-seal`, e, async (t) =>
-          UP(
+          GP(
             await this.appendBlobContext.seal({
               abortSignal: e.abortSignal,
               appendPositionAccessConditions: e.conditions,
@@ -48830,9 +48876,9 @@ var JF = C.promisify(k.stat),
     async appendBlock(e, t, n = {}) {
       return (
         (n.conditions = n.conditions || {}),
-        MF(n.customerProvidedKey, this.isHttps),
+        PF(n.customerProvidedKey, this.isHttps),
         Q.withSpan(`AppendBlobClient-appendBlock`, n, async (r) =>
-          UP(
+          GP(
             await this.appendBlobContext.appendBlock(t, e, {
               abortSignal: n.abortSignal,
               appendPositionAccessConditions: n.conditions,
@@ -48853,12 +48899,12 @@ var JF = C.promisify(k.stat),
       return (
         (r.conditions = r.conditions || {}),
         (r.sourceConditions = r.sourceConditions || {}),
-        MF(r.customerProvidedKey, this.isHttps),
+        PF(r.customerProvidedKey, this.isHttps),
         Q.withSpan(`AppendBlobClient-appendBlockFromURL`, r, async (i) =>
-          UP(
+          GP(
             await this.appendBlobContext.appendBlockFromUrl(e, 0, {
               abortSignal: r.abortSignal,
-              sourceRange: UF({ offset: t, count: n }),
+              sourceRange: GF({ offset: t, count: n }),
               sourceContentMD5: r.sourceContentMD5,
               sourceContentCrc64: r.sourceContentCrc64,
               leaseAccessConditions: r.conditions,
@@ -48870,7 +48916,7 @@ var JF = C.promisify(k.stat),
                 sourceIfNoneMatch: r.sourceConditions?.ifNoneMatch,
                 sourceIfUnmodifiedSince: r.sourceConditions?.ifUnmodifiedSince,
               },
-              copySourceAuthorization: VP(r.sourceAuthorization),
+              copySourceAuthorization: UP(r.sourceAuthorization),
               cpkInfo: r.customerProvidedKey,
               encryptionScope: r.encryptionScope,
               fileRequestIntent: r.sourceShareTokenIntent,
@@ -48881,30 +48927,30 @@ var JF = C.promisify(k.stat),
       );
     }
   },
-  QF = class e extends XF {
+  eI = class e extends QF {
     _blobContext;
     blockBlobContext;
     constructor(e, t, n, r) {
       let i, a;
-      if (((r ||= {}), AE(t))) ((a = e), (i = t));
-      else if ((yy && t instanceof YT) || t instanceof FT || _b(t))
-        ((a = e), (r = n), (i = ME(t, r)));
+      if (((r ||= {}), ME(t))) ((a = e), (i = t));
+      else if ((xy && t instanceof ZT) || t instanceof LT || yb(t))
+        ((a = e), (r = n), (i = PE(t, r)));
       else if (!t && typeof t != `string`)
-        ((a = e), n && typeof n != `string` && (r = n), (i = ME(new FT(), r)));
+        ((a = e), n && typeof n != `string` && (r = n), (i = PE(new LT(), r)));
       else if (t && typeof t == `string` && n && typeof n == `string`) {
         let o = t,
           s = n,
-          c = SP(e);
+          c = wP(e);
         if (c.kind === `AccountConnString`) {
-          if (yy) {
-            let e = new YT(c.accountName, c.accountKey);
-            ((a = wP(wP(c.url, encodeURIComponent(o)), encodeURIComponent(s))),
-              r.proxyOptions || (r.proxyOptions = jy(c.proxyUri)),
-              (i = ME(e, r)));
+          if (xy) {
+            let e = new ZT(c.accountName, c.accountKey);
+            ((a = EP(EP(c.url, encodeURIComponent(o)), encodeURIComponent(s))),
+              r.proxyOptions || (r.proxyOptions = Ny(c.proxyUri)),
+              (i = PE(e, r)));
           } else throw Error(`Account connection string is only supported in Node.js environment`);
         } else if (c.kind === `SASConnString`)
-          ((a = wP(wP(c.url, encodeURIComponent(o)), encodeURIComponent(s)) + `?` + c.accountSas),
-            (i = ME(new FT(), r)));
+          ((a = EP(EP(c.url, encodeURIComponent(o)), encodeURIComponent(s)) + `?` + c.accountSas),
+            (i = PE(new LT(), r)));
         else
           throw Error(
             `Connection string must be either an Account connection string or a SAS connection string`,
@@ -48916,26 +48962,26 @@ var JF = C.promisify(k.stat),
     }
     withSnapshot(t) {
       return new e(
-        TP(this.url, wE.Parameters.SNAPSHOT, t.length === 0 ? void 0 : t),
+        DP(this.url, EE.Parameters.SNAPSHOT, t.length === 0 ? void 0 : t),
         this.pipeline,
       );
     }
     async query(e, t = {}) {
-      if ((MF(t.customerProvidedKey, this.isHttps), !yy))
+      if ((PF(t.customerProvidedKey, this.isHttps), !xy))
         throw Error(`This operation currently is only supported in Node.js.`);
       return Q.withSpan(
         `BlockBlobClient-query`,
         t,
         async (n) =>
-          new OF(
-            UP(
+          new AF(
+            GP(
               await this._blobContext.query({
                 abortSignal: t.abortSignal,
                 queryRequest: {
                   queryType: `SQL`,
                   expression: e,
-                  inputSerialization: zP(t.inputTextConfiguration),
-                  outputSerialization: zP(t.outputTextConfiguration),
+                  inputSerialization: VP(t.inputTextConfiguration),
+                  outputSerialization: VP(t.outputTextConfiguration),
                 },
                 leaseAccessConditions: t.conditions,
                 modifiedAccessConditions: { ...t.conditions, ifTags: t.conditions?.tagConditions },
@@ -48950,9 +48996,9 @@ var JF = C.promisify(k.stat),
     async upload(e, t, n = {}) {
       return (
         (n.conditions = n.conditions || {}),
-        MF(n.customerProvidedKey, this.isHttps),
+        PF(n.customerProvidedKey, this.isHttps),
         Q.withSpan(`BlockBlobClient-upload`, n, async (r) =>
-          UP(
+          GP(
             await this.blockBlobContext.upload(t, e, {
               abortSignal: n.abortSignal,
               blobHttpHeaders: n.blobHTTPHeaders,
@@ -48965,8 +49011,8 @@ var JF = C.promisify(k.stat),
               immutabilityPolicyExpiry: n.immutabilityPolicy?.expiriesOn,
               immutabilityPolicyMode: n.immutabilityPolicy?.policyMode,
               legalHold: n.legalHold,
-              tier: jF(n.tier),
-              blobTagsString: IP(n.tags),
+              tier: NF(n.tier),
+              blobTagsString: RP(n.tags),
               tracingOptions: r.tracingOptions,
             }),
           ),
@@ -48976,9 +49022,9 @@ var JF = C.promisify(k.stat),
     async syncUploadFromURL(e, t = {}) {
       return (
         (t.conditions = t.conditions || {}),
-        MF(t.customerProvidedKey, this.isHttps),
+        PF(t.customerProvidedKey, this.isHttps),
         Q.withSpan(`BlockBlobClient-syncUploadFromURL`, t, async (n) =>
-          UP(
+          GP(
             await this.blockBlobContext.putBlobFromUrl(0, e, {
               ...t,
               blobHttpHeaders: t.blobHTTPHeaders,
@@ -48992,9 +49038,9 @@ var JF = C.promisify(k.stat),
                 sourceIfTags: t.sourceConditions?.tagConditions,
               },
               cpkInfo: t.customerProvidedKey,
-              copySourceAuthorization: VP(t.sourceAuthorization),
-              tier: jF(t.tier),
-              blobTagsString: IP(t.tags),
+              copySourceAuthorization: UP(t.sourceAuthorization),
+              tier: NF(t.tier),
+              blobTagsString: RP(t.tags),
               copySourceTags: t.copySourceTags,
               fileRequestIntent: t.sourceShareTokenIntent,
               tracingOptions: n.tracingOptions,
@@ -49005,9 +49051,9 @@ var JF = C.promisify(k.stat),
     }
     async stageBlock(e, t, n, r = {}) {
       return (
-        MF(r.customerProvidedKey, this.isHttps),
+        PF(r.customerProvidedKey, this.isHttps),
         Q.withSpan(`BlockBlobClient-stageBlock`, r, async (i) =>
-          UP(
+          GP(
             await this.blockBlobContext.stageBlock(e, n, t, {
               abortSignal: r.abortSignal,
               leaseAccessConditions: r.conditions,
@@ -49024,18 +49070,18 @@ var JF = C.promisify(k.stat),
     }
     async stageBlockFromURL(e, t, n = 0, r, i = {}) {
       return (
-        MF(i.customerProvidedKey, this.isHttps),
+        PF(i.customerProvidedKey, this.isHttps),
         Q.withSpan(`BlockBlobClient-stageBlockFromURL`, i, async (a) =>
-          UP(
+          GP(
             await this.blockBlobContext.stageBlockFromURL(e, 0, t, {
               abortSignal: i.abortSignal,
               leaseAccessConditions: i.conditions,
               sourceContentMD5: i.sourceContentMD5,
               sourceContentCrc64: i.sourceContentCrc64,
-              sourceRange: n === 0 && !r ? void 0 : UF({ offset: n, count: r }),
+              sourceRange: n === 0 && !r ? void 0 : GF({ offset: n, count: r }),
               cpkInfo: i.customerProvidedKey,
               encryptionScope: i.encryptionScope,
-              copySourceAuthorization: VP(i.sourceAuthorization),
+              copySourceAuthorization: UP(i.sourceAuthorization),
               fileRequestIntent: i.sourceShareTokenIntent,
               tracingOptions: a.tracingOptions,
             }),
@@ -49046,9 +49092,9 @@ var JF = C.promisify(k.stat),
     async commitBlockList(e, t = {}) {
       return (
         (t.conditions = t.conditions || {}),
-        MF(t.customerProvidedKey, this.isHttps),
+        PF(t.customerProvidedKey, this.isHttps),
         Q.withSpan(`BlockBlobClient-commitBlockList`, t, async (n) =>
-          UP(
+          GP(
             await this.blockBlobContext.commitBlockList(
               { latest: e },
               {
@@ -49062,8 +49108,8 @@ var JF = C.promisify(k.stat),
                 immutabilityPolicyExpiry: t.immutabilityPolicy?.expiriesOn,
                 immutabilityPolicyMode: t.immutabilityPolicy?.policyMode,
                 legalHold: t.legalHold,
-                tier: jF(t.tier),
-                blobTagsString: IP(t.tags),
+                tier: NF(t.tier),
+                blobTagsString: RP(t.tags),
                 tracingOptions: n.tracingOptions,
               },
             ),
@@ -49073,7 +49119,7 @@ var JF = C.promisify(k.stat),
     }
     async getBlockList(e, t = {}) {
       return Q.withSpan(`BlockBlobClient-getBlockList`, t, async (n) => {
-        let r = UP(
+        let r = GP(
           await this.blockBlobContext.getBlockList(e, {
             abortSignal: t.abortSignal,
             leaseAccessConditions: t.conditions,
@@ -49086,7 +49132,7 @@ var JF = C.promisify(k.stat),
     }
     async uploadData(e, t = {}) {
       return Q.withSpan(`BlockBlobClient-uploadData`, t, async (t) => {
-        if (yy) {
+        if (xy) {
           let n;
           return (
             e instanceof Buffer
@@ -49111,31 +49157,31 @@ var JF = C.promisify(k.stat),
     }
     async uploadSeekableInternal(e, t, n = {}) {
       let r = n.blockSize ?? 0;
-      if (r < 0 || r > 4194304e3) throw RangeError(`blockSize option must be >= 0 and <= ${yE}`);
+      if (r < 0 || r > 4194304e3) throw RangeError(`blockSize option must be >= 0 and <= ${xE}`);
       let i = n.maxSingleShotSize ?? 268435456;
       if (i < 0 || i > 268435456)
-        throw RangeError(`maxSingleShotSize option must be >= 0 and <= ${vE}`);
+        throw RangeError(`maxSingleShotSize option must be >= 0 and <= ${bE}`);
       if (r === 0) {
         if (t > 4194304e3 * 5e4) throw RangeError(`${t} is too larger to upload to a block blob.`);
-        t > i && ((r = Math.ceil(t / bE)), r < 4194304 && (r = SE));
+        t > i && ((r = Math.ceil(t / SE)), r < 4194304 && (r = wE));
       }
       return (
         (n.blobHTTPHeaders ||= {}),
         (n.conditions ||= {}),
         Q.withSpan(`BlockBlobClient-uploadSeekableInternal`, n, async (a) => {
-          if (t <= i) return UP(await this.upload(e(0, t), t, a));
+          if (t <= i) return GP(await this.upload(e(0, t), t, a));
           let o = Math.floor((t - 1) / r) + 1;
           if (o > 5e4)
             throw RangeError(
-              `The buffer's size is too big or the BlockSize is too small;the number of blocks must be <= ${bE}`,
+              `The buffer's size is too big or the BlockSize is too small;the number of blocks must be <= ${SE}`,
             );
           let s = [],
-            c = vy(),
+            c = by(),
             l = 0,
-            u = new GF(n.concurrency);
+            u = new qF(n.concurrency);
           for (let i = 0; i < o; i++)
             u.addOperation(async () => {
-              let u = jP(c, i),
+              let u = NP(c, i),
                 d = r * i,
                 f = (i === o - 1 ? t : d + r) - d;
               (s.push(u),
@@ -49154,30 +49200,30 @@ var JF = C.promisify(k.stat),
     }
     async uploadFile(e, t = {}) {
       return Q.withSpan(`BlockBlobClient-uploadFile`, t, async (n) => {
-        let r = (await JF(e)).size;
+        let r = (await XF(e)).size;
         return this.uploadSeekableInternal(
-          (t, n) => () => YF(e, { autoClose: !0, end: n ? t + n - 1 : 1 / 0, start: t }),
+          (t, n) => () => ZF(e, { autoClose: !0, end: n ? t + n - 1 : 1 / 0, start: t }),
           r,
           { ...t, tracingOptions: n.tracingOptions },
         );
       });
     }
-    async uploadStream(e, t = xE, n = 5, r = {}) {
+    async uploadStream(e, t = CE, n = 5, r = {}) {
       return (
         (r.blobHTTPHeaders ||= {}),
         (r.conditions ||= {}),
         Q.withSpan(`BlockBlobClient-uploadStream`, r, async (i) => {
           let a = 0,
-            o = vy(),
+            o = by(),
             s = 0,
             c = [];
           return (
-            await new ST(
+            await new wT(
               e,
               t,
               n,
               async (e, t) => {
-                let n = jP(o, a);
+                let n = NP(o, a);
                 (c.push(n),
                   a++,
                   await this.stageBlock(n, e, t, {
@@ -49191,34 +49237,34 @@ var JF = C.promisify(k.stat),
               },
               Math.ceil((n / 4) * 3),
             ).do(),
-            UP(await this.commitBlockList(c, { ...r, tracingOptions: i.tracingOptions }))
+            GP(await this.commitBlockList(c, { ...r, tracingOptions: i.tracingOptions }))
           );
         })
       );
     }
   },
-  $F = class e extends XF {
+  tI = class e extends QF {
     pageBlobContext;
     constructor(e, t, n, r) {
       let i, a;
-      if (((r ||= {}), AE(t))) ((a = e), (i = t));
-      else if ((yy && t instanceof YT) || t instanceof FT || _b(t))
-        ((a = e), (r = n), (i = ME(t, r)));
-      else if (!t && typeof t != `string`) ((a = e), (i = ME(new FT(), r)));
+      if (((r ||= {}), ME(t))) ((a = e), (i = t));
+      else if ((xy && t instanceof ZT) || t instanceof LT || yb(t))
+        ((a = e), (r = n), (i = PE(t, r)));
+      else if (!t && typeof t != `string`) ((a = e), (i = PE(new LT(), r)));
       else if (t && typeof t == `string` && n && typeof n == `string`) {
         let o = t,
           s = n,
-          c = SP(e);
+          c = wP(e);
         if (c.kind === `AccountConnString`) {
-          if (yy) {
-            let e = new YT(c.accountName, c.accountKey);
-            ((a = wP(wP(c.url, encodeURIComponent(o)), encodeURIComponent(s))),
-              r.proxyOptions || (r.proxyOptions = jy(c.proxyUri)),
-              (i = ME(e, r)));
+          if (xy) {
+            let e = new ZT(c.accountName, c.accountKey);
+            ((a = EP(EP(c.url, encodeURIComponent(o)), encodeURIComponent(s))),
+              r.proxyOptions || (r.proxyOptions = Ny(c.proxyUri)),
+              (i = PE(e, r)));
           } else throw Error(`Account connection string is only supported in Node.js environment`);
         } else if (c.kind === `SASConnString`)
-          ((a = wP(wP(c.url, encodeURIComponent(o)), encodeURIComponent(s)) + `?` + c.accountSas),
-            (i = ME(new FT(), r)));
+          ((a = EP(EP(c.url, encodeURIComponent(o)), encodeURIComponent(s)) + `?` + c.accountSas),
+            (i = PE(new LT(), r)));
         else
           throw Error(
             `Connection string must be either an Account connection string or a SAS connection string`,
@@ -49228,16 +49274,16 @@ var JF = C.promisify(k.stat),
     }
     withSnapshot(t) {
       return new e(
-        TP(this.url, wE.Parameters.SNAPSHOT, t.length === 0 ? void 0 : t),
+        DP(this.url, EE.Parameters.SNAPSHOT, t.length === 0 ? void 0 : t),
         this.pipeline,
       );
     }
     async create(e, t = {}) {
       return (
         (t.conditions = t.conditions || {}),
-        MF(t.customerProvidedKey, this.isHttps),
+        PF(t.customerProvidedKey, this.isHttps),
         Q.withSpan(`PageBlobClient-create`, t, async (n) =>
-          UP(
+          GP(
             await this.pageBlobContext.create(0, e, {
               abortSignal: t.abortSignal,
               blobHttpHeaders: t.blobHTTPHeaders,
@@ -49250,8 +49296,8 @@ var JF = C.promisify(k.stat),
               immutabilityPolicyExpiry: t.immutabilityPolicy?.expiriesOn,
               immutabilityPolicyMode: t.immutabilityPolicy?.policyMode,
               legalHold: t.legalHold,
-              tier: jF(t.tier),
-              blobTagsString: IP(t.tags),
+              tier: NF(t.tier),
+              blobTagsString: RP(t.tags),
               tracingOptions: n.tracingOptions,
             }),
           ),
@@ -49262,7 +49308,7 @@ var JF = C.promisify(k.stat),
       return Q.withSpan(`PageBlobClient-createIfNotExists`, t, async (n) => {
         try {
           let r = { ifNoneMatch: `*` },
-            i = UP(await this.create(e, { ...t, conditions: r, tracingOptions: n.tracingOptions }));
+            i = GP(await this.create(e, { ...t, conditions: r, tracingOptions: n.tracingOptions }));
           return { succeeded: !0, ...i, _response: i._response };
         } catch (e) {
           if (e.details?.errorCode === `BlobAlreadyExists`)
@@ -49274,15 +49320,15 @@ var JF = C.promisify(k.stat),
     async uploadPages(e, t, n, r = {}) {
       return (
         (r.conditions = r.conditions || {}),
-        MF(r.customerProvidedKey, this.isHttps),
+        PF(r.customerProvidedKey, this.isHttps),
         Q.withSpan(`PageBlobClient-uploadPages`, r, async (i) =>
-          UP(
+          GP(
             await this.pageBlobContext.uploadPages(n, e, {
               abortSignal: r.abortSignal,
               leaseAccessConditions: r.conditions,
               modifiedAccessConditions: { ...r.conditions, ifTags: r.conditions?.tagConditions },
               requestOptions: { onUploadProgress: r.onProgress },
-              range: UF({ offset: t, count: n }),
+              range: GF({ offset: t, count: n }),
               sequenceNumberAccessConditions: r.conditions,
               transactionalContentMD5: r.transactionalContentMD5,
               transactionalContentCrc64: r.transactionalContentCrc64,
@@ -49298,14 +49344,14 @@ var JF = C.promisify(k.stat),
       return (
         (i.conditions = i.conditions || {}),
         (i.sourceConditions = i.sourceConditions || {}),
-        MF(i.customerProvidedKey, this.isHttps),
+        PF(i.customerProvidedKey, this.isHttps),
         Q.withSpan(`PageBlobClient-uploadPagesFromURL`, i, async (a) =>
-          UP(
+          GP(
             await this.pageBlobContext.uploadPagesFromURL(
               e,
-              UF({ offset: t, count: r }),
+              GF({ offset: t, count: r }),
               0,
-              UF({ offset: n, count: r }),
+              GF({ offset: n, count: r }),
               {
                 abortSignal: i.abortSignal,
                 sourceContentMD5: i.sourceContentMD5,
@@ -49321,7 +49367,7 @@ var JF = C.promisify(k.stat),
                 },
                 cpkInfo: i.customerProvidedKey,
                 encryptionScope: i.encryptionScope,
-                copySourceAuthorization: VP(i.sourceAuthorization),
+                copySourceAuthorization: UP(i.sourceAuthorization),
                 fileRequestIntent: i.sourceShareTokenIntent,
                 tracingOptions: a.tracingOptions,
               },
@@ -49334,12 +49380,12 @@ var JF = C.promisify(k.stat),
       return (
         (n.conditions = n.conditions || {}),
         Q.withSpan(`PageBlobClient-clearPages`, n, async (r) =>
-          UP(
+          GP(
             await this.pageBlobContext.clearPages(0, {
               abortSignal: n.abortSignal,
               leaseAccessConditions: n.conditions,
               modifiedAccessConditions: { ...n.conditions, ifTags: n.conditions?.tagConditions },
-              range: UF({ offset: e, count: t }),
+              range: GF({ offset: e, count: t }),
               sequenceNumberAccessConditions: n.conditions,
               cpkInfo: n.customerProvidedKey,
               encryptionScope: n.encryptionScope,
@@ -49353,13 +49399,13 @@ var JF = C.promisify(k.stat),
       return (
         (n.conditions = n.conditions || {}),
         Q.withSpan(`PageBlobClient-getPageRanges`, n, async (r) =>
-          PF(
-            UP(
+          IF(
+            GP(
               await this.pageBlobContext.getPageRanges({
                 abortSignal: n.abortSignal,
                 leaseAccessConditions: n.conditions,
                 modifiedAccessConditions: { ...n.conditions, ifTags: n.conditions?.tagConditions },
-                range: UF({ offset: e, count: t }),
+                range: GF({ offset: e, count: t }),
                 tracingOptions: r.tracingOptions,
               }),
             ),
@@ -49369,12 +49415,12 @@ var JF = C.promisify(k.stat),
     }
     async listPageRangesSegment(e = 0, t, n, r = {}) {
       return Q.withSpan(`PageBlobClient-getPageRangesSegment`, r, async (i) =>
-        UP(
+        GP(
           await this.pageBlobContext.getPageRanges({
             abortSignal: r.abortSignal,
             leaseAccessConditions: r.conditions,
             modifiedAccessConditions: { ...r.conditions, ifTags: r.conditions?.tagConditions },
-            range: UF({ offset: e, count: t }),
+            range: GF({ offset: e, count: t }),
             marker: n,
             maxPageSize: r.maxPageSize,
             tracingOptions: i.tracingOptions,
@@ -49393,7 +49439,7 @@ var JF = C.promisify(k.stat),
     }
     async *listPageRangeItems(e = 0, t, n = {}) {
       let r;
-      for await (let i of this.listPageRangeItemSegments(e, t, r, n)) yield* HP(i);
+      for await (let i of this.listPageRangeItemSegments(e, t, r, n)) yield* WP(i);
     }
     listPageRanges(e = 0, t, n = {}) {
       n.conditions = n.conditions || {};
@@ -49416,14 +49462,14 @@ var JF = C.promisify(k.stat),
       return (
         (r.conditions = r.conditions || {}),
         Q.withSpan(`PageBlobClient-getPageRangesDiff`, r, async (i) =>
-          PF(
-            UP(
+          IF(
+            GP(
               await this.pageBlobContext.getPageRangesDiff({
                 abortSignal: r.abortSignal,
                 leaseAccessConditions: r.conditions,
                 modifiedAccessConditions: { ...r.conditions, ifTags: r.conditions?.tagConditions },
                 prevsnapshot: n,
-                range: UF({ offset: e, count: t }),
+                range: GF({ offset: e, count: t }),
                 tracingOptions: i.tracingOptions,
               }),
             ),
@@ -49433,13 +49479,13 @@ var JF = C.promisify(k.stat),
     }
     async listPageRangesDiffSegment(e, t, n, r, i = {}) {
       return Q.withSpan(`PageBlobClient-getPageRangesDiffSegment`, i, async (a) =>
-        UP(
+        GP(
           await this.pageBlobContext.getPageRangesDiff({
             abortSignal: i?.abortSignal,
             leaseAccessConditions: i?.conditions,
             modifiedAccessConditions: { ...i?.conditions, ifTags: i?.conditions?.tagConditions },
             prevsnapshot: n,
-            range: UF({ offset: e, count: t }),
+            range: GF({ offset: e, count: t }),
             marker: r,
             maxPageSize: i?.maxPageSize,
             tracingOptions: a.tracingOptions,
@@ -49458,7 +49504,7 @@ var JF = C.promisify(k.stat),
     }
     async *listPageRangeDiffItems(e, t, n, r) {
       let i;
-      for await (let a of this.listPageRangeDiffItemSegments(e, t, n, i, r)) yield* HP(a);
+      for await (let a of this.listPageRangeDiffItemSegments(e, t, n, i, r)) yield* WP(a);
     }
     listPageRangesDiff(e, t, n, r = {}) {
       r.conditions = r.conditions || {};
@@ -49481,14 +49527,14 @@ var JF = C.promisify(k.stat),
       return (
         (r.conditions = r.conditions || {}),
         Q.withSpan(`PageBlobClient-GetPageRangesDiffForManagedDisks`, r, async (i) =>
-          PF(
-            UP(
+          IF(
+            GP(
               await this.pageBlobContext.getPageRangesDiff({
                 abortSignal: r.abortSignal,
                 leaseAccessConditions: r.conditions,
                 modifiedAccessConditions: { ...r.conditions, ifTags: r.conditions?.tagConditions },
                 prevSnapshotUrl: n,
-                range: UF({ offset: e, count: t }),
+                range: GF({ offset: e, count: t }),
                 tracingOptions: i.tracingOptions,
               }),
             ),
@@ -49500,7 +49546,7 @@ var JF = C.promisify(k.stat),
       return (
         (t.conditions = t.conditions || {}),
         Q.withSpan(`PageBlobClient-resize`, t, async (n) =>
-          UP(
+          GP(
             await this.pageBlobContext.resize(e, {
               abortSignal: t.abortSignal,
               leaseAccessConditions: t.conditions,
@@ -49516,7 +49562,7 @@ var JF = C.promisify(k.stat),
       return (
         (n.conditions = n.conditions || {}),
         Q.withSpan(`PageBlobClient-updateSequenceNumber`, n, async (r) =>
-          UP(
+          GP(
             await this.pageBlobContext.updateSequenceNumber(e, {
               abortSignal: n.abortSignal,
               blobSequenceNumber: t,
@@ -49530,7 +49576,7 @@ var JF = C.promisify(k.stat),
     }
     async startCopyIncremental(e, t = {}) {
       return Q.withSpan(`PageBlobClient-startCopyIncremental`, t, async (n) =>
-        UP(
+        GP(
           await this.pageBlobContext.copyIncremental(e, {
             abortSignal: t.abortSignal,
             modifiedAccessConditions: { ...t.conditions, ifTags: t.conditions?.tagConditions },
@@ -49540,33 +49586,33 @@ var JF = C.promisify(k.stat),
       );
     }
   },
-  eI = class extends Error {
+  nI = class extends Error {
     constructor(e) {
       (super(e), (this.name = `InvalidResponseError`));
     }
   },
-  tI = class extends Error {
+  rI = class extends Error {
     constructor(e) {
       let t = `Unable to make request: ${e}\nIf you are using self-hosted runners, please make sure your runner has access to all GitHub endpoints: https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners#communication-between-self-hosted-runners-and-github`;
       (super(t), (this.code = e), (this.name = `NetworkError`));
     }
   };
-tI.isNetworkErrorCode = (e) =>
+rI.isNetworkErrorCode = (e) =>
   e ? [`ECONNRESET`, `ENOTFOUND`, `ETIMEDOUT`, `ECONNREFUSED`, `EHOSTUNREACH`].includes(e) : !1;
-var nI = class extends Error {
+var iI = class extends Error {
   constructor() {
     (super(`Cache storage quota has been hit. Unable to upload any new cache entries.
 More info on storage limits: https://docs.github.com/en/billing/managing-billing-for-github-actions/about-billing-for-github-actions#calculating-minute-and-storage-spending`),
       (this.name = `UsageError`));
   }
 };
-nI.isUsageErrorMessage = (e) => (e ? e.includes(`insufficient usage`) : !1);
-var rI = class extends Error {
+iI.isUsageErrorMessage = (e) => (e ? e.includes(`insufficient usage`) : !1);
+var aI = class extends Error {
     constructor(e) {
       (super(e), (this.name = `RateLimitError`));
     }
   },
-  iI = function (e, t, n, r) {
+  oI = function (e, t, n, r) {
     function i(e) {
       return e instanceof n
         ? e
@@ -49595,7 +49641,7 @@ var rI = class extends Error {
       c((r = r.apply(e, t || [])).next());
     });
   },
-  aI = class {
+  sI = class {
     constructor(e) {
       ((this.contentLength = e),
         (this.sentBytes = 0),
@@ -49635,11 +49681,11 @@ var rI = class extends Error {
       ((this.timeoutHandle &&= (clearTimeout(this.timeoutHandle), void 0)), this.display());
     }
   };
-function oI(e, t, n) {
-  return iI(this, void 0, void 0, function* () {
-    let r = new XF(e),
+function cI(e, t, n) {
+  return oI(this, void 0, void 0, function* () {
+    let r = new QF(e),
       i = r.getBlockBlobClient(),
-      a = new aI(n?.archiveSizeBytes ?? 0),
+      a = new sI(n?.archiveSizeBytes ?? 0),
       o = {
         blockSize: n?.uploadChunkSize,
         concurrency: n?.uploadConcurrency,
@@ -49650,7 +49696,7 @@ function oI(e, t, n) {
       (a.startDisplayTimer(), P(`BlobClient: ${r.name}:${r.accountName}:${r.containerName}`));
       let e = yield i.uploadFile(t, o);
       if (e._response.status >= 400)
-        throw new eI(`uploadCacheArchiveSDK: upload failed with status code ${e._response.status}`);
+        throw new nI(`uploadCacheArchiveSDK: upload failed with status code ${e._response.status}`);
       return e;
     } catch (e) {
       throw (Gr(`uploadCacheArchiveSDK: internal error uploading cache archive: ${e.message}`), e);
@@ -49659,7 +49705,7 @@ function oI(e, t, n) {
     }
   });
 }
-var sI = function (e, t, n, r) {
+var lI = function (e, t, n, r) {
   function i(e) {
     return e instanceof n
       ? e
@@ -49688,22 +49734,22 @@ var sI = function (e, t, n, r) {
     c((r = r.apply(e, t || [])).next());
   });
 };
-function cI(e) {
+function uI(e) {
   return e ? e >= 200 && e < 300 : !1;
 }
-function lI(e) {
+function dI(e) {
   return !e || e >= 500;
 }
-function uI(e) {
+function fI(e) {
   return e ? [Ln.BadGateway, Ln.ServiceUnavailable, Ln.GatewayTimeout].includes(e) : !1;
 }
-function dI(e) {
-  return sI(this, void 0, void 0, function* () {
+function pI(e) {
+  return lI(this, void 0, void 0, function* () {
     return new Promise((t) => setTimeout(t, e));
   });
 }
-function fI(e, t, n) {
-  return sI(this, arguments, void 0, function* (e, t, n, r = 2, i = Xh, a = void 0) {
+function mI(e, t, n) {
+  return lI(this, arguments, void 0, function* (e, t, n, r = 2, i = Qh, a = void 0) {
     let o = ``,
       s = 1;
     for (; s <= r;) {
@@ -49715,23 +49761,23 @@ function fI(e, t, n) {
       } catch (e) {
         (a && (c = a(e)), (u = !0), (o = e.message));
       }
-      if (c && ((l = n(c)), !lI(l))) return c;
+      if (c && ((l = n(c)), !dI(l))) return c;
       if (
-        (l && ((u = uI(l)), (o = `Cache service responded with ${l}`)),
+        (l && ((u = fI(l)), (o = `Cache service responded with ${l}`)),
         P(`${e} - Attempt ${s} of ${r} failed with error: ${o}`),
         !u)
       ) {
         P(`${e} - Error is not retryable`);
         break;
       }
-      (yield dI(i), s++);
+      (yield pI(i), s++);
     }
     throw Error(`${e} failed: ${o}`);
   });
 }
-function pI(e, t) {
-  return sI(this, arguments, void 0, function* (e, t, n = 2, r = Xh) {
-    return yield fI(
+function hI(e, t) {
+  return lI(this, arguments, void 0, function* (e, t, n = 2, r = Qh) {
+    return yield mI(
       e,
       t,
       (e) => e.statusCode,
@@ -49744,12 +49790,12 @@ function pI(e, t) {
     );
   });
 }
-function mI(e, t) {
-  return sI(this, arguments, void 0, function* (e, t, n = 2, r = Xh) {
-    return yield fI(e, t, (e) => e.message.statusCode, n, r);
+function gI(e, t) {
+  return lI(this, arguments, void 0, function* (e, t, n = 2, r = Qh) {
+    return yield mI(e, t, (e) => e.message.statusCode, n, r);
   });
 }
-var hI = function (e, t, n, r) {
+var _I = function (e, t, n, r) {
   function i(e) {
     return e instanceof n
       ? e
@@ -49778,12 +49824,12 @@ var hI = function (e, t, n, r) {
     c((r = r.apply(e, t || [])).next());
   });
 };
-function gI(e, t) {
-  return hI(this, void 0, void 0, function* () {
+function vI(e, t) {
+  return _I(this, void 0, void 0, function* () {
     yield v.promisify(le.pipeline)(e.message, t);
   });
 }
-var _I = class {
+var yI = class {
   constructor(e) {
     ((this.contentLength = e),
       (this.segmentIndex = 0),
@@ -49833,35 +49879,35 @@ var _I = class {
     ((this.timeoutHandle &&= (clearTimeout(this.timeoutHandle), void 0)), this.display());
   }
 };
-function vI(e, t) {
-  return hI(this, void 0, void 0, function* () {
+function bI(e, t) {
+  return _I(this, void 0, void 0, function* () {
     let n = a.createWriteStream(t),
       r = new qn(`actions/cache`),
-      i = yield mI(`downloadCache`, () =>
-        hI(this, void 0, void 0, function* () {
+      i = yield gI(`downloadCache`, () =>
+        _I(this, void 0, void 0, function* () {
           return r.get(e);
         }),
       );
-    (i.message.socket.setTimeout(Zh, () => {
-      (i.message.destroy(), P(`Aborting download, socket timed out after ${Zh} ms`));
+    (i.message.socket.setTimeout($h, () => {
+      (i.message.destroy(), P(`Aborting download, socket timed out after ${$h} ms`));
     }),
-      yield gI(i, n));
+      yield vI(i, n));
     let o = i.message.headers[`content-length`];
     if (o) {
       let e = parseInt(o),
-        n = sg(t);
+        n = lg(t);
       if (n !== e)
         throw Error(`Incomplete download. Expected file size: ${e}, actual file size: ${n}`);
     } else P(`Unable to validate download, no Content-Length header`);
   });
 }
-function yI(e, t, n) {
-  return hI(this, void 0, void 0, function* () {
+function xI(e, t, n) {
+  return _I(this, void 0, void 0, function* () {
     let r = yield a.promises.open(t, `w`),
       i = new qn(`actions/cache`, void 0, { socketTimeout: n.timeoutInMs, keepAlive: !0 });
     try {
-      let t = (yield mI(`downloadCacheMetadata`, () =>
-        hI(this, void 0, void 0, function* () {
+      let t = (yield gI(`downloadCacheMetadata`, () =>
+        _I(this, void 0, void 0, function* () {
           return yield i.request(`HEAD`, e, null, {});
         }),
       )).message.headers[`content-length`];
@@ -49875,21 +49921,21 @@ function yI(e, t, n) {
         o.push({
           offset: t,
           promiseGetter: () =>
-            hI(this, void 0, void 0, function* () {
-              return yield bI(i, e, t, n);
+            _I(this, void 0, void 0, function* () {
+              return yield SI(i, e, t, n);
             }),
         });
       }
       o.reverse();
       let c = 0,
         l = 0,
-        u = new _I(a);
+        u = new yI(a);
       u.startDisplayTimer();
       let d = u.onProgress(),
         f = [],
         p,
         m = () =>
-          hI(this, void 0, void 0, function* () {
+          _I(this, void 0, void 0, function* () {
             let e = yield Promise.race(Object.values(f));
             (yield r.write(e.buffer, 0, e.count, e.offset),
               c--,
@@ -49905,12 +49951,12 @@ function yI(e, t, n) {
     }
   });
 }
-function bI(e, t, n, r) {
-  return hI(this, void 0, void 0, function* () {
+function SI(e, t, n, r) {
+  return _I(this, void 0, void 0, function* () {
     let i = 0;
     for (;;)
       try {
-        let i = yield CI(3e4, xI(e, t, n, r));
+        let i = yield TI(3e4, CI(e, t, n, r));
         if (typeof i == `string`) throw Error(`downloadSegmentRetry failed due to timeout`);
         return i;
       } catch (e) {
@@ -49919,10 +49965,10 @@ function bI(e, t, n, r) {
       }
   });
 }
-function xI(e, t, n, r) {
-  return hI(this, void 0, void 0, function* () {
-    let i = yield mI(`downloadCachePart`, () =>
-      hI(this, void 0, void 0, function* () {
+function CI(e, t, n, r) {
+  return _I(this, void 0, void 0, function* () {
+    let i = yield gI(`downloadCachePart`, () =>
+      _I(this, void 0, void 0, function* () {
         return yield e.get(t, { Range: `bytes=${n}-${n + r - 1}` });
       }),
     );
@@ -49930,16 +49976,16 @@ function xI(e, t, n, r) {
     return { offset: n, count: r, buffer: yield i.readBodyBuffer() };
   });
 }
-function SI(e, t, n) {
-  return hI(this, void 0, void 0, function* () {
-    let r = new QF(e, void 0, { retryOptions: { tryTimeoutInMs: n.timeoutInMs } }),
+function wI(e, t, n) {
+  return _I(this, void 0, void 0, function* () {
+    let r = new eI(e, void 0, { retryOptions: { tryTimeoutInMs: n.timeoutInMs } }),
       i = (yield r.getProperties()).contentLength ?? -1;
     if (i < 0)
       (P(`Unable to determine content length, downloading file with http-client...`),
-        yield vI(e, t));
+        yield bI(e, t));
     else {
       let e = Math.min(134217728, _e.constants.MAX_LENGTH),
-        o = new _I(i),
+        o = new yI(i),
         s = a.openSync(t, `w`);
       try {
         o.startDisplayTimer();
@@ -49949,7 +49995,7 @@ function SI(e, t, n) {
           let l = o.segmentOffset + o.segmentSize,
             u = Math.min(e, i - l);
           o.nextSegment(u);
-          let d = yield CI(
+          let d = yield TI(
             n.segmentTimeoutInMs || 36e5,
             r.downloadToBuffer(l, u, {
               abortSignal: c,
@@ -49969,15 +50015,15 @@ function SI(e, t, n) {
     }
   });
 }
-var CI = (e, t) =>
-  hI(void 0, void 0, void 0, function* () {
+var TI = (e, t) =>
+  _I(void 0, void 0, void 0, function* () {
     let n,
       r = new Promise((t) => {
         n = setTimeout(() => t(`timeout`), e);
       });
     return Promise.race([t, r]).then((e) => (clearTimeout(n), e));
   });
-function wI(e) {
+function EI(e) {
   let t = { useAzureSdk: !1, uploadConcurrency: 4, uploadChunkSize: 33554432 };
   return (
     e &&
@@ -49996,7 +50042,7 @@ function wI(e) {
     t
   );
 }
-function TI(e) {
+function DI(e) {
   let t = {
     useAzureSdk: !1,
     concurrentBlobDownloads: !0,
@@ -50025,7 +50071,7 @@ function TI(e) {
     t
   );
 }
-function EI() {
+function OI() {
   let e = new URL(process.env.GITHUB_SERVER_URL || `https://github.com`).hostname
       .trimEnd()
       .toUpperCase(),
@@ -50034,21 +50080,21 @@ function EI() {
     r = e.endsWith(`.LOCALHOST`);
   return !t && !n && !r;
 }
-function DI() {
-  return EI() ? `v1` : process.env.ACTIONS_CACHE_SERVICE_V2 ? `v2` : `v1`;
-}
-var OI = [`none`, `read`, `write`, `write-only`];
 function kI() {
+  return OI() ? `v1` : process.env.ACTIONS_CACHE_SERVICE_V2 ? `v2` : `v1`;
+}
+var AI = [`none`, `read`, `write`, `write-only`];
+function jI() {
   return (process.env.ACTIONS_CACHE_MODE || ``).trim().toLowerCase();
 }
-function AI(e) {
-  return !OI.includes(e) || e === `read` || e === `write`;
+function MI(e) {
+  return !AI.includes(e) || e === `read` || e === `write`;
 }
-function jI(e) {
-  return !OI.includes(e) || e === `write` || e === `write-only`;
+function NI(e) {
+  return !AI.includes(e) || e === `write` || e === `write-only`;
 }
-function MI() {
-  let e = DI();
+function PI() {
+  let e = kI();
   switch (e) {
     case `v1`:
       return process.env.ACTIONS_CACHE_URL || process.env.ACTIONS_RESULTS_URL || ``;
@@ -50058,30 +50104,28 @@ function MI() {
       throw Error(`Unsupported cache service version: ${e}`);
   }
 }
-var NI = De({
-    bugs: () => JI,
-    default: () => QI,
-    dependencies: () => YI,
-    description: () => II,
-    devDependencies: () => XI,
-    directories: () => UI,
-    exports: () => HI,
-    files: () => WI,
-    homepage: () => RI,
-    keywords: () => LI,
+var FI = De({
+    bugs: () => XI,
+    default: () => eL,
+    dependencies: () => ZI,
+    description: () => RI,
+    devDependencies: () => QI,
+    directories: () => GI,
+    exports: () => WI,
+    files: () => KI,
+    homepage: () => BI,
+    keywords: () => zI,
     license: () => `MIT`,
-    main: () => BI,
-    name: () => PI,
-    overrides: () => ZI,
-    publishConfig: () => GI,
-    repository: () => KI,
-    scripts: () => qI,
-    type: () => zI,
-    types: () => VI,
-    version: () => FI,
+    main: () => HI,
+    name: () => II,
+    overrides: () => $I,
+    publishConfig: () => qI,
+    repository: () => JI,
+    scripts: () => YI,
+    type: () => VI,
+    types: () => UI,
+    version: () => LI,
   }),
-  PI,
-  FI,
   II,
   LI,
   RI,
@@ -50099,31 +50143,33 @@ var NI = De({
   XI,
   ZI,
   QI,
-  $I = Ee(() => {
-    ((PI = `@actions/cache`),
-      (FI = `6.3.0`),
-      (II = `Actions cache lib`),
-      (LI = [`github`, `actions`, `cache`]),
-      (RI = `https://github.com/actions/toolkit/tree/main/packages/cache`),
-      (zI = `module`),
-      (BI = `lib/cache.js`),
-      (VI = `lib/cache.d.ts`),
-      (HI = { ".": { types: `./lib/cache.d.ts`, import: `./lib/cache.js` } }),
-      (UI = { lib: `lib`, test: `__tests__` }),
-      (WI = [`lib`, `!.DS_Store`]),
-      (GI = { access: `public` }),
-      (KI = {
+  $I,
+  eL,
+  tL = Ee(() => {
+    ((II = `@actions/cache`),
+      (LI = `6.3.0`),
+      (RI = `Actions cache lib`),
+      (zI = [`github`, `actions`, `cache`]),
+      (BI = `https://github.com/actions/toolkit/tree/main/packages/cache`),
+      (VI = `module`),
+      (HI = `lib/cache.js`),
+      (UI = `lib/cache.d.ts`),
+      (WI = { ".": { types: `./lib/cache.d.ts`, import: `./lib/cache.js` } }),
+      (GI = { lib: `lib`, test: `__tests__` }),
+      (KI = [`lib`, `!.DS_Store`]),
+      (qI = { access: `public` }),
+      (JI = {
         type: `git`,
         url: `git+https://github.com/actions/toolkit.git`,
         directory: `packages/cache`,
       }),
-      (qI = {
+      (YI = {
         "audit-moderate": `npm install && npm audit --json --audit-level=moderate > audit.json`,
         test: `echo "Error: run tests from root" && exit 1`,
         tsc: `tsc && cp src/internal/shared/package-version.cjs lib/internal/shared/`,
       }),
-      (JI = { url: `https://github.com/actions/toolkit/issues` }),
-      (YI = {
+      (XI = { url: `https://github.com/actions/toolkit/issues` }),
+      (ZI = {
         "@actions/core": `^3.0.1`,
         "@actions/exec": `^3.0.0`,
         "@actions/glob": `^0.7.0`,
@@ -50134,42 +50180,42 @@ var NI = De({
         "@protobuf-ts/runtime-rpc": `^2.11.1`,
         semver: `^7.8.5`,
       }),
-      (XI = {
+      (QI = {
         "@protobuf-ts/plugin": `^2.11.1`,
         "@types/node": `^25.9.8`,
         "@types/semver": `^7.8.0`,
         typescript: `^5.9.3`,
       }),
-      (ZI = { "uri-js": `npm:uri-js-replace@^1.0.1`, "node-fetch": `^3.3.2` }),
-      (QI = {
-        name: PI,
-        version: FI,
-        description: II,
-        keywords: LI,
-        homepage: RI,
+      ($I = { "uri-js": `npm:uri-js-replace@^1.0.1`, "node-fetch": `^3.3.2` }),
+      (eL = {
+        name: II,
+        version: LI,
+        description: RI,
+        keywords: zI,
+        homepage: BI,
         license: `MIT`,
-        type: zI,
-        main: BI,
-        types: VI,
-        exports: HI,
-        directories: UI,
-        files: WI,
-        publishConfig: GI,
-        repository: KI,
-        scripts: qI,
-        bugs: JI,
-        dependencies: YI,
-        devDependencies: XI,
-        overrides: ZI,
+        type: VI,
+        main: HI,
+        types: UI,
+        exports: WI,
+        directories: GI,
+        files: KI,
+        publishConfig: qI,
+        repository: JI,
+        scripts: YI,
+        bugs: XI,
+        dependencies: ZI,
+        devDependencies: QI,
+        overrides: $I,
       }));
   }),
-  eL = M((e, t) => {
-    t.exports = { version: ($I(), Ae(NI).default).version };
+  nL = M((e, t) => {
+    t.exports = { version: (tL(), Ae(FI).default).version };
   })();
-function tL() {
-  return `@actions/cache-${eL.version}`;
+function rL() {
+  return `@actions/cache-${nL.version}`;
 }
-var nL = function (e, t, n, r) {
+var iL = function (e, t, n, r) {
   function i(e) {
     return e instanceof n
       ? e
@@ -50198,34 +50244,34 @@ var nL = function (e, t, n, r) {
     c((r = r.apply(e, t || [])).next());
   });
 };
-function rL(e) {
-  let t = MI();
+function aL(e) {
+  let t = PI();
   if (!t) throw Error(`Cache Service Url not found, unable to restore cache.`);
   let n = `${t}_apis/artifactcache/${e}`;
   return (P(`Resource Url: ${n}`), n);
 }
-function iL(e, t) {
+function oL(e, t) {
   return `${e};api-version=${t}`;
 }
-function aL() {
-  return { headers: { Accept: iL(`application/json`, `6.0-preview.1`) } };
+function sL() {
+  return { headers: { Accept: oL(`application/json`, `6.0-preview.1`) } };
 }
-function oL() {
+function cL() {
   let e = new Xn(process.env.ACTIONS_RUNTIME_TOKEN || ``);
-  return new qn(tL(), [e], aL());
+  return new qn(rL(), [e], sL());
 }
-function sL(e, t, n) {
-  return nL(this, void 0, void 0, function* () {
-    let r = oL(),
-      i = hg(t, n?.compressionMethod, n?.enableCrossOsArchive),
+function lL(e, t, n) {
+  return iL(this, void 0, void 0, function* () {
+    let r = cL(),
+      i = _g(t, n?.compressionMethod, n?.enableCrossOsArchive),
       a = `cache?keys=${encodeURIComponent(e.join(`,`))}&version=${i}`,
-      o = yield pI(`getCacheEntry`, () =>
-        nL(this, void 0, void 0, function* () {
-          return r.getJson(rL(a));
+      o = yield hI(`getCacheEntry`, () =>
+        iL(this, void 0, void 0, function* () {
+          return r.getJson(aL(a));
         }),
       );
-    if (o.statusCode === 204) return (Ur() && (yield cL(e[0], r, i)), null);
-    if (!cI(o.statusCode)) {
+    if (o.statusCode === 204) return (Ur() && (yield uL(e[0], r, i)), null);
+    if (!uI(o.statusCode)) {
       let e = o.error?.message;
       throw e?.includes(`cache read denied:`)
         ? Error(e)
@@ -50237,12 +50283,12 @@ function sL(e, t, n) {
     return (Br(c), P(`Cache Result:`), P(JSON.stringify(s)), s);
   });
 }
-function cL(e, t, n) {
-  return nL(this, void 0, void 0, function* () {
+function uL(e, t, n) {
+  return iL(this, void 0, void 0, function* () {
     let r = `caches?key=${encodeURIComponent(e)}`,
-      i = yield pI(`listCache`, () =>
-        nL(this, void 0, void 0, function* () {
-          return t.getJson(rL(r));
+      i = yield hI(`listCache`, () =>
+        iL(this, void 0, void 0, function* () {
+          return t.getJson(aL(r));
         }),
       );
     if (i.statusCode === 200) {
@@ -50260,71 +50306,71 @@ function cL(e, t, n) {
     }
   });
 }
-function lL(e, t, n) {
-  return nL(this, void 0, void 0, function* () {
+function dL(e, t, n) {
+  return iL(this, void 0, void 0, function* () {
     let r = new de(e),
-      i = TI(n);
+      i = DI(n);
     r.hostname.endsWith(`.blob.core.windows.net`)
       ? i.useAzureSdk
-        ? yield SI(e, t, i)
+        ? yield wI(e, t, i)
         : i.concurrentBlobDownloads
-          ? yield yI(e, t, i)
-          : yield vI(e, t)
-      : yield vI(e, t);
+          ? yield xI(e, t, i)
+          : yield bI(e, t)
+      : yield bI(e, t);
   });
 }
-function uL(e, t, n) {
-  return nL(this, void 0, void 0, function* () {
-    let r = oL(),
+function fL(e, t, n) {
+  return iL(this, void 0, void 0, function* () {
+    let r = cL(),
       i = {
         key: e,
-        version: hg(t, n?.compressionMethod, n?.enableCrossOsArchive),
+        version: _g(t, n?.compressionMethod, n?.enableCrossOsArchive),
         cacheSize: n?.cacheSize,
       };
-    return yield pI(`reserveCache`, () =>
-      nL(this, void 0, void 0, function* () {
-        return r.postJson(rL(`caches`), i);
+    return yield hI(`reserveCache`, () =>
+      iL(this, void 0, void 0, function* () {
+        return r.postJson(aL(`caches`), i);
       }),
     );
   });
 }
-function dL(e, t) {
+function pL(e, t) {
   return `bytes ${e}-${t}/*`;
 }
-function fL(e, t, n, r, i) {
-  return nL(this, void 0, void 0, function* () {
-    P(`Uploading chunk of size ${i - r + 1} bytes at offset ${r} with content range: ${dL(r, i)}`);
-    let a = { "Content-Type": `application/octet-stream`, "Content-Range": dL(r, i) },
-      o = yield mI(`uploadChunk (start: ${r}, end: ${i})`, () =>
-        nL(this, void 0, void 0, function* () {
+function mL(e, t, n, r, i) {
+  return iL(this, void 0, void 0, function* () {
+    P(`Uploading chunk of size ${i - r + 1} bytes at offset ${r} with content range: ${pL(r, i)}`);
+    let a = { "Content-Type": `application/octet-stream`, "Content-Range": pL(r, i) },
+      o = yield gI(`uploadChunk (start: ${r}, end: ${i})`, () =>
+        iL(this, void 0, void 0, function* () {
           return e.sendStream(`PATCH`, t, n(), a);
         }),
       );
-    if (!cI(o.message.statusCode))
+    if (!uI(o.message.statusCode))
       throw Error(`Cache service responded with ${o.message.statusCode} during upload chunk.`);
   });
 }
-function pL(e, t, n, r) {
-  return nL(this, void 0, void 0, function* () {
-    let i = sg(n),
-      o = rL(`caches/${t.toString()}`),
+function hL(e, t, n, r) {
+  return iL(this, void 0, void 0, function* () {
+    let i = lg(n),
+      o = aL(`caches/${t.toString()}`),
       s = a.openSync(n, `r`),
-      c = wI(r),
-      l = mg(`uploadConcurrency`, c.uploadConcurrency),
-      u = mg(`uploadChunkSize`, c.uploadChunkSize),
+      c = EI(r),
+      l = gg(`uploadConcurrency`, c.uploadConcurrency),
+      u = gg(`uploadChunkSize`, c.uploadChunkSize),
       d = [...Array(l).keys()];
     P(`Awaiting all uploads`);
     let f = 0;
     try {
       yield Promise.all(
         d.map(() =>
-          nL(this, void 0, void 0, function* () {
+          iL(this, void 0, void 0, function* () {
             for (; f < i;) {
               let t = Math.min(i - f, u),
                 r = f,
                 c = f + t - 1;
               ((f += u),
-                yield fL(
+                yield mL(
                   e,
                   o,
                   () =>
@@ -50347,34 +50393,34 @@ function pL(e, t, n, r) {
     }
   });
 }
-function mL(e, t, n) {
-  return nL(this, void 0, void 0, function* () {
+function gL(e, t, n) {
+  return iL(this, void 0, void 0, function* () {
     let r = { size: n };
-    return yield pI(`commitCache`, () =>
-      nL(this, void 0, void 0, function* () {
-        return e.postJson(rL(`caches/${t.toString()}`), r);
+    return yield hI(`commitCache`, () =>
+      iL(this, void 0, void 0, function* () {
+        return e.postJson(aL(`caches/${t.toString()}`), r);
       }),
     );
   });
 }
-function hL(e, t, n, r) {
-  return nL(this, void 0, void 0, function* () {
-    if (wI(r).useAzureSdk) {
+function _L(e, t, n, r) {
+  return iL(this, void 0, void 0, function* () {
+    if (EI(r).useAzureSdk) {
       if (!n) throw Error(`Azure Storage SDK can only be used when a signed URL is provided.`);
-      yield oI(n, t, r);
+      yield cI(n, t, r);
     } else {
-      let n = oL();
-      (P(`Upload cache`), yield pL(n, e, t, r), P(`Commiting cache`));
-      let i = sg(t);
+      let n = cL();
+      (P(`Upload cache`), yield hL(n, e, t, r), P(`Commiting cache`));
+      let i = lg(t);
       F(`Cache Size: ~${Math.round(i / 1048576)} MB (${i} B)`);
-      let a = yield mL(n, e, i);
-      if (!cI(a.statusCode))
+      let a = yield gL(n, e, i);
+      if (!uI(a.statusCode))
         throw Error(`Cache service responded with ${a.statusCode} during commit cache.`);
       F(`Cache saved successfully`);
     }
   });
 }
-function gL(e) {
+function vL(e) {
   let t = typeof e;
   if (t == `object`) {
     if (Array.isArray(e)) return `array`;
@@ -50382,14 +50428,14 @@ function gL(e) {
   }
   return t;
 }
-function _L(e) {
+function yL(e) {
   return typeof e == `object` && !!e && !Array.isArray(e);
 }
-var vL = `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/`.split(``),
-  yL = [];
-for (let e = 0; e < vL.length; e++) yL[vL[e].charCodeAt(0)] = e;
-((yL[45] = vL.indexOf(`+`)), (yL[95] = vL.indexOf(`/`)));
-function bL(e) {
+var bL = `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/`.split(``),
+  xL = [];
+for (let e = 0; e < bL.length; e++) xL[bL[e].charCodeAt(0)] = e;
+((xL[45] = bL.indexOf(`+`)), (xL[95] = bL.indexOf(`/`)));
+function SL(e) {
   let t = (e.length * 3) / 4;
   e[e.length - 2] == `=` ? (t -= 2) : e[e.length - 1] == `=` && --t;
   let n = new Uint8Array(t),
@@ -50398,7 +50444,7 @@ function bL(e) {
     a,
     o = 0;
   for (let t = 0; t < e.length; t++) {
-    if (((a = yL[e.charCodeAt(t)]), a === void 0))
+    if (((a = xL[e.charCodeAt(t)]), a === void 0))
       switch (e[t]) {
         case `=`:
           i = 0;
@@ -50428,7 +50474,7 @@ function bL(e) {
   if (i == 1) throw Error(`invalid base64 string.`);
   return n.subarray(0, r);
 }
-function xL(e) {
+function CL(e) {
   let t = ``,
     n = 0,
     r,
@@ -50436,17 +50482,17 @@ function xL(e) {
   for (let a = 0; a < e.length; a++)
     switch (((r = e[a]), n)) {
       case 0:
-        ((t += vL[r >> 2]), (i = (r & 3) << 4), (n = 1));
+        ((t += bL[r >> 2]), (i = (r & 3) << 4), (n = 1));
         break;
       case 1:
-        ((t += vL[i | (r >> 4)]), (i = (r & 15) << 2), (n = 2));
+        ((t += bL[i | (r >> 4)]), (i = (r & 15) << 2), (n = 2));
         break;
       case 2:
-        ((t += vL[i | (r >> 6)]), (t += vL[r & 63]), (n = 0));
+        ((t += bL[i | (r >> 6)]), (t += bL[r & 63]), (n = 0));
     }
-  return (n && ((t += vL[i]), (t += `=`), n == 1 && (t += `=`)), t);
+  return (n && ((t += bL[i]), (t += `=`), n == 1 && (t += `=`)), t);
 }
-var SL;
+var wL;
 (function (e) {
   ((e.symbol = Symbol.for(`protobuf-ts/unknown`)),
     (e.onRead = (n, r, i, a, o) => {
@@ -50464,8 +50510,8 @@ var SL;
     }),
     (e.last = (t, n) => e.list(t, n).slice(-1)[0]));
   let t = (t) => t && Array.isArray(t[e.symbol]);
-})((SL ||= {}));
-var CL;
+})((wL ||= {}));
+var TL;
 (function (e) {
   ((e[(e.Varint = 0)] = `Varint`),
     (e[(e.Bit64 = 1)] = `Bit64`),
@@ -50473,8 +50519,8 @@ var CL;
     (e[(e.StartGroup = 3)] = `StartGroup`),
     (e[(e.EndGroup = 4)] = `EndGroup`),
     (e[(e.Bit32 = 5)] = `Bit32`));
-})((CL ||= {}));
-function wL() {
+})((TL ||= {}));
+function EL() {
   let e = 0,
     t = 0;
   for (let n = 0; n < 28; n += 7) {
@@ -50490,7 +50536,7 @@ function wL() {
   }
   throw Error(`invalid varint`);
 }
-function TL(e, t, n) {
+function DL(e, t, n) {
   for (let r = 0; r < 28; r += 7) {
     let i = e >>> r,
       a = !(!(i >>> 7) && t == 0),
@@ -50509,8 +50555,8 @@ function TL(e, t, n) {
     n.push((t >>> 31) & 1);
   }
 }
-var EL = 4294967296;
-function DL(e) {
+var OL = 4294967296;
+function kL(e) {
   let t = e[0] == `-`;
   t && (e = e.slice(1));
   let n = 1e6,
@@ -50518,12 +50564,12 @@ function DL(e) {
     i = 0;
   function a(t, a) {
     let o = Number(e.slice(t, a));
-    ((i *= n), (r = r * n + o), r >= EL && ((i += (r / EL) | 0), (r %= EL)));
+    ((i *= n), (r = r * n + o), r >= OL && ((i += (r / OL) | 0), (r %= OL)));
   }
   return (a(-24, -18), a(-18, -12), a(-12, -6), a(-6), [t, r, i]);
 }
-function OL(e, t) {
-  if (t >>> 0 <= 2097151) return `` + (EL * t + (e >>> 0));
+function AL(e, t) {
+  if (t >>> 0 <= 2097151) return `` + (OL * t + (e >>> 0));
   let n = e & 16777215,
     r = (((e >>> 24) | (t << 8)) >>> 0) & 16777215,
     i = (t >> 16) & 65535,
@@ -50538,7 +50584,7 @@ function OL(e, t) {
   }
   return l(s, 0) + l(o, s) + l(a, 1);
 }
-function kL(e, t) {
+function jL(e, t) {
   if (e >= 0) {
     for (; e > 127;) (t.push((e & 127) | 128), (e >>>= 7));
     t.push(e);
@@ -50547,7 +50593,7 @@ function kL(e, t) {
     t.push(1);
   }
 }
-function AL() {
+function ML() {
   let e = this.buf[this.pos++],
     t = e & 127;
   if (
@@ -50562,10 +50608,10 @@ function AL() {
   if (e & 128) throw Error(`invalid varint`);
   return (this.assertBounds(), t >>> 0);
 }
-var jL;
-function ML() {
+var NL;
+function PL() {
   let e = new DataView(new ArrayBuffer(8));
-  jL =
+  NL =
     globalThis.BigInt !== void 0 &&
     typeof e.getBigInt64 == `function` &&
     typeof e.getBigUint64 == `function` &&
@@ -50581,17 +50627,17 @@ function ML() {
         }
       : void 0;
 }
-ML();
-function NL(e) {
+PL();
+function FL(e) {
   if (!e)
     throw Error(
       `BigInt unavailable, see https://github.com/timostamm/protobuf-ts/blob/v1.0.8/MANUAL.md#bigint-support`,
     );
 }
-var PL = /^-?[0-9]+$/,
-  FL = 4294967296,
-  IL = 2147483648,
-  LL = class {
+var IL = /^-?[0-9]+$/,
+  LL = 4294967296,
+  RL = 2147483648,
+  zL = class {
     constructor(e, t) {
       ((this.lo = e | 0), (this.hi = t | 0));
     }
@@ -50599,94 +50645,94 @@ var PL = /^-?[0-9]+$/,
       return this.lo == 0 && this.hi == 0;
     }
     toNumber() {
-      let e = this.hi * FL + (this.lo >>> 0);
+      let e = this.hi * LL + (this.lo >>> 0);
       if (!Number.isSafeInteger(e)) throw Error(`cannot convert to safe number`);
       return e;
     }
   },
-  RL = class e extends LL {
+  BL = class e extends zL {
     static from(t) {
-      if (jL)
+      if (NL)
         switch (typeof t) {
           case `string`:
             if (t == `0`) return this.ZERO;
             if (t == ``) throw Error(`string is no integer`);
-            t = jL.C(t);
+            t = NL.C(t);
           case `number`:
             if (t === 0) return this.ZERO;
-            t = jL.C(t);
+            t = NL.C(t);
           case `bigint`:
             if (!t) return this.ZERO;
-            if (t < jL.UMIN) throw Error(`signed value for ulong`);
-            if (t > jL.UMAX) throw Error(`ulong too large`);
-            return (jL.V.setBigUint64(0, t, !0), new e(jL.V.getInt32(0, !0), jL.V.getInt32(4, !0)));
+            if (t < NL.UMIN) throw Error(`signed value for ulong`);
+            if (t > NL.UMAX) throw Error(`ulong too large`);
+            return (NL.V.setBigUint64(0, t, !0), new e(NL.V.getInt32(0, !0), NL.V.getInt32(4, !0)));
         }
       else
         switch (typeof t) {
           case `string`:
             if (t == `0`) return this.ZERO;
-            if (((t = t.trim()), !PL.test(t))) throw Error(`string is no integer`);
-            let [n, r, i] = DL(t);
+            if (((t = t.trim()), !IL.test(t))) throw Error(`string is no integer`);
+            let [n, r, i] = kL(t);
             if (n) throw Error(`signed value for ulong`);
             return new e(r, i);
           case `number`:
             if (t == 0) return this.ZERO;
             if (!Number.isSafeInteger(t)) throw Error(`number is no integer`);
             if (t < 0) throw Error(`signed value for ulong`);
-            return new e(t, t / FL);
+            return new e(t, t / LL);
         }
       throw Error(`unknown value ` + typeof t);
     }
     toString() {
-      return jL ? this.toBigInt().toString() : OL(this.lo, this.hi);
+      return NL ? this.toBigInt().toString() : AL(this.lo, this.hi);
     }
     toBigInt() {
       return (
-        NL(jL),
-        jL.V.setInt32(0, this.lo, !0),
-        jL.V.setInt32(4, this.hi, !0),
-        jL.V.getBigUint64(0, !0)
+        FL(NL),
+        NL.V.setInt32(0, this.lo, !0),
+        NL.V.setInt32(4, this.hi, !0),
+        NL.V.getBigUint64(0, !0)
       );
     }
   };
-RL.ZERO = new RL(0, 0);
-var zL = class e extends LL {
+BL.ZERO = new BL(0, 0);
+var VL = class e extends zL {
   static from(t) {
-    if (jL)
+    if (NL)
       switch (typeof t) {
         case `string`:
           if (t == `0`) return this.ZERO;
           if (t == ``) throw Error(`string is no integer`);
-          t = jL.C(t);
+          t = NL.C(t);
         case `number`:
           if (t === 0) return this.ZERO;
-          t = jL.C(t);
+          t = NL.C(t);
         case `bigint`:
           if (!t) return this.ZERO;
-          if (t < jL.MIN) throw Error(`signed long too small`);
-          if (t > jL.MAX) throw Error(`signed long too large`);
-          return (jL.V.setBigInt64(0, t, !0), new e(jL.V.getInt32(0, !0), jL.V.getInt32(4, !0)));
+          if (t < NL.MIN) throw Error(`signed long too small`);
+          if (t > NL.MAX) throw Error(`signed long too large`);
+          return (NL.V.setBigInt64(0, t, !0), new e(NL.V.getInt32(0, !0), NL.V.getInt32(4, !0)));
       }
     else
       switch (typeof t) {
         case `string`:
           if (t == `0`) return this.ZERO;
-          if (((t = t.trim()), !PL.test(t))) throw Error(`string is no integer`);
-          let [n, r, i] = DL(t);
+          if (((t = t.trim()), !IL.test(t))) throw Error(`string is no integer`);
+          let [n, r, i] = kL(t);
           if (n) {
-            if (i > IL || (i == IL && r != 0)) throw Error(`signed long too small`);
-          } else if (i >= IL) throw Error(`signed long too large`);
+            if (i > RL || (i == RL && r != 0)) throw Error(`signed long too small`);
+          } else if (i >= RL) throw Error(`signed long too large`);
           let a = new e(r, i);
           return n ? a.negate() : a;
         case `number`:
           if (t == 0) return this.ZERO;
           if (!Number.isSafeInteger(t)) throw Error(`number is no integer`);
-          return t > 0 ? new e(t, t / FL) : new e(-t, -t / FL).negate();
+          return t > 0 ? new e(t, t / LL) : new e(-t, -t / LL).negate();
       }
     throw Error(`unknown value ` + typeof t);
   }
   isNegative() {
-    return (this.hi & IL) !== 0;
+    return (this.hi & RL) !== 0;
   }
   negate() {
     let t = ~this.hi,
@@ -50694,28 +50740,28 @@ var zL = class e extends LL {
     return (n ? (n = ~n + 1) : (t += 1), new e(n, t));
   }
   toString() {
-    if (jL) return this.toBigInt().toString();
+    if (NL) return this.toBigInt().toString();
     if (this.isNegative()) {
       let e = this.negate();
-      return `-` + OL(e.lo, e.hi);
+      return `-` + AL(e.lo, e.hi);
     }
-    return OL(this.lo, this.hi);
+    return AL(this.lo, this.hi);
   }
   toBigInt() {
     return (
-      NL(jL), jL.V.setInt32(0, this.lo, !0), jL.V.setInt32(4, this.hi, !0), jL.V.getBigInt64(0, !0)
+      FL(NL), NL.V.setInt32(0, this.lo, !0), NL.V.setInt32(4, this.hi, !0), NL.V.getBigInt64(0, !0)
     );
   }
 };
-zL.ZERO = new zL(0, 0);
-var BL = { readUnknownField: !0, readerFactory: (e) => new HL(e) };
-function VL(e) {
-  return e ? Object.assign(Object.assign({}, BL), e) : BL;
+VL.ZERO = new VL(0, 0);
+var HL = { readUnknownField: !0, readerFactory: (e) => new WL(e) };
+function UL(e) {
+  return e ? Object.assign(Object.assign({}, HL), e) : HL;
 }
-var HL = class {
+var WL = class {
   constructor(e, t) {
-    ((this.varint64 = wL),
-      (this.uint32 = AL),
+    ((this.varint64 = EL),
+      (this.uint32 = ML),
       (this.buf = e),
       (this.len = e.length),
       (this.pos = 0),
@@ -50732,21 +50778,21 @@ var HL = class {
   skip(e) {
     let t = this.pos;
     switch (e) {
-      case CL.Varint:
+      case TL.Varint:
         for (; this.buf[this.pos++] & 128;);
         break;
-      case CL.Bit64:
+      case TL.Bit64:
         this.pos += 4;
-      case CL.Bit32:
+      case TL.Bit32:
         this.pos += 4;
         break;
-      case CL.LengthDelimited:
+      case TL.LengthDelimited:
         let t = this.uint32();
         this.pos += t;
         break;
-      case CL.StartGroup:
+      case TL.StartGroup:
         let n;
-        for (; (n = this.tag()[1]) !== CL.EndGroup;) this.skip(n);
+        for (; (n = this.tag()[1]) !== TL.EndGroup;) this.skip(n);
         break;
       default:
         throw Error(`cant skip wire type ` + e);
@@ -50764,15 +50810,15 @@ var HL = class {
     return (e >>> 1) ^ -(e & 1);
   }
   int64() {
-    return new zL(...this.varint64());
+    return new VL(...this.varint64());
   }
   uint64() {
-    return new RL(...this.varint64());
+    return new BL(...this.varint64());
   }
   sint64() {
     let [e, t] = this.varint64(),
       n = -(e & 1);
-    return ((e = ((e >>> 1) | ((t & 1) << 31)) ^ n), (t = (t >>> 1) ^ n), new zL(e, t));
+    return ((e = ((e >>> 1) | ((t & 1) << 31)) ^ n), (t = (t >>> 1) ^ n), new VL(e, t));
   }
   bool() {
     let [e, t] = this.varint64();
@@ -50785,10 +50831,10 @@ var HL = class {
     return this.view.getInt32((this.pos += 4) - 4, !0);
   }
   fixed64() {
-    return new RL(this.sfixed32(), this.sfixed32());
+    return new BL(this.sfixed32(), this.sfixed32());
   }
   sfixed64() {
-    return new zL(this.sfixed32(), this.sfixed32());
+    return new VL(this.sfixed32(), this.sfixed32());
   }
   float() {
     return this.view.getFloat32((this.pos += 4) - 4, !0);
@@ -50805,31 +50851,31 @@ var HL = class {
     return this.textDecoder.decode(this.bytes());
   }
 };
-function UL(e, t) {
+function GL(e, t) {
   if (!e) throw Error(t);
 }
-var WL = 34028234663852886e22,
-  GL = -34028234663852886e22,
-  KL = 4294967295,
-  qL = 2147483647,
-  JL = -2147483648;
-function YL(e) {
-  if (typeof e != `number`) throw Error(`invalid int 32: ` + typeof e);
-  if (!Number.isInteger(e) || e > qL || e < JL) throw Error(`invalid int 32: ` + e);
-}
-function XL(e) {
-  if (typeof e != `number`) throw Error(`invalid uint 32: ` + typeof e);
-  if (!Number.isInteger(e) || e > KL || e < 0) throw Error(`invalid uint 32: ` + e);
-}
+var KL = 34028234663852886e22,
+  qL = -34028234663852886e22,
+  JL = 4294967295,
+  YL = 2147483647,
+  XL = -2147483648;
 function ZL(e) {
-  if (typeof e != `number`) throw Error(`invalid float 32: ` + typeof e);
-  if (Number.isFinite(e) && (e > WL || e < GL)) throw Error(`invalid float 32: ` + e);
+  if (typeof e != `number`) throw Error(`invalid int 32: ` + typeof e);
+  if (!Number.isInteger(e) || e > YL || e < XL) throw Error(`invalid int 32: ` + e);
 }
-var QL = { writeUnknownFields: !0, writerFactory: () => new eR() };
+function QL(e) {
+  if (typeof e != `number`) throw Error(`invalid uint 32: ` + typeof e);
+  if (!Number.isInteger(e) || e > JL || e < 0) throw Error(`invalid uint 32: ` + e);
+}
 function $L(e) {
-  return e ? Object.assign(Object.assign({}, QL), e) : QL;
+  if (typeof e != `number`) throw Error(`invalid float 32: ` + typeof e);
+  if (Number.isFinite(e) && (e > KL || e < qL)) throw Error(`invalid float 32: ` + e);
 }
-var eR = class {
+var eR = { writeUnknownFields: !0, writerFactory: () => new nR() };
+function tR(e) {
+  return e ? Object.assign(Object.assign({}, eR), e) : eR;
+}
+var nR = class {
     constructor(e) {
       ((this.stack = []),
         (this.textEncoder = e ?? new TextEncoder()),
@@ -50871,11 +50917,11 @@ var eR = class {
       );
     }
     uint32(e) {
-      for (XL(e); e > 127;) (this.buf.push((e & 127) | 128), (e >>>= 7));
+      for (QL(e); e > 127;) (this.buf.push((e & 127) | 128), (e >>>= 7));
       return (this.buf.push(e), this);
     }
     int32(e) {
-      return (YL(e), kL(e, this.buf), this);
+      return (ZL(e), jL(e, this.buf), this);
     }
     bool(e) {
       return (this.buf.push(+!!e), this);
@@ -50888,7 +50934,7 @@ var eR = class {
       return (this.uint32(t.byteLength), this.raw(t));
     }
     float(e) {
-      ZL(e);
+      $L(e);
       let t = new Uint8Array(4);
       return (new DataView(t.buffer).setFloat32(0, e, !0), this.raw(t));
     }
@@ -50897,54 +50943,54 @@ var eR = class {
       return (new DataView(t.buffer).setFloat64(0, e, !0), this.raw(t));
     }
     fixed32(e) {
-      XL(e);
+      QL(e);
       let t = new Uint8Array(4);
       return (new DataView(t.buffer).setUint32(0, e, !0), this.raw(t));
     }
     sfixed32(e) {
-      YL(e);
+      ZL(e);
       let t = new Uint8Array(4);
       return (new DataView(t.buffer).setInt32(0, e, !0), this.raw(t));
     }
     sint32(e) {
-      return (YL(e), (e = ((e << 1) ^ (e >> 31)) >>> 0), kL(e, this.buf), this);
+      return (ZL(e), (e = ((e << 1) ^ (e >> 31)) >>> 0), jL(e, this.buf), this);
     }
     sfixed64(e) {
       let t = new Uint8Array(8),
         n = new DataView(t.buffer),
-        r = zL.from(e);
+        r = VL.from(e);
       return (n.setInt32(0, r.lo, !0), n.setInt32(4, r.hi, !0), this.raw(t));
     }
     fixed64(e) {
       let t = new Uint8Array(8),
         n = new DataView(t.buffer),
-        r = RL.from(e);
+        r = BL.from(e);
       return (n.setInt32(0, r.lo, !0), n.setInt32(4, r.hi, !0), this.raw(t));
     }
     int64(e) {
-      let t = zL.from(e);
-      return (TL(t.lo, t.hi, this.buf), this);
+      let t = VL.from(e);
+      return (DL(t.lo, t.hi, this.buf), this);
     }
     sint64(e) {
-      let t = zL.from(e),
+      let t = VL.from(e),
         n = t.hi >> 31;
-      return (TL((t.lo << 1) ^ n, ((t.hi << 1) | (t.lo >>> 31)) ^ n, this.buf), this);
+      return (DL((t.lo << 1) ^ n, ((t.hi << 1) | (t.lo >>> 31)) ^ n, this.buf), this);
     }
     uint64(e) {
-      let t = RL.from(e);
-      return (TL(t.lo, t.hi, this.buf), this);
+      let t = BL.from(e);
+      return (DL(t.lo, t.hi, this.buf), this);
     }
   },
-  tR = { emitDefaultValues: !1, enumAsInteger: !1, useProtoFieldName: !1, prettySpaces: 0 },
-  nR = { ignoreUnknownFields: !1 };
-function rR(e) {
-  return e ? Object.assign(Object.assign({}, nR), e) : nR;
+  rR = { emitDefaultValues: !1, enumAsInteger: !1, useProtoFieldName: !1, prettySpaces: 0 },
+  iR = { ignoreUnknownFields: !1 };
+function aR(e) {
+  return e ? Object.assign(Object.assign({}, iR), e) : iR;
 }
-function iR(e) {
-  return e ? Object.assign(Object.assign({}, tR), e) : tR;
-}
-var aR = Symbol.for(`protobuf-ts/message-type`);
 function oR(e) {
+  return e ? Object.assign(Object.assign({}, rR), e) : rR;
+}
+var sR = Symbol.for(`protobuf-ts/message-type`);
+function cR(e) {
   let t = !1,
     n = [];
   for (let r = 0; r < e.length; r++) {
@@ -50979,24 +51025,24 @@ var $;
     (e[(e.SINT32 = 17)] = `SINT32`),
     (e[(e.SINT64 = 18)] = `SINT64`));
 })(($ ||= {}));
-var sR;
+var lR;
 (function (e) {
   ((e[(e.BIGINT = 0)] = `BIGINT`), (e[(e.STRING = 1)] = `STRING`), (e[(e.NUMBER = 2)] = `NUMBER`));
-})((sR ||= {}));
-var cR;
+})((lR ||= {}));
+var uR;
 (function (e) {
   ((e[(e.NO = 0)] = `NO`), (e[(e.PACKED = 1)] = `PACKED`), (e[(e.UNPACKED = 2)] = `UNPACKED`));
-})((cR ||= {}));
-function lR(e) {
+})((uR ||= {}));
+function dR(e) {
   return (
-    (e.localName = e.localName ?? oR(e.name)),
-    (e.jsonName = e.jsonName ?? oR(e.name)),
-    (e.repeat = e.repeat ?? cR.NO),
+    (e.localName = e.localName ?? cR(e.name)),
+    (e.jsonName = e.jsonName ?? cR(e.name)),
+    (e.repeat = e.repeat ?? uR.NO),
     (e.opt = e.opt ?? (!e.repeat && !e.oneof && e.kind == `message`)),
     e
   );
 }
-function uR(e) {
+function fR(e) {
   if (typeof e != `object` || !e || !e.hasOwnProperty(`oneofKind`)) return !1;
   switch (typeof e.oneofKind) {
     case `string`:
@@ -51007,7 +51053,7 @@ function uR(e) {
       return !1;
   }
 }
-var dR = class {
+var pR = class {
   constructor(e) {
     this.fields = e.fields ?? [];
   }
@@ -51047,7 +51093,7 @@ var dR = class {
     if (t < 1) return !0;
     for (let r of i.oneofs) {
       let i = e[r];
-      if (!uR(i)) return !1;
+      if (!fR(i)) return !1;
       if (i.oneofKind === void 0) continue;
       let a = this.fields.find((e) => e.localName === i.oneofKind);
       if (!a || !this.field(i[i.oneofKind], a, n, t)) return !1;
@@ -51100,9 +51146,9 @@ var dR = class {
       case $.SFIXED64:
       case $.SINT64:
         switch (n) {
-          case sR.BIGINT:
+          case lR.BIGINT:
             return r == `bigint`;
-          case sR.NUMBER:
+          case lR.NUMBER:
             return r == `number` && !isNaN(e);
           default:
             return r == `string`;
@@ -51148,21 +51194,21 @@ var dR = class {
           n,
         );
       default:
-        return this.scalars(r, t, n, sR.STRING);
+        return this.scalars(r, t, n, lR.STRING);
     }
   }
 };
-function fR(e, t) {
+function mR(e, t) {
   switch (t) {
-    case sR.BIGINT:
+    case lR.BIGINT:
       return e.toBigInt();
-    case sR.NUMBER:
+    case lR.NUMBER:
       return e.toNumber();
     default:
       return e.toString();
   }
 }
-var pR = class {
+var hR = class {
     constructor(e) {
       this.info = e;
     }
@@ -51176,7 +51222,7 @@ var pR = class {
     }
     assert(e, t, n) {
       if (!e) {
-        let e = gL(n);
+        let e = vL(n);
         throw (
           (e == `number` || e == `boolean`) && (e = n.toString()),
           Error(`Cannot parse JSON ${e} for ${this.info.typeName}#${t}`)
@@ -51208,7 +51254,7 @@ var pR = class {
         } else s = t;
         if (e.kind == `map`) {
           if (a === null) continue;
-          this.assert(_L(a), e.name, a);
+          this.assert(yL(a), e.name, a);
           let t = s[o];
           for (let [r, i] of Object.entries(a)) {
             this.assert(i !== null, e.name + ` map value`, null);
@@ -51227,7 +51273,7 @@ var pR = class {
             this.assert(a !== void 0, e.name + ` map value`, i);
             let o = r;
             (e.K == $.BOOL && (o = o == `true` || (o != `false` && o)),
-              (o = this.scalar(o, e.K, sR.STRING, e.name).toString()),
+              (o = this.scalar(o, e.K, lR.STRING, e.name).toString()),
               (t[o] = a));
           }
         } else if (e.repeat) {
@@ -51273,7 +51319,7 @@ var pR = class {
     enum(e, t, n, r) {
       if (
         (e[0] == `google.protobuf.NullValue` &&
-          UL(
+          GL(
             t === null || t === `NULL_VALUE`,
             `Unable to parse field ${this.info.typeName}#${n}, enum ${e[0]} only accepts null.`,
           ),
@@ -51283,7 +51329,7 @@ var pR = class {
       switch (typeof t) {
         case `number`:
           return (
-            UL(
+            GL(
               Number.isInteger(t),
               `Unable to parse field ${this.info.typeName}#${n}, enum can only be integral number, got ${t}.`,
             ),
@@ -51295,13 +51341,13 @@ var pR = class {
           let a = e[1][i];
           return a === void 0 && r
             ? !1
-            : (UL(
+            : (GL(
                 typeof a == `number`,
                 `Unable to parse field ${this.info.typeName}#${n}, enum ${e[0]} has no value for "${t}".`,
               ),
               a);
       }
-      UL(
+      GL(
         !1,
         `Unable to parse field ${this.info.typeName}#${n}, cannot parse enum value from ${typeof t}".`,
       );
@@ -51334,7 +51380,7 @@ var pR = class {
               i = `too large or small`;
               break;
             }
-            return (t == $.FLOAT && ZL(r), r);
+            return (t == $.FLOAT && $L(r), r);
           case $.INT32:
           case $.FIXED32:
           case $.SFIXED32:
@@ -51352,18 +51398,18 @@ var pR = class {
               a === void 0)
             )
               break;
-            return (t == $.UINT32 ? XL(a) : YL(a), a);
+            return (t == $.UINT32 ? QL(a) : ZL(a), a);
           case $.INT64:
           case $.SFIXED64:
           case $.SINT64:
-            if (e === null) return fR(zL.ZERO, n);
+            if (e === null) return mR(VL.ZERO, n);
             if (typeof e != `number` && typeof e != `string`) break;
-            return fR(zL.from(e), n);
+            return mR(VL.from(e), n);
           case $.FIXED64:
           case $.UINT64:
-            if (e === null) return fR(RL.ZERO, n);
+            if (e === null) return mR(BL.ZERO, n);
             if (typeof e != `number` && typeof e != `string`) break;
-            return fR(RL.from(e), n);
+            return mR(BL.from(e), n);
           case $.BOOL:
             if (e === null) return !1;
             if (typeof e != `boolean`) break;
@@ -51378,7 +51424,7 @@ var pR = class {
           case $.BYTES:
             if (e === null || e === ``) return new Uint8Array();
             if (typeof e != `string`) break;
-            return bL(e);
+            return SL(e);
         }
       } catch (e) {
         i = e.message;
@@ -51386,7 +51432,7 @@ var pR = class {
       this.assert(!1, r + (i ? ` - ` + i : ``), e);
     }
   },
-  mR = class {
+  gR = class {
     constructor(e) {
       this.fields = e.fields ?? [];
     }
@@ -51406,61 +51452,61 @@ var pR = class {
               ? Object.assign(Object.assign({}, t), { emitDefaultValues: !0 })
               : t,
           o = this.field(e, i[e.localName], a);
-        (UL(o !== void 0), (n[t.useProtoFieldName ? e.name : e.jsonName] = o));
+        (GL(o !== void 0), (n[t.useProtoFieldName ? e.name : e.jsonName] = o));
       }
       return n;
     }
     field(e, t, n) {
       let r;
       if (e.kind == `map`) {
-        UL(typeof t == `object` && !!t);
+        GL(typeof t == `object` && !!t);
         let i = {};
         switch (e.V.kind) {
           case `scalar`:
             for (let [n, r] of Object.entries(t)) {
               let t = this.scalar(e.V.T, r, e.name, !1, !0);
-              (UL(t !== void 0), (i[n.toString()] = t));
+              (GL(t !== void 0), (i[n.toString()] = t));
             }
             break;
           case `message`:
             let r = e.V.T();
             for (let [a, o] of Object.entries(t)) {
               let t = this.message(r, o, e.name, n);
-              (UL(t !== void 0), (i[a.toString()] = t));
+              (GL(t !== void 0), (i[a.toString()] = t));
             }
             break;
           case `enum`:
             let a = e.V.T();
             for (let [r, o] of Object.entries(t)) {
-              UL(o === void 0 || typeof o == `number`);
+              GL(o === void 0 || typeof o == `number`);
               let t = this.enum(a, o, e.name, !1, !0, n.enumAsInteger);
-              (UL(t !== void 0), (i[r.toString()] = t));
+              (GL(t !== void 0), (i[r.toString()] = t));
             }
         }
         (n.emitDefaultValues || Object.keys(i).length > 0) && (r = i);
       } else if (e.repeat) {
-        UL(Array.isArray(t));
+        GL(Array.isArray(t));
         let i = [];
         switch (e.kind) {
           case `scalar`:
             for (let n = 0; n < t.length; n++) {
               let r = this.scalar(e.T, t[n], e.name, e.opt, !0);
-              (UL(r !== void 0), i.push(r));
+              (GL(r !== void 0), i.push(r));
             }
             break;
           case `enum`:
             let r = e.T();
             for (let a = 0; a < t.length; a++) {
-              UL(t[a] === void 0 || typeof t[a] == `number`);
+              GL(t[a] === void 0 || typeof t[a] == `number`);
               let o = this.enum(r, t[a], e.name, e.opt, !0, n.enumAsInteger);
-              (UL(o !== void 0), i.push(o));
+              (GL(o !== void 0), i.push(o));
             }
             break;
           case `message`:
             let a = e.T();
             for (let r = 0; r < t.length; r++) {
               let o = this.message(a, t[r], e.name, n);
-              (UL(o !== void 0), i.push(o));
+              (GL(o !== void 0), i.push(o));
             }
         }
         (n.emitDefaultValues || i.length > 0 || n.emitDefaultValues) && (r = i);
@@ -51480,13 +51526,13 @@ var pR = class {
     enum(e, t, n, r, i, a) {
       if (e[0] == `google.protobuf.NullValue`) return !i && !r ? void 0 : null;
       if (t === void 0) {
-        UL(r);
+        GL(r);
         return;
       }
       if (t !== 0 || i || r)
         return (
-          UL(typeof t == `number`),
-          UL(Number.isInteger(t)),
+          GL(typeof t == `number`),
+          GL(Number.isInteger(t)),
           a || !e[1].hasOwnProperty(t) ? t : e[2] ? e[2] + e[1][t] : e[1][t]
         );
     }
@@ -51495,7 +51541,7 @@ var pR = class {
     }
     scalar(e, t, n, r, i) {
       if (t === void 0) {
-        UL(r);
+        GL(r);
         return;
       }
       let a = i || r;
@@ -51503,50 +51549,50 @@ var pR = class {
         case $.INT32:
         case $.SFIXED32:
         case $.SINT32:
-          return t === 0 ? (a ? 0 : void 0) : (YL(t), t);
+          return t === 0 ? (a ? 0 : void 0) : (ZL(t), t);
         case $.FIXED32:
         case $.UINT32:
-          return t === 0 ? (a ? 0 : void 0) : (XL(t), t);
+          return t === 0 ? (a ? 0 : void 0) : (QL(t), t);
         case $.FLOAT:
-          ZL(t);
+          $L(t);
         case $.DOUBLE:
           return t === 0
             ? a
               ? 0
               : void 0
-            : (UL(typeof t == `number`),
+            : (GL(typeof t == `number`),
               Number.isNaN(t) ? `NaN` : t === 1 / 0 ? `Infinity` : t === -1 / 0 ? `-Infinity` : t);
         case $.STRING:
-          return t === `` ? (a ? `` : void 0) : (UL(typeof t == `string`), t);
+          return t === `` ? (a ? `` : void 0) : (GL(typeof t == `string`), t);
         case $.BOOL:
-          return t === !1 ? !a && void 0 : (UL(typeof t == `boolean`), t);
+          return t === !1 ? !a && void 0 : (GL(typeof t == `boolean`), t);
         case $.UINT64:
         case $.FIXED64:
-          UL(typeof t == `number` || typeof t == `string` || typeof t == `bigint`);
-          let e = RL.from(t);
+          GL(typeof t == `number` || typeof t == `string` || typeof t == `bigint`);
+          let e = BL.from(t);
           return e.isZero() && !a ? void 0 : e.toString();
         case $.INT64:
         case $.SFIXED64:
         case $.SINT64:
-          UL(typeof t == `number` || typeof t == `string` || typeof t == `bigint`);
-          let n = zL.from(t);
+          GL(typeof t == `number` || typeof t == `string` || typeof t == `bigint`);
+          let n = VL.from(t);
           return n.isZero() && !a ? void 0 : n.toString();
         case $.BYTES:
-          return (UL(t instanceof Uint8Array), t.byteLength ? xL(t) : a ? `` : void 0);
+          return (GL(t instanceof Uint8Array), t.byteLength ? CL(t) : a ? `` : void 0);
       }
     }
   };
-function hR(e, t = sR.STRING) {
+function _R(e, t = lR.STRING) {
   switch (e) {
     case $.BOOL:
       return !1;
     case $.UINT64:
     case $.FIXED64:
-      return fR(RL.ZERO, t);
+      return mR(BL.ZERO, t);
     case $.INT64:
     case $.SFIXED64:
     case $.SINT64:
-      return fR(zL.ZERO, t);
+      return mR(VL.ZERO, t);
     case $.DOUBLE:
     case $.FLOAT:
       return 0;
@@ -51558,7 +51604,7 @@ function hR(e, t = sR.STRING) {
       return 0;
   }
 }
-var gR = class {
+var vR = class {
     constructor(e) {
       this.info = e;
     }
@@ -51579,7 +51625,7 @@ var gR = class {
           if (a == `throw`)
             throw Error(`Unknown field ${r} (wire type ${i}) for ${this.info.typeName}`);
           let o = e.skip(i);
-          a !== !1 && (a === !0 ? SL.onRead : a)(this.info.typeName, t, r, i, o);
+          a !== !1 && (a === !0 ? wL.onRead : a)(this.info.typeName, t, r, i, o);
           continue;
         }
         let o = t,
@@ -51595,7 +51641,7 @@ var gR = class {
               r = a.kind == `scalar` ? a.L : void 0;
             if (s) {
               let n = o[c];
-              if (i == CL.LengthDelimited && t != $.STRING && t != $.BYTES) {
+              if (i == TL.LengthDelimited && t != $.STRING && t != $.BYTES) {
                 let i = e.uint32() + e.pos;
                 for (; e.pos < i;) n.push(this.scalar(e, t, r));
               } else n.push(this.scalar(e, t, r));
@@ -51623,7 +51669,7 @@ var gR = class {
         let [r, i] = t.tag();
         switch (r) {
           case 1:
-            a = e.K == $.BOOL ? t.bool().toString() : this.scalar(t, e.K, sR.STRING);
+            a = e.K == $.BOOL ? t.bool().toString() : this.scalar(t, e.K, lR.STRING);
             break;
           case 2:
             switch (e.V.kind) {
@@ -51644,13 +51690,13 @@ var gR = class {
         }
       }
       if (a === void 0) {
-        let t = hR(e.K);
+        let t = _R(e.K);
         a = e.K == $.BOOL ? t.toString() : t;
       }
       if (o === void 0)
         switch (e.V.kind) {
           case `scalar`:
-            o = hR(e.V.T, e.V.L);
+            o = _R(e.V.T, e.V.L);
             break;
           case `enum`:
             o = 0;
@@ -51673,11 +51719,11 @@ var gR = class {
         case $.FLOAT:
           return e.float();
         case $.INT64:
-          return fR(e.int64(), n);
+          return mR(e.int64(), n);
         case $.UINT64:
-          return fR(e.uint64(), n);
+          return mR(e.uint64(), n);
         case $.FIXED64:
-          return fR(e.fixed64(), n);
+          return mR(e.fixed64(), n);
         case $.FIXED32:
           return e.fixed32();
         case $.BYTES:
@@ -51687,15 +51733,15 @@ var gR = class {
         case $.SFIXED32:
           return e.sfixed32();
         case $.SFIXED64:
-          return fR(e.sfixed64(), n);
+          return mR(e.sfixed64(), n);
         case $.SINT32:
           return e.sint32();
         case $.SINT64:
-          return fR(e.sint64(), n);
+          return mR(e.sint64(), n);
       }
     }
   },
-  _R = class {
+  yR = class {
     constructor(e) {
       this.info = e;
     }
@@ -51722,26 +51768,26 @@ var gR = class {
           case `enum`:
             let e = r.kind == `enum` ? $.INT32 : r.T;
             if (o) {
-              if ((UL(Array.isArray(i)), o == cR.PACKED)) this.packed(t, e, r.no, i);
+              if ((GL(Array.isArray(i)), o == uR.PACKED)) this.packed(t, e, r.no, i);
               else for (let n of i) this.scalar(t, e, r.no, n, !0);
-            } else i === void 0 ? UL(r.opt) : this.scalar(t, e, r.no, i, a || r.opt);
+            } else i === void 0 ? GL(r.opt) : this.scalar(t, e, r.no, i, a || r.opt);
             break;
           case `message`:
             if (o) {
-              UL(Array.isArray(i));
+              GL(Array.isArray(i));
               for (let e of i) this.message(t, n, r.T(), r.no, e);
             } else this.message(t, n, r.T(), r.no, i);
             break;
           case `map`:
-            UL(typeof i == `object` && !!i);
+            GL(typeof i == `object` && !!i);
             for (let [e, a] of Object.entries(i)) this.mapEntry(t, n, r, e, a);
         }
       }
       let r = n.writeUnknownFields;
-      r !== !1 && (r === !0 ? SL.onWrite : r)(this.info.typeName, e, t);
+      r !== !1 && (r === !0 ? wL.onWrite : r)(this.info.typeName, e, t);
     }
     mapEntry(e, t, n, r, i) {
-      (e.tag(n.no, CL.LengthDelimited), e.fork());
+      (e.tag(n.no, TL.LengthDelimited), e.fork());
       let a = r;
       switch (n.K) {
         case $.INT32:
@@ -51752,7 +51798,7 @@ var gR = class {
           a = Number.parseInt(r);
           break;
         case $.BOOL:
-          (UL(r == `true` || r == `false`), (a = r == `true`));
+          (GL(r == `true` || r == `false`), (a = r == `true`));
       }
       switch ((this.scalar(e, n.K, 1, a, !0), n.V.kind)) {
         case `scalar`:
@@ -51767,7 +51813,7 @@ var gR = class {
       e.join();
     }
     message(e, t, n, r, i) {
-      i !== void 0 && (n.internalBinaryWrite(i, e.tag(r, CL.LengthDelimited).fork(), t), e.join());
+      i !== void 0 && (n.internalBinaryWrite(i, e.tag(r, TL.LengthDelimited).fork(), t), e.join());
     }
     scalar(e, t, n, r, i) {
       let [a, o, s] = this.scalarInfo(t, r);
@@ -51775,13 +51821,13 @@ var gR = class {
     }
     packed(e, t, n, r) {
       if (!r.length) return;
-      (UL(t !== $.BYTES && t !== $.STRING), e.tag(n, CL.LengthDelimited), e.fork());
+      (GL(t !== $.BYTES && t !== $.STRING), e.tag(n, TL.LengthDelimited), e.fork());
       let [, i] = this.scalarInfo(t);
       for (let t = 0; t < r.length; t++) e[i](r[t]);
       e.join();
     }
     scalarInfo(e, t) {
-      let n = CL.Varint,
+      let n = TL.Varint,
         r,
         i = t === void 0,
         a = t === 0;
@@ -51790,7 +51836,7 @@ var gR = class {
           r = `int32`;
           break;
         case $.STRING:
-          ((a = i || !t.length), (n = CL.LengthDelimited), (r = `string`));
+          ((a = i || !t.length), (n = TL.LengthDelimited), (r = `string`));
           break;
         case $.BOOL:
           ((a = t === !1), (r = `bool`));
@@ -51799,45 +51845,45 @@ var gR = class {
           r = `uint32`;
           break;
         case $.DOUBLE:
-          ((n = CL.Bit64), (r = `double`));
+          ((n = TL.Bit64), (r = `double`));
           break;
         case $.FLOAT:
-          ((n = CL.Bit32), (r = `float`));
+          ((n = TL.Bit32), (r = `float`));
           break;
         case $.INT64:
-          ((a = i || zL.from(t).isZero()), (r = `int64`));
+          ((a = i || VL.from(t).isZero()), (r = `int64`));
           break;
         case $.UINT64:
-          ((a = i || RL.from(t).isZero()), (r = `uint64`));
+          ((a = i || BL.from(t).isZero()), (r = `uint64`));
           break;
         case $.FIXED64:
-          ((a = i || RL.from(t).isZero()), (n = CL.Bit64), (r = `fixed64`));
+          ((a = i || BL.from(t).isZero()), (n = TL.Bit64), (r = `fixed64`));
           break;
         case $.BYTES:
-          ((a = i || !t.byteLength), (n = CL.LengthDelimited), (r = `bytes`));
+          ((a = i || !t.byteLength), (n = TL.LengthDelimited), (r = `bytes`));
           break;
         case $.FIXED32:
-          ((n = CL.Bit32), (r = `fixed32`));
+          ((n = TL.Bit32), (r = `fixed32`));
           break;
         case $.SFIXED32:
-          ((n = CL.Bit32), (r = `sfixed32`));
+          ((n = TL.Bit32), (r = `sfixed32`));
           break;
         case $.SFIXED64:
-          ((a = i || zL.from(t).isZero()), (n = CL.Bit64), (r = `sfixed64`));
+          ((a = i || VL.from(t).isZero()), (n = TL.Bit64), (r = `sfixed64`));
           break;
         case $.SINT32:
           r = `sint32`;
           break;
         case $.SINT64:
-          ((a = i || zL.from(t).isZero()), (r = `sint64`));
+          ((a = i || VL.from(t).isZero()), (r = `sint64`));
       }
       return [n, r, i || a];
     }
   };
-function vR(e) {
+function bR(e) {
   let t = e.messagePrototype
     ? Object.create(e.messagePrototype)
-    : Object.defineProperty({}, aR, { value: e });
+    : Object.defineProperty({}, sR, { value: e });
   for (let n of e.fields) {
     let e = n.localName;
     if (!n.opt) {
@@ -51846,7 +51892,7 @@ function vR(e) {
       else
         switch (n.kind) {
           case `scalar`:
-            t[e] = hR(n.T, n.L);
+            t[e] = _R(n.T, n.L);
             break;
           case `enum`:
             t[e] = 0;
@@ -51858,7 +51904,7 @@ function vR(e) {
   }
   return t;
 }
-function yR(e, t, n) {
+function xR(e, t, n) {
   let r,
     i = n,
     a;
@@ -51896,7 +51942,7 @@ function yR(e, t, n) {
     }
   }
 }
-function bR(e, t, n) {
+function SR(e, t, n) {
   if (t === n) return !0;
   if (!t || !n) return !1;
   for (let r of e.fields) {
@@ -51907,25 +51953,25 @@ function bR(e, t, n) {
       case `enum`:
       case `scalar`:
         let e = r.kind == `enum` ? $.INT32 : r.T;
-        if (!(r.repeat ? CR(e, i, a) : SR(e, i, a))) return !1;
+        if (!(r.repeat ? TR(e, i, a) : wR(e, i, a))) return !1;
         break;
       case `map`:
         if (
           !(r.V.kind == `message`
-            ? wR(r.V.T(), xR(i), xR(a))
-            : CR(r.V.kind == `enum` ? $.INT32 : r.V.T, xR(i), xR(a)))
+            ? ER(r.V.T(), CR(i), CR(a))
+            : TR(r.V.kind == `enum` ? $.INT32 : r.V.T, CR(i), CR(a)))
         )
           return !1;
         break;
       case `message`:
         let t = r.T();
-        if (!(r.repeat ? wR(t, i, a) : t.equals(i, a))) return !1;
+        if (!(r.repeat ? ER(t, i, a) : t.equals(i, a))) return !1;
     }
   }
   return !0;
 }
-var xR = Object.values;
-function SR(e, t, n) {
+var CR = Object.values;
+function wR(e, t, n) {
   if (t === n) return !0;
   if (e !== $.BYTES) return !1;
   let r = t,
@@ -51934,42 +51980,42 @@ function SR(e, t, n) {
   for (let e = 0; e < r.length; e++) if (r[e] != i[e]) return !1;
   return !0;
 }
-function CR(e, t, n) {
+function TR(e, t, n) {
   if (t.length !== n.length) return !1;
-  for (let r = 0; r < t.length; r++) if (!SR(e, t[r], n[r])) return !1;
+  for (let r = 0; r < t.length; r++) if (!wR(e, t[r], n[r])) return !1;
   return !0;
 }
-function wR(e, t, n) {
+function ER(e, t, n) {
   if (t.length !== n.length) return !1;
   for (let r = 0; r < t.length; r++) if (!e.equals(t[r], n[r])) return !1;
   return !0;
 }
-var TR = Object.getOwnPropertyDescriptors(Object.getPrototypeOf({})),
-  ER = (TR[aR] = {}),
-  DR = class {
+var DR = Object.getOwnPropertyDescriptors(Object.getPrototypeOf({})),
+  OR = (DR[sR] = {}),
+  kR = class {
     constructor(e, t, n) {
       ((this.defaultCheckDepth = 16),
         (this.typeName = e),
-        (this.fields = t.map(lR)),
+        (this.fields = t.map(dR)),
         (this.options = n ?? {}),
-        (ER.value = this),
-        (this.messagePrototype = Object.create(null, TR)),
-        (this.refTypeCheck = new dR(this)),
-        (this.refJsonReader = new pR(this)),
-        (this.refJsonWriter = new mR(this)),
-        (this.refBinReader = new gR(this)),
-        (this.refBinWriter = new _R(this)));
+        (OR.value = this),
+        (this.messagePrototype = Object.create(null, DR)),
+        (this.refTypeCheck = new pR(this)),
+        (this.refJsonReader = new hR(this)),
+        (this.refJsonWriter = new gR(this)),
+        (this.refBinReader = new vR(this)),
+        (this.refBinWriter = new yR(this)));
     }
     create(e) {
-      let t = vR(this);
-      return (e !== void 0 && yR(this, t, e), t);
+      let t = bR(this);
+      return (e !== void 0 && xR(this, t, e), t);
     }
     clone(e) {
       let t = this.create();
-      return (yR(this, t, e), t);
+      return (xR(this, t, e), t);
     }
     equals(e, t) {
-      return bR(this, e, t);
+      return SR(this, e, t);
     }
     is(e, t = this.defaultCheckDepth) {
       return this.refTypeCheck.is(e, t, !1);
@@ -51978,28 +52024,28 @@ var TR = Object.getOwnPropertyDescriptors(Object.getPrototypeOf({})),
       return this.refTypeCheck.is(e, t, !0);
     }
     mergePartial(e, t) {
-      yR(this, e, t);
+      xR(this, e, t);
     }
     fromBinary(e, t) {
-      let n = VL(t);
+      let n = UL(t);
       return this.internalBinaryRead(n.readerFactory(e), e.byteLength, n);
     }
     fromJson(e, t) {
-      return this.internalJsonRead(e, rR(t));
+      return this.internalJsonRead(e, aR(t));
     }
     fromJsonString(e, t) {
       let n = JSON.parse(e);
       return this.fromJson(n, t);
     }
     toJson(e, t) {
-      return this.internalJsonWrite(e, iR(t));
+      return this.internalJsonWrite(e, oR(t));
     }
     toJsonString(e, t) {
       let n = this.toJson(e, t);
       return JSON.stringify(n, null, t?.prettySpaces ?? 0);
     }
     toBinary(e, t) {
-      let n = $L(t);
+      let n = tR(t);
       return this.internalBinaryWrite(e, n.writerFactory(), n).finish();
     }
     internalJsonRead(e, t, n) {
@@ -52007,7 +52053,7 @@ var TR = Object.getOwnPropertyDescriptors(Object.getPrototypeOf({})),
         let r = n ?? this.create();
         return (this.refJsonReader.read(e, r, t), r);
       }
-      throw Error(`Unable to parse message ${this.typeName} from JSON ${gL(e)}.`);
+      throw Error(`Unable to parse message ${this.typeName} from JSON ${vL(e)}.`);
     }
     internalJsonWrite(e, t) {
       return this.refJsonWriter.write(e, t);
@@ -52020,11 +52066,11 @@ var TR = Object.getOwnPropertyDescriptors(Object.getPrototypeOf({})),
       return (this.refBinReader.read(e, i, n, t), i);
     }
   };
-function OR(e, t) {
+function AR(e, t) {
   let n = e;
   return (
     (n.service = t),
-    (n.localName = n.localName ?? oR(n.name)),
+    (n.localName = n.localName ?? cR(n.name)),
     (n.serverStreaming = !!n.serverStreaming),
     (n.clientStreaming = !!n.clientStreaming),
     (n.options = n.options ?? {}),
@@ -52032,12 +52078,12 @@ function OR(e, t) {
     n
   );
 }
-var kR = class {
+var jR = class {
     constructor(e, t, n) {
-      ((this.typeName = e), (this.methods = t.map((e) => OR(e, this))), (this.options = n ?? {}));
+      ((this.typeName = e), (this.methods = t.map((e) => AR(e, this))), (this.options = n ?? {}));
     }
   },
-  AR = new (class extends DR {
+  MR = new (class extends kR {
     constructor() {
       super(`github.actions.results.entities.v1.CacheScope`, [
         { no: 1, name: `scope`, kind: `scalar`, T: 9 },
@@ -52047,8 +52093,8 @@ var kR = class {
     create(e) {
       let t = { scope: ``, permission: `0` };
       return (
-        globalThis.Object.defineProperty(t, aR, { enumerable: !1, value: this }),
-        e !== void 0 && yR(this, t, e),
+        globalThis.Object.defineProperty(t, sR, { enumerable: !1, value: this }),
+        e !== void 0 && xR(this, t, e),
         t
       );
     }
@@ -52071,30 +52117,30 @@ var kR = class {
                 `Unknown field ${t} (wire type ${r}) for ${this.typeName}`,
               );
             let o = e.skip(r);
-            a !== !1 && (a === !0 ? SL.onRead : a)(this.typeName, i, t, r, o);
+            a !== !1 && (a === !0 ? wL.onRead : a)(this.typeName, i, t, r, o);
         }
       }
       return i;
     }
     internalBinaryWrite(e, t, n) {
-      (e.scope !== `` && t.tag(1, CL.LengthDelimited).string(e.scope),
-        e.permission !== `0` && t.tag(2, CL.Varint).int64(e.permission));
+      (e.scope !== `` && t.tag(1, TL.LengthDelimited).string(e.scope),
+        e.permission !== `0` && t.tag(2, TL.Varint).int64(e.permission));
       let r = n.writeUnknownFields;
-      return (r !== !1 && (r == 1 ? SL.onWrite : r)(this.typeName, e, t), t);
+      return (r !== !1 && (r == 1 ? wL.onWrite : r)(this.typeName, e, t), t);
     }
   })(),
-  jR = new (class extends DR {
+  NR = new (class extends kR {
     constructor() {
       super(`github.actions.results.entities.v1.CacheMetadata`, [
         { no: 1, name: `repository_id`, kind: `scalar`, T: 3 },
-        { no: 2, name: `scope`, kind: `message`, repeat: 1, T: () => AR },
+        { no: 2, name: `scope`, kind: `message`, repeat: 1, T: () => MR },
       ]);
     }
     create(e) {
       let t = { repositoryId: `0`, scope: [] };
       return (
-        globalThis.Object.defineProperty(t, aR, { enumerable: !1, value: this }),
-        e !== void 0 && yR(this, t, e),
+        globalThis.Object.defineProperty(t, sR, { enumerable: !1, value: this }),
+        e !== void 0 && xR(this, t, e),
         t
       );
     }
@@ -52108,7 +52154,7 @@ var kR = class {
             i.repositoryId = e.int64().toString();
             break;
           case 2:
-            i.scope.push(AR.internalBinaryRead(e, e.uint32(), n));
+            i.scope.push(MR.internalBinaryRead(e, e.uint32(), n));
             break;
           default:
             let a = n.readUnknownField;
@@ -52117,23 +52163,23 @@ var kR = class {
                 `Unknown field ${t} (wire type ${r}) for ${this.typeName}`,
               );
             let o = e.skip(r);
-            a !== !1 && (a === !0 ? SL.onRead : a)(this.typeName, i, t, r, o);
+            a !== !1 && (a === !0 ? wL.onRead : a)(this.typeName, i, t, r, o);
         }
       }
       return i;
     }
     internalBinaryWrite(e, t, n) {
-      e.repositoryId !== `0` && t.tag(1, CL.Varint).int64(e.repositoryId);
+      e.repositoryId !== `0` && t.tag(1, TL.Varint).int64(e.repositoryId);
       for (let r = 0; r < e.scope.length; r++)
-        AR.internalBinaryWrite(e.scope[r], t.tag(2, CL.LengthDelimited).fork(), n).join();
+        MR.internalBinaryWrite(e.scope[r], t.tag(2, TL.LengthDelimited).fork(), n).join();
       let r = n.writeUnknownFields;
-      return (r !== !1 && (r == 1 ? SL.onWrite : r)(this.typeName, e, t), t);
+      return (r !== !1 && (r == 1 ? wL.onWrite : r)(this.typeName, e, t), t);
     }
   })(),
-  MR = new (class extends DR {
+  PR = new (class extends kR {
     constructor() {
       super(`github.actions.results.api.v1.CreateCacheEntryRequest`, [
-        { no: 1, name: `metadata`, kind: `message`, T: () => jR },
+        { no: 1, name: `metadata`, kind: `message`, T: () => NR },
         { no: 2, name: `key`, kind: `scalar`, T: 9 },
         { no: 3, name: `version`, kind: `scalar`, T: 9 },
       ]);
@@ -52141,8 +52187,8 @@ var kR = class {
     create(e) {
       let t = { key: ``, version: `` };
       return (
-        globalThis.Object.defineProperty(t, aR, { enumerable: !1, value: this }),
-        e !== void 0 && yR(this, t, e),
+        globalThis.Object.defineProperty(t, sR, { enumerable: !1, value: this }),
+        e !== void 0 && xR(this, t, e),
         t
       );
     }
@@ -52153,7 +52199,7 @@ var kR = class {
         let [t, r] = e.tag();
         switch (t) {
           case 1:
-            i.metadata = jR.internalBinaryRead(e, e.uint32(), n, i.metadata);
+            i.metadata = NR.internalBinaryRead(e, e.uint32(), n, i.metadata);
             break;
           case 2:
             i.key = e.string();
@@ -52168,21 +52214,21 @@ var kR = class {
                 `Unknown field ${t} (wire type ${r}) for ${this.typeName}`,
               );
             let o = e.skip(r);
-            a !== !1 && (a === !0 ? SL.onRead : a)(this.typeName, i, t, r, o);
+            a !== !1 && (a === !0 ? wL.onRead : a)(this.typeName, i, t, r, o);
         }
       }
       return i;
     }
     internalBinaryWrite(e, t, n) {
       (e.metadata &&
-        jR.internalBinaryWrite(e.metadata, t.tag(1, CL.LengthDelimited).fork(), n).join(),
-        e.key !== `` && t.tag(2, CL.LengthDelimited).string(e.key),
-        e.version !== `` && t.tag(3, CL.LengthDelimited).string(e.version));
+        NR.internalBinaryWrite(e.metadata, t.tag(1, TL.LengthDelimited).fork(), n).join(),
+        e.key !== `` && t.tag(2, TL.LengthDelimited).string(e.key),
+        e.version !== `` && t.tag(3, TL.LengthDelimited).string(e.version));
       let r = n.writeUnknownFields;
-      return (r !== !1 && (r == 1 ? SL.onWrite : r)(this.typeName, e, t), t);
+      return (r !== !1 && (r == 1 ? wL.onWrite : r)(this.typeName, e, t), t);
     }
   })(),
-  NR = new (class extends DR {
+  FR = new (class extends kR {
     constructor() {
       super(`github.actions.results.api.v1.CreateCacheEntryResponse`, [
         { no: 1, name: `ok`, kind: `scalar`, T: 8 },
@@ -52193,8 +52239,8 @@ var kR = class {
     create(e) {
       let t = { ok: !1, signedUploadUrl: ``, message: `` };
       return (
-        globalThis.Object.defineProperty(t, aR, { enumerable: !1, value: this }),
-        e !== void 0 && yR(this, t, e),
+        globalThis.Object.defineProperty(t, sR, { enumerable: !1, value: this }),
+        e !== void 0 && xR(this, t, e),
         t
       );
     }
@@ -52220,23 +52266,23 @@ var kR = class {
                 `Unknown field ${t} (wire type ${r}) for ${this.typeName}`,
               );
             let o = e.skip(r);
-            a !== !1 && (a === !0 ? SL.onRead : a)(this.typeName, i, t, r, o);
+            a !== !1 && (a === !0 ? wL.onRead : a)(this.typeName, i, t, r, o);
         }
       }
       return i;
     }
     internalBinaryWrite(e, t, n) {
-      (e.ok !== !1 && t.tag(1, CL.Varint).bool(e.ok),
-        e.signedUploadUrl !== `` && t.tag(2, CL.LengthDelimited).string(e.signedUploadUrl),
-        e.message !== `` && t.tag(3, CL.LengthDelimited).string(e.message));
+      (e.ok !== !1 && t.tag(1, TL.Varint).bool(e.ok),
+        e.signedUploadUrl !== `` && t.tag(2, TL.LengthDelimited).string(e.signedUploadUrl),
+        e.message !== `` && t.tag(3, TL.LengthDelimited).string(e.message));
       let r = n.writeUnknownFields;
-      return (r !== !1 && (r == 1 ? SL.onWrite : r)(this.typeName, e, t), t);
+      return (r !== !1 && (r == 1 ? wL.onWrite : r)(this.typeName, e, t), t);
     }
   })(),
-  PR = new (class extends DR {
+  IR = new (class extends kR {
     constructor() {
       super(`github.actions.results.api.v1.FinalizeCacheEntryUploadRequest`, [
-        { no: 1, name: `metadata`, kind: `message`, T: () => jR },
+        { no: 1, name: `metadata`, kind: `message`, T: () => NR },
         { no: 2, name: `key`, kind: `scalar`, T: 9 },
         { no: 3, name: `size_bytes`, kind: `scalar`, T: 3 },
         { no: 4, name: `version`, kind: `scalar`, T: 9 },
@@ -52245,8 +52291,8 @@ var kR = class {
     create(e) {
       let t = { key: ``, sizeBytes: `0`, version: `` };
       return (
-        globalThis.Object.defineProperty(t, aR, { enumerable: !1, value: this }),
-        e !== void 0 && yR(this, t, e),
+        globalThis.Object.defineProperty(t, sR, { enumerable: !1, value: this }),
+        e !== void 0 && xR(this, t, e),
         t
       );
     }
@@ -52257,7 +52303,7 @@ var kR = class {
         let [t, r] = e.tag();
         switch (t) {
           case 1:
-            i.metadata = jR.internalBinaryRead(e, e.uint32(), n, i.metadata);
+            i.metadata = NR.internalBinaryRead(e, e.uint32(), n, i.metadata);
             break;
           case 2:
             i.key = e.string();
@@ -52275,22 +52321,22 @@ var kR = class {
                 `Unknown field ${t} (wire type ${r}) for ${this.typeName}`,
               );
             let o = e.skip(r);
-            a !== !1 && (a === !0 ? SL.onRead : a)(this.typeName, i, t, r, o);
+            a !== !1 && (a === !0 ? wL.onRead : a)(this.typeName, i, t, r, o);
         }
       }
       return i;
     }
     internalBinaryWrite(e, t, n) {
       (e.metadata &&
-        jR.internalBinaryWrite(e.metadata, t.tag(1, CL.LengthDelimited).fork(), n).join(),
-        e.key !== `` && t.tag(2, CL.LengthDelimited).string(e.key),
-        e.sizeBytes !== `0` && t.tag(3, CL.Varint).int64(e.sizeBytes),
-        e.version !== `` && t.tag(4, CL.LengthDelimited).string(e.version));
+        NR.internalBinaryWrite(e.metadata, t.tag(1, TL.LengthDelimited).fork(), n).join(),
+        e.key !== `` && t.tag(2, TL.LengthDelimited).string(e.key),
+        e.sizeBytes !== `0` && t.tag(3, TL.Varint).int64(e.sizeBytes),
+        e.version !== `` && t.tag(4, TL.LengthDelimited).string(e.version));
       let r = n.writeUnknownFields;
-      return (r !== !1 && (r == 1 ? SL.onWrite : r)(this.typeName, e, t), t);
+      return (r !== !1 && (r == 1 ? wL.onWrite : r)(this.typeName, e, t), t);
     }
   })(),
-  FR = new (class extends DR {
+  LR = new (class extends kR {
     constructor() {
       super(`github.actions.results.api.v1.FinalizeCacheEntryUploadResponse`, [
         { no: 1, name: `ok`, kind: `scalar`, T: 8 },
@@ -52301,8 +52347,8 @@ var kR = class {
     create(e) {
       let t = { ok: !1, entryId: `0`, message: `` };
       return (
-        globalThis.Object.defineProperty(t, aR, { enumerable: !1, value: this }),
-        e !== void 0 && yR(this, t, e),
+        globalThis.Object.defineProperty(t, sR, { enumerable: !1, value: this }),
+        e !== void 0 && xR(this, t, e),
         t
       );
     }
@@ -52328,23 +52374,23 @@ var kR = class {
                 `Unknown field ${t} (wire type ${r}) for ${this.typeName}`,
               );
             let o = e.skip(r);
-            a !== !1 && (a === !0 ? SL.onRead : a)(this.typeName, i, t, r, o);
+            a !== !1 && (a === !0 ? wL.onRead : a)(this.typeName, i, t, r, o);
         }
       }
       return i;
     }
     internalBinaryWrite(e, t, n) {
-      (e.ok !== !1 && t.tag(1, CL.Varint).bool(e.ok),
-        e.entryId !== `0` && t.tag(2, CL.Varint).int64(e.entryId),
-        e.message !== `` && t.tag(3, CL.LengthDelimited).string(e.message));
+      (e.ok !== !1 && t.tag(1, TL.Varint).bool(e.ok),
+        e.entryId !== `0` && t.tag(2, TL.Varint).int64(e.entryId),
+        e.message !== `` && t.tag(3, TL.LengthDelimited).string(e.message));
       let r = n.writeUnknownFields;
-      return (r !== !1 && (r == 1 ? SL.onWrite : r)(this.typeName, e, t), t);
+      return (r !== !1 && (r == 1 ? wL.onWrite : r)(this.typeName, e, t), t);
     }
   })(),
-  IR = new (class extends DR {
+  RR = new (class extends kR {
     constructor() {
       super(`github.actions.results.api.v1.GetCacheEntryDownloadURLRequest`, [
-        { no: 1, name: `metadata`, kind: `message`, T: () => jR },
+        { no: 1, name: `metadata`, kind: `message`, T: () => NR },
         { no: 2, name: `key`, kind: `scalar`, T: 9 },
         { no: 3, name: `restore_keys`, kind: `scalar`, repeat: 2, T: 9 },
         { no: 4, name: `version`, kind: `scalar`, T: 9 },
@@ -52353,8 +52399,8 @@ var kR = class {
     create(e) {
       let t = { key: ``, restoreKeys: [], version: `` };
       return (
-        globalThis.Object.defineProperty(t, aR, { enumerable: !1, value: this }),
-        e !== void 0 && yR(this, t, e),
+        globalThis.Object.defineProperty(t, sR, { enumerable: !1, value: this }),
+        e !== void 0 && xR(this, t, e),
         t
       );
     }
@@ -52365,7 +52411,7 @@ var kR = class {
         let [t, r] = e.tag();
         switch (t) {
           case 1:
-            i.metadata = jR.internalBinaryRead(e, e.uint32(), n, i.metadata);
+            i.metadata = NR.internalBinaryRead(e, e.uint32(), n, i.metadata);
             break;
           case 2:
             i.key = e.string();
@@ -52383,23 +52429,23 @@ var kR = class {
                 `Unknown field ${t} (wire type ${r}) for ${this.typeName}`,
               );
             let o = e.skip(r);
-            a !== !1 && (a === !0 ? SL.onRead : a)(this.typeName, i, t, r, o);
+            a !== !1 && (a === !0 ? wL.onRead : a)(this.typeName, i, t, r, o);
         }
       }
       return i;
     }
     internalBinaryWrite(e, t, n) {
       (e.metadata &&
-        jR.internalBinaryWrite(e.metadata, t.tag(1, CL.LengthDelimited).fork(), n).join(),
-        e.key !== `` && t.tag(2, CL.LengthDelimited).string(e.key));
+        NR.internalBinaryWrite(e.metadata, t.tag(1, TL.LengthDelimited).fork(), n).join(),
+        e.key !== `` && t.tag(2, TL.LengthDelimited).string(e.key));
       for (let n = 0; n < e.restoreKeys.length; n++)
-        t.tag(3, CL.LengthDelimited).string(e.restoreKeys[n]);
-      e.version !== `` && t.tag(4, CL.LengthDelimited).string(e.version);
+        t.tag(3, TL.LengthDelimited).string(e.restoreKeys[n]);
+      e.version !== `` && t.tag(4, TL.LengthDelimited).string(e.version);
       let r = n.writeUnknownFields;
-      return (r !== !1 && (r == 1 ? SL.onWrite : r)(this.typeName, e, t), t);
+      return (r !== !1 && (r == 1 ? wL.onWrite : r)(this.typeName, e, t), t);
     }
   })(),
-  LR = new (class extends DR {
+  zR = new (class extends kR {
     constructor() {
       super(`github.actions.results.api.v1.GetCacheEntryDownloadURLResponse`, [
         { no: 1, name: `ok`, kind: `scalar`, T: 8 },
@@ -52410,8 +52456,8 @@ var kR = class {
     create(e) {
       let t = { ok: !1, signedDownloadUrl: ``, matchedKey: `` };
       return (
-        globalThis.Object.defineProperty(t, aR, { enumerable: !1, value: this }),
-        e !== void 0 && yR(this, t, e),
+        globalThis.Object.defineProperty(t, sR, { enumerable: !1, value: this }),
+        e !== void 0 && xR(this, t, e),
         t
       );
     }
@@ -52437,25 +52483,25 @@ var kR = class {
                 `Unknown field ${t} (wire type ${r}) for ${this.typeName}`,
               );
             let o = e.skip(r);
-            a !== !1 && (a === !0 ? SL.onRead : a)(this.typeName, i, t, r, o);
+            a !== !1 && (a === !0 ? wL.onRead : a)(this.typeName, i, t, r, o);
         }
       }
       return i;
     }
     internalBinaryWrite(e, t, n) {
-      (e.ok !== !1 && t.tag(1, CL.Varint).bool(e.ok),
-        e.signedDownloadUrl !== `` && t.tag(2, CL.LengthDelimited).string(e.signedDownloadUrl),
-        e.matchedKey !== `` && t.tag(3, CL.LengthDelimited).string(e.matchedKey));
+      (e.ok !== !1 && t.tag(1, TL.Varint).bool(e.ok),
+        e.signedDownloadUrl !== `` && t.tag(2, TL.LengthDelimited).string(e.signedDownloadUrl),
+        e.matchedKey !== `` && t.tag(3, TL.LengthDelimited).string(e.matchedKey));
       let r = n.writeUnknownFields;
-      return (r !== !1 && (r == 1 ? SL.onWrite : r)(this.typeName, e, t), t);
+      return (r !== !1 && (r == 1 ? wL.onWrite : r)(this.typeName, e, t), t);
     }
   })();
-new kR(`github.actions.results.api.v1.CacheService`, [
-  { name: `CreateCacheEntry`, options: {}, I: MR, O: NR },
-  { name: `FinalizeCacheEntryUpload`, options: {}, I: PR, O: FR },
-  { name: `GetCacheEntryDownloadURL`, options: {}, I: IR, O: LR },
+new jR(`github.actions.results.api.v1.CacheService`, [
+  { name: `CreateCacheEntry`, options: {}, I: PR, O: FR },
+  { name: `FinalizeCacheEntryUpload`, options: {}, I: IR, O: LR },
+  { name: `GetCacheEntryDownloadURL`, options: {}, I: RR, O: zR },
 ]);
-var RR = class {
+var BR = class {
   constructor(e) {
     ((this.rpc = e),
       this.CreateCacheEntry.bind(this),
@@ -52463,7 +52509,7 @@ var RR = class {
       this.GetCacheEntryDownloadURL.bind(this));
   }
   CreateCacheEntry(e) {
-    let t = MR.toJson(e, { useProtoFieldName: !0, emitDefaultValues: !1 });
+    let t = PR.toJson(e, { useProtoFieldName: !0, emitDefaultValues: !1 });
     return this.rpc
       .request(
         `github.actions.results.api.v1.CacheService`,
@@ -52471,10 +52517,10 @@ var RR = class {
         `application/json`,
         t,
       )
-      .then((e) => NR.fromJson(e, { ignoreUnknownFields: !0 }));
+      .then((e) => FR.fromJson(e, { ignoreUnknownFields: !0 }));
   }
   FinalizeCacheEntryUpload(e) {
-    let t = PR.toJson(e, { useProtoFieldName: !0, emitDefaultValues: !1 });
+    let t = IR.toJson(e, { useProtoFieldName: !0, emitDefaultValues: !1 });
     return this.rpc
       .request(
         `github.actions.results.api.v1.CacheService`,
@@ -52482,10 +52528,10 @@ var RR = class {
         `application/json`,
         t,
       )
-      .then((e) => FR.fromJson(e, { ignoreUnknownFields: !0 }));
+      .then((e) => LR.fromJson(e, { ignoreUnknownFields: !0 }));
   }
   GetCacheEntryDownloadURL(e) {
-    let t = IR.toJson(e, { useProtoFieldName: !0, emitDefaultValues: !1 });
+    let t = RR.toJson(e, { useProtoFieldName: !0, emitDefaultValues: !1 });
     return this.rpc
       .request(
         `github.actions.results.api.v1.CacheService`,
@@ -52493,10 +52539,10 @@ var RR = class {
         `application/json`,
         t,
       )
-      .then((e) => LR.fromJson(e, { ignoreUnknownFields: !0 }));
+      .then((e) => zR.fromJson(e, { ignoreUnknownFields: !0 }));
   }
 };
-function zR(e) {
+function VR(e) {
   if (e)
     try {
       let t = new URL(e).searchParams.get(`sig`);
@@ -52505,17 +52551,17 @@ function zR(e) {
       P(`Failed to parse URL: ${e} ${t instanceof Error ? t.message : String(t)}`);
     }
 }
-function BR(e) {
+function HR(e) {
   if (typeof e != `object` || !e) {
     P(`body is not an object or is null`);
     return;
   }
-  (`signed_upload_url` in e && typeof e.signed_upload_url == `string` && zR(e.signed_upload_url),
+  (`signed_upload_url` in e && typeof e.signed_upload_url == `string` && VR(e.signed_upload_url),
     `signed_download_url` in e &&
       typeof e.signed_download_url == `string` &&
-      zR(e.signed_download_url));
+      VR(e.signed_download_url));
 }
-var VR = function (e, t, n, r) {
+var UR = function (e, t, n, r) {
     function i(e) {
       return e instanceof n
         ? e
@@ -52544,26 +52590,26 @@ var VR = function (e, t, n, r) {
       c((r = r.apply(e, t || [])).next());
     });
   },
-  HR = class {
+  WR = class {
     constructor(e, t, n, r) {
       ((this.maxAttempts = 5),
         (this.baseRetryIntervalMilliseconds = 3e3),
         (this.retryMultiplier = 1.5));
-      let i = gg();
-      ((this.baseUrl = MI()),
+      let i = vg();
+      ((this.baseUrl = PI()),
         t && (this.maxAttempts = t),
         n && (this.baseRetryIntervalMilliseconds = n),
         r && (this.retryMultiplier = r),
         (this.httpClient = new qn(e, [new Xn(i)])));
     }
     request(e, t, n, r) {
-      return VR(this, void 0, void 0, function* () {
+      return UR(this, void 0, void 0, function* () {
         let i = new URL(`/twirp/${e}/${t}`, this.baseUrl).href;
         P(`[Request] ${t} ${i}`);
         let a = { "Content-Type": n };
         try {
           let { body: e } = yield this.retryableRequest(() =>
-            VR(this, void 0, void 0, function* () {
+            UR(this, void 0, void 0, function* () {
               return this.httpClient.post(i, JSON.stringify(r), a);
             }),
           );
@@ -52574,7 +52620,7 @@ var VR = function (e, t, n, r) {
       });
     }
     retryableRequest(e) {
-      return VR(this, void 0, void 0, function* () {
+      return UR(this, void 0, void 0, function* () {
         let t = 0,
           n = ``,
           r = ``;
@@ -52587,14 +52633,14 @@ var VR = function (e, t, n, r) {
               P(`[Response] - ${t.message.statusCode}`),
               P(`Headers: ${JSON.stringify(t.message.headers, null, 2)}`));
             let o = JSON.parse(r);
-            if ((BR(o), P(`Body: ${JSON.stringify(o, null, 2)}`), this.isSuccessStatusCode(a)))
+            if ((HR(o), P(`Body: ${JSON.stringify(o, null, 2)}`), this.isSuccessStatusCode(a)))
               return { response: t, body: o };
             if (
               ((i = this.isRetryableHttpStatusCode(a)),
               (n = `Failed request: (${a}) ${t.message.statusMessage}`),
               o.msg)
             ) {
-              if (nI.isUsageErrorMessage(o.msg)) throw new nI();
+              if (iI.isUsageErrorMessage(o.msg)) throw new iI();
               n = `${n}: ${o.msg}`;
             }
             if (a === Ln.TooManyRequests) {
@@ -52605,14 +52651,14 @@ var VR = function (e, t, n, r) {
                   t > 0 &&
                   Gr(`You've hit a rate limit, your rate limit will reset in ${t} seconds`);
               }
-              throw new rI(`Rate limited: ${n}`);
+              throw new aI(`Rate limited: ${n}`);
             }
           } catch (e) {
             if (
-              (e instanceof SyntaxError && P(`Raw Body: ${r}`), e instanceof nI || e instanceof rI)
+              (e instanceof SyntaxError && P(`Raw Body: ${r}`), e instanceof iI || e instanceof aI)
             )
               throw e;
-            if (tI.isNetworkErrorCode(e?.code)) throw new tI(e?.code);
+            if (rI.isNetworkErrorCode(e?.code)) throw new rI(e?.code);
             ((i = !0), (n = e.message));
           }
           if (!i) throw Error(`Received non-retryable error: ${n}`);
@@ -52642,7 +52688,7 @@ var VR = function (e, t, n, r) {
         : !1;
     }
     sleep(e) {
-      return VR(this, void 0, void 0, function* () {
+      return UR(this, void 0, void 0, function* () {
         return new Promise((t) => setTimeout(t, e));
       });
     }
@@ -52654,10 +52700,10 @@ var VR = function (e, t, n, r) {
       return Math.trunc(Math.random() * (n - t) + t);
     }
   };
-function UR(e) {
-  return new RR(new HR(tL(), e?.maxAttempts, e?.retryIntervalMs, e?.retryMultiplier));
+function GR(e) {
+  return new BR(new WR(rL(), e?.maxAttempts, e?.retryIntervalMs, e?.retryMultiplier));
 }
-var WR = function (e, t, n, r) {
+var KR = function (e, t, n, r) {
     function i(e) {
       return e instanceof n
         ? e
@@ -52686,32 +52732,32 @@ var WR = function (e, t, n, r) {
       c((r = r.apply(e, t || [])).next());
     });
   },
-  GR = process.platform === `win32`;
-function KR() {
-  return WR(this, void 0, void 0, function* () {
+  qR = process.platform === `win32`;
+function JR() {
+  return KR(this, void 0, void 0, function* () {
     switch (process.platform) {
       case `win32`: {
-        let e = yield pg(),
-          t = $h;
-        if (e) return { path: e, type: Yh.GNU };
-        if (s(t)) return { path: t, type: Yh.BSD };
+        let e = yield hg(),
+          t = tg;
+        if (e) return { path: e, type: Zh.GNU };
+        if (s(t)) return { path: t, type: Zh.BSD };
         break;
       }
       case `darwin`: {
         let e = yield Er(`gtar`, !1);
-        return e ? { path: e, type: Yh.GNU } : { path: yield Er(`tar`, !0), type: Yh.BSD };
+        return e ? { path: e, type: Zh.GNU } : { path: yield Er(`tar`, !0), type: Zh.BSD };
       }
     }
-    return { path: yield Er(`tar`, !0), type: Yh.GNU };
+    return { path: yield Er(`tar`, !0), type: Zh.GNU };
   });
 }
-function qR(e, t, n) {
-  return WR(this, arguments, void 0, function* (e, t, n, r = ``) {
+function YR(e, t, n) {
+  return KR(this, arguments, void 0, function* (e, t, n, r = ``) {
     let i = [`"${e.path}"`],
-      a = fg(t),
+      a = mg(t),
       o = `cache.tar`,
-      s = YR(),
-      c = e.type === Yh.BSD && t !== Jh.Gzip && GR;
+      s = ZR(),
+      c = e.type === Zh.BSD && t !== Xh.Gzip && qR;
     switch (n) {
       case `create`:
         i.push(
@@ -52724,7 +52770,7 @@ function qR(e, t, n) {
           `-C`,
           s.replace(RegExp(`\\${d.sep}`, `g`), `/`),
           `--files-from`,
-          tg,
+          rg,
         );
         break;
       case `extract`:
@@ -52733,13 +52779,13 @@ function qR(e, t, n) {
           c ? o : r.replace(RegExp(`\\${d.sep}`, `g`), `/`),
           `-P`,
           `-C`,
-          c ? XR(s) : s.replace(RegExp(`\\${d.sep}`, `g`), `/`),
+          c ? QR(s) : s.replace(RegExp(`\\${d.sep}`, `g`), `/`),
         );
         break;
       case `list`:
         i.push(`-tf`, c ? o : r.replace(RegExp(`\\${d.sep}`, `g`), `/`), `-P`);
     }
-    if (e.type === Yh.GNU)
+    if (e.type === Zh.GNU)
       switch (process.platform) {
         case `win32`:
           i.push(`--force-local`);
@@ -52750,13 +52796,13 @@ function qR(e, t, n) {
     return i;
   });
 }
-function JR(e, t) {
-  return WR(this, arguments, void 0, function* (e, t, n = ``) {
+function XR(e, t) {
+  return KR(this, arguments, void 0, function* (e, t, n = ``) {
     let r,
-      i = yield KR(),
-      a = yield qR(i, e, t, n),
-      o = t === `create` ? yield QR(i, e) : yield ZR(i, e, n),
-      s = i.type === Yh.BSD && e !== Jh.Gzip && GR;
+      i = yield JR(),
+      a = yield YR(i, e, t, n),
+      o = t === `create` ? yield ez(i, e) : yield $R(i, e, n),
+      s = i.type === Zh.BSD && e !== Xh.Gzip && qR;
     return (
       (r =
         s && t !== `create`
@@ -52766,49 +52812,49 @@ function JR(e, t) {
     );
   });
 }
-function YR() {
+function ZR() {
   return process.env.GITHUB_WORKSPACE ?? process.cwd();
 }
-function XR(e) {
+function QR(e) {
   return `"${d.resolve(e).replace(RegExp(`\\${d.sep}`, `g`), `/`)}"`;
 }
-function ZR(e, t, n) {
-  return WR(this, void 0, void 0, function* () {
-    let r = e.type === Yh.BSD && t !== Jh.Gzip && GR;
+function $R(e, t, n) {
+  return KR(this, void 0, void 0, function* () {
+    let r = e.type === Zh.BSD && t !== Xh.Gzip && qR;
     switch (t) {
-      case Jh.Zstd:
+      case Xh.Zstd:
         return r
-          ? [`zstd -d --long=30 --force -o`, eg, XR(n)]
-          : [`--use-compress-program`, GR ? `"zstd -d --long=30"` : `unzstd --long=30`];
-      case Jh.ZstdWithoutLong:
+          ? [`zstd -d --long=30 --force -o`, ng, QR(n)]
+          : [`--use-compress-program`, qR ? `"zstd -d --long=30"` : `unzstd --long=30`];
+      case Xh.ZstdWithoutLong:
         return r
-          ? [`zstd -d --force -o`, eg, XR(n)]
-          : [`--use-compress-program`, GR ? `"zstd -d"` : `unzstd`];
+          ? [`zstd -d --force -o`, ng, QR(n)]
+          : [`--use-compress-program`, qR ? `"zstd -d"` : `unzstd`];
       default:
         return [`-z`];
     }
   });
 }
-function QR(e, t) {
-  return WR(this, void 0, void 0, function* () {
-    let n = fg(t),
-      r = e.type === Yh.BSD && t !== Jh.Gzip && GR;
+function ez(e, t) {
+  return KR(this, void 0, void 0, function* () {
+    let n = mg(t),
+      r = e.type === Zh.BSD && t !== Xh.Gzip && qR;
     switch (t) {
-      case Jh.Zstd:
+      case Xh.Zstd:
         return r
-          ? [`zstd -T0 --long=30 --force -o`, n.replace(RegExp(`\\${d.sep}`, `g`), `/`), eg]
-          : [`--use-compress-program`, GR ? `"zstd -T0 --long=30"` : `zstdmt --long=30`];
-      case Jh.ZstdWithoutLong:
+          ? [`zstd -T0 --long=30 --force -o`, n.replace(RegExp(`\\${d.sep}`, `g`), `/`), ng]
+          : [`--use-compress-program`, qR ? `"zstd -T0 --long=30"` : `zstdmt --long=30`];
+      case Xh.ZstdWithoutLong:
         return r
-          ? [`zstd -T0 --force -o`, n.replace(RegExp(`\\${d.sep}`, `g`), `/`), eg]
-          : [`--use-compress-program`, GR ? `"zstd -T0"` : `zstdmt`];
+          ? [`zstd -T0 --force -o`, n.replace(RegExp(`\\${d.sep}`, `g`), `/`), ng]
+          : [`--use-compress-program`, qR ? `"zstd -T0"` : `zstdmt`];
       default:
         return [`-z`];
     }
   });
 }
-function $R(e, t) {
-  return WR(this, void 0, void 0, function* () {
+function tz(e, t) {
+  return KR(this, void 0, void 0, function* () {
     for (let n of e)
       try {
         yield Lr(n, void 0, {
@@ -52820,12 +52866,12 @@ function $R(e, t) {
       }
   });
 }
-function ez(e, t, n) {
-  return WR(this, void 0, void 0, function* () {
-    let { commands: r, requiresTempDirectory: i } = yield JR(t, n, e),
-      a = i ? yield og() : void 0;
+function nz(e, t, n) {
+  return KR(this, void 0, void 0, function* () {
+    let { commands: r, requiresTempDirectory: i } = yield XR(t, n, e),
+      a = i ? yield cg() : void 0;
     try {
-      yield $R(r, a);
+      yield tz(r, a);
     } finally {
       if (a)
         try {
@@ -52836,28 +52882,28 @@ function ez(e, t, n) {
     }
   });
 }
-function tz(e, t) {
-  return WR(this, void 0, void 0, function* () {
-    yield ez(e, t, `list`);
+function rz(e, t) {
+  return KR(this, void 0, void 0, function* () {
+    yield nz(e, t, `list`);
   });
 }
-function nz(e, t) {
-  return WR(this, void 0, void 0, function* () {
-    (yield Tr(YR()), yield ez(e, t, `extract`));
+function iz(e, t) {
+  return KR(this, void 0, void 0, function* () {
+    (yield Tr(ZR()), yield nz(e, t, `extract`));
   });
 }
-function rz(e, t, n) {
-  return WR(this, void 0, void 0, function* () {
+function az(e, t, n) {
+  return KR(this, void 0, void 0, function* () {
     u(
-      d.join(e, tg),
+      d.join(e, rg),
       t.join(`
 `),
     );
-    let { commands: r } = yield JR(n, `create`);
-    yield $R(r, e);
+    let { commands: r } = yield XR(n, `create`);
+    yield tz(r, e);
   });
 }
-var iz = function (e, t, n, r) {
+var oz = function (e, t, n, r) {
     function i(e) {
       return e instanceof n
         ? e
@@ -52886,130 +52932,130 @@ var iz = function (e, t, n, r) {
       c((r = r.apply(e, t || [])).next());
     });
   },
-  az = class e extends Error {
+  sz = class e extends Error {
     constructor(t) {
       (super(t), (this.name = `ValidationError`), Object.setPrototypeOf(this, e.prototype));
     }
   },
-  oz = class e extends Error {
+  cz = class e extends Error {
     constructor(t) {
       (super(t), (this.name = `ReserveCacheError`), Object.setPrototypeOf(this, e.prototype));
     }
   },
-  sz = class e extends oz {
+  lz = class e extends cz {
     constructor(t) {
       (super(t), (this.name = `CacheWriteDeniedError`), Object.setPrototypeOf(this, e.prototype));
     }
   },
-  cz = ng,
-  lz = class e extends Error {
+  uz = ig,
+  dz = class e extends Error {
     constructor(t) {
       (super(t), (this.name = `CacheReadDeniedError`), Object.setPrototypeOf(this, e.prototype));
     }
   },
-  uz = class e extends Error {
+  fz = class e extends Error {
     constructor(t) {
       (super(t), (this.name = `FinalizeCacheError`), Object.setPrototypeOf(this, e.prototype));
     }
   };
-function dz(e) {
+function pz(e) {
   if (!e || e.length === 0)
-    throw new az(`Path Validation Error: At least one directory or file path is required`);
+    throw new sz(`Path Validation Error: At least one directory or file path is required`);
 }
-function fz(e) {
+function mz(e) {
   if (e.length > 512)
-    throw new az(`Key Validation Error: ${e} cannot be larger than 512 characters.`);
-  if (!/^[^,]*$/.test(e)) throw new az(`Key Validation Error: ${e} cannot contain commas.`);
+    throw new sz(`Key Validation Error: ${e} cannot be larger than 512 characters.`);
+  if (!/^[^,]*$/.test(e)) throw new sz(`Key Validation Error: ${e} cannot contain commas.`);
 }
-function pz() {
-  switch (DI()) {
+function hz() {
+  switch (kI()) {
     case `v2`:
       return !!process.env.ACTIONS_RESULTS_URL;
     default:
       return !!process.env.ACTIONS_CACHE_URL;
   }
 }
-function mz(e, t, n, r) {
-  return iz(this, arguments, void 0, function* (e, t, n, r, i = !1) {
-    let a = DI();
-    (P(`Cache service version: ${a}`), dz(e));
-    let o = kI();
-    if (!AI(o)) {
+function gz(e, t, n, r) {
+  return oz(this, arguments, void 0, function* (e, t, n, r, i = !1) {
+    let a = kI();
+    (P(`Cache service version: ${a}`), pz(e));
+    let o = jI();
+    if (!MI(o)) {
       (F(`Cache restore skipped: the effective cache-mode '${o}' does not permit reads.`),
         P(`Skipped restore for paths [${e.join(`, `)}] with primary key '${t}'.`));
       return;
     }
     switch (a) {
       case `v2`:
-        return yield gz(e, t, n, r, i);
+        return yield vz(e, t, n, r, i);
       default:
-        return yield hz(e, t, n, r, i);
+        return yield _z(e, t, n, r, i);
     }
   });
 }
-function hz(e, t, n, r) {
-  return iz(this, arguments, void 0, function* (e, t, n, r, i = !1) {
+function _z(e, t, n, r) {
+  return oz(this, arguments, void 0, function* (e, t, n, r, i = !1) {
     n ||= [];
     let a = [t, ...n];
     if ((P(`Resolved Keys:`), P(JSON.stringify(a)), a.length > 10))
-      throw new az(`Key Validation Error: Keys are limited to a maximum of 10.`);
-    for (let e of a) fz(e);
-    let o = yield dg(),
+      throw new sz(`Key Validation Error: Keys are limited to a maximum of 10.`);
+    for (let e of a) mz(e);
+    let o = yield pg(),
       s = ``;
     try {
       let t;
       try {
-        t = yield sL(a, e, { compressionMethod: o, enableCrossOsArchive: i });
+        t = yield lL(a, e, { compressionMethod: o, enableCrossOsArchive: i });
       } catch (e) {
         let t = e?.message ?? ``;
-        throw t.includes(cz) ? new lz(t) : e;
+        throw t.includes(uz) ? new dz(t) : e;
       }
       if (!t?.archiveLocation) return;
       if (r?.lookupOnly) return (F(`Lookup only - skipping download`), t.cacheKey);
-      ((s = d.join(yield og(), fg(o))),
+      ((s = d.join(yield cg(), mg(o))),
         P(`Archive Path: ${s}`),
-        yield lL(t.archiveLocation, s, r),
-        Ur() && (yield tz(s, o)));
-      let n = sg(s);
+        yield dL(t.archiveLocation, s, r),
+        Ur() && (yield rz(s, o)));
+      let n = lg(s);
       return (
         F(`Cache Size: ~${Math.round(n / 1048576)} MB (${n} B)`),
-        yield nz(s, o),
+        yield iz(s, o),
         F(`Cache restored successfully`),
         t.cacheKey
       );
     } catch (e) {
       let t = e;
-      if (t.name === az.name) throw e;
+      if (t.name === sz.name) throw e;
       t instanceof Gn && typeof t.statusCode == `number` && t.statusCode >= 500
         ? Wr(`Failed to restore: ${e.message}`)
         : Gr(`Failed to restore: ${e.message}`);
     } finally {
       try {
-        yield lg(s);
+        yield dg(s);
       } catch (e) {
         P(`Failed to delete archive: ${e}`);
       }
     }
   });
 }
-function gz(e, t, n, r) {
-  return iz(this, arguments, void 0, function* (e, t, n, r, i = !1) {
+function vz(e, t, n, r) {
+  return oz(this, arguments, void 0, function* (e, t, n, r, i = !1) {
     ((r = Object.assign(Object.assign({}, r), { useAzureSdk: !0 })), (n ||= []));
     let a = [t, ...n];
     if ((P(`Resolved Keys:`), P(JSON.stringify(a)), a.length > 10))
-      throw new az(`Key Validation Error: Keys are limited to a maximum of 10.`);
-    for (let e of a) fz(e);
+      throw new sz(`Key Validation Error: Keys are limited to a maximum of 10.`);
+    for (let e of a) mz(e);
     let o = ``;
     try {
-      let s = UR(),
-        c = yield dg(),
-        l = { key: t, restoreKeys: n, version: hg(e, c, i) },
+      let s = GR(),
+        c = yield pg(),
+        l = { key: t, restoreKeys: n, version: _g(e, c, i) },
         u;
       try {
         u = yield s.GetCacheEntryDownloadURL(l);
       } catch (e) {
         let t = e?.message ?? ``;
-        throw t.includes(cz) ? new lz(t) : e;
+        throw t.includes(uz) ? new dz(t) : e;
       }
       if (!u.ok) {
         P(`Cache not found for version ${l.version} of keys: ${a.join(`, `)}`);
@@ -53022,39 +53068,39 @@ function gz(e, t, n, r) {
         r?.lookupOnly)
       )
         return (F(`Lookup only - skipping download`), u.matchedKey);
-      ((o = d.join(yield og(), fg(c))),
+      ((o = d.join(yield cg(), mg(c))),
         P(`Archive path: ${o}`),
         P(`Starting download of archive to: ${o}`),
-        yield lL(u.signedDownloadUrl, o, r));
-      let f = sg(o);
+        yield dL(u.signedDownloadUrl, o, r));
+      let f = lg(o);
       return (
         F(`Cache Size: ~${Math.round(f / 1048576)} MB (${f} B)`),
-        Ur() && (yield tz(o, c)),
-        yield nz(o, c),
+        Ur() && (yield rz(o, c)),
+        yield iz(o, c),
         F(`Cache restored successfully`),
         u.matchedKey
       );
     } catch (e) {
       let t = e;
-      if (t.name === az.name) throw e;
+      if (t.name === sz.name) throw e;
       t instanceof Gn && typeof t.statusCode == `number` && t.statusCode >= 500
         ? Wr(`Failed to restore: ${e.message}`)
         : Gr(`Failed to restore: ${e.message}`);
     } finally {
       try {
-        o && (yield lg(o));
+        o && (yield dg(o));
       } catch (e) {
         P(`Failed to delete archive: ${e}`);
       }
     }
   });
 }
-function _z(e, t, n) {
-  return iz(this, arguments, void 0, function* (e, t, n, r = !1) {
-    let i = DI();
-    (P(`Cache service version: ${i}`), dz(e), fz(t));
-    let a = kI();
-    if (!jI(a))
+function yz(e, t, n) {
+  return oz(this, arguments, void 0, function* (e, t, n, r = !1) {
+    let i = kI();
+    (P(`Cache service version: ${i}`), pz(e), mz(t));
+    let a = jI();
+    if (!NI(a))
       return (
         F(`Cache save skipped: the effective cache-mode '${a}' does not permit writes.`),
         P(`Skipped save for paths [${e.join(`, `)}] with key '${t}'.`),
@@ -53062,33 +53108,33 @@ function _z(e, t, n) {
       );
     switch (i) {
       case `v2`:
-        return yield yz(e, t, n, r);
+        return yield xz(e, t, n, r);
       default:
-        return yield vz(e, t, n, r);
+        return yield bz(e, t, n, r);
     }
   });
 }
-function vz(e, t, n) {
-  return iz(this, arguments, void 0, function* (e, t, n, r = !1) {
-    let i = yield dg(),
+function bz(e, t, n) {
+  return oz(this, arguments, void 0, function* (e, t, n, r = !1) {
+    let i = yield pg(),
       a = -1,
-      o = yield cg(e);
+      o = yield ug(e);
     if ((P(`Cache Paths:`), P(`${JSON.stringify(o)}`), o.length === 0))
       throw Error(
         `Path Validation Error: Path(s) specified in the action for caching do(es) not exist, hence no cache is being saved.`,
       );
-    let s = yield og(),
-      c = d.join(s, fg(i));
+    let s = yield cg(),
+      c = d.join(s, mg(i));
     P(`Archive Path: ${c}`);
     try {
-      (yield rz(s, o, i), Ur() && (yield tz(c, i)));
-      let l = sg(c);
-      if ((P(`File Size: ${l}`), l > 10737418240 && !EI()))
+      (yield az(s, o, i), Ur() && (yield rz(c, i)));
+      let l = lg(c);
+      if ((P(`File Size: ${l}`), l > 10737418240 && !OI()))
         throw Error(
           `Cache size of ~${Math.round(l / 1048576)} MB (${l} B) is over the 10GB limit, not saving cache.`,
         );
       P(`Reserving Cache`);
-      let u = yield uL(t, e, { compressionMethod: i, enableCrossOsArchive: r, cacheSize: l });
+      let u = yield fL(t, e, { compressionMethod: i, enableCrossOsArchive: r, cacheSize: l });
       if (u?.result?.cacheId) a = u?.result?.cacheId;
       else if (u?.statusCode === 400)
         throw Error(
@@ -53098,23 +53144,23 @@ function vz(e, t, n) {
       else {
         let e = u?.error?.message;
         throw e?.startsWith(`cache write denied:`)
-          ? new sz(`Unable to reserve cache with key ${t}. More details: ${e}`)
-          : new oz(
+          ? new lz(`Unable to reserve cache with key ${t}. More details: ${e}`)
+          : new cz(
               `Unable to reserve cache with key ${t}, another job may be creating this cache. More details: ${u?.error?.message}`,
             );
       }
-      (P(`Saving Cache (ID: ${a})`), yield hL(a, c, ``, n));
+      (P(`Saving Cache (ID: ${a})`), yield _L(a, c, ``, n));
     } catch (e) {
       let t = e;
-      if (t.name === az.name) throw e;
-      t.name === oz.name
+      if (t.name === sz.name) throw e;
+      t.name === cz.name
         ? F(`Failed to save: ${t.message}`)
         : t instanceof Gn && typeof t.statusCode == `number` && t.statusCode >= 500
           ? Wr(`Failed to save: ${t.message}`)
           : Gr(`Failed to save: ${t.message}`);
     } finally {
       try {
-        yield lg(c);
+        yield dg(c);
       } catch (e) {
         P(`Failed to delete archive: ${e}`);
       }
@@ -53122,29 +53168,29 @@ function vz(e, t, n) {
     return a;
   });
 }
-function yz(e, t, n) {
-  return iz(this, arguments, void 0, function* (e, t, n, r = !1) {
+function xz(e, t, n) {
+  return oz(this, arguments, void 0, function* (e, t, n, r = !1) {
     n = Object.assign(Object.assign({}, n), {
       uploadChunkSize: 67108864,
       uploadConcurrency: 8,
       useAzureSdk: !0,
     });
-    let i = yield dg(),
-      a = UR(),
+    let i = yield pg(),
+      a = GR(),
       o = -1,
-      s = yield cg(e);
+      s = yield ug(e);
     if ((P(`Cache Paths:`), P(`${JSON.stringify(s)}`), s.length === 0))
       throw Error(
         `Path Validation Error: Path(s) specified in the action for caching do(es) not exist, hence no cache is being saved.`,
       );
-    let c = yield og(),
-      l = d.join(c, fg(i));
+    let c = yield cg(),
+      l = d.join(c, mg(i));
     P(`Archive Path: ${l}`);
     try {
-      (yield rz(c, s, i), Ur() && (yield tz(l, i)));
-      let u = sg(l);
+      (yield az(c, s, i), Ur() && (yield rz(l, i)));
+      let u = lg(l);
       (P(`File Size: ${u}`), (n.archiveSizeBytes = u), P(`Reserving Cache`));
-      let d = hg(e, i, r),
+      let d = _g(e, i, r),
         f = { key: t, version: d },
         p;
       try {
@@ -53161,34 +53207,34 @@ function yz(e, t, n) {
         P(`Failed to reserve cache: ${e}`);
         let n = e?.message ?? ``;
         throw n.startsWith(`cache write denied:`)
-          ? new sz(`Unable to reserve cache with key ${t}. More details: ${n}`)
-          : new oz(
+          ? new lz(`Unable to reserve cache with key ${t}. More details: ${n}`)
+          : new cz(
               `Unable to reserve cache with key ${t}, another job may be creating this cache.`,
             );
       }
-      (P(`Attempting to upload cache located at: ${l}`), yield hL(o, l, p, n));
+      (P(`Attempting to upload cache located at: ${l}`), yield _L(o, l, p, n));
       let m = { key: t, version: d, sizeBytes: `${u}` },
         h = yield a.FinalizeCacheEntryUpload(m);
       if ((P(`FinalizeCacheEntryUploadResponse: ${h.ok}`), !h.ok))
         throw h.message
-          ? new uz(h.message)
+          ? new fz(h.message)
           : Error(
               `Unable to finalize cache with key ${t}, another job may be finalizing this cache.`,
             );
       o = parseInt(h.entryId);
     } catch (e) {
       let t = e;
-      if (t.name === az.name) throw e;
-      t.name === oz.name
+      if (t.name === sz.name) throw e;
+      t.name === cz.name
         ? F(`Failed to save: ${t.message}`)
-        : t.name === uz.name
+        : t.name === fz.name
           ? Gr(t.message)
           : t instanceof Gn && typeof t.statusCode == `number` && t.statusCode >= 500
             ? Wr(`Failed to save: ${t.message}`)
             : Gr(`Failed to save: ${t.message}`);
     } finally {
       try {
-        yield lg(l);
+        yield dg(l);
       } catch (e) {
         P(`Failed to delete archive: ${e}`);
       }
@@ -53196,7 +53242,7 @@ function yz(e, t, n) {
     return o;
   });
 }
-var bz = function (e, t, n, r) {
+var Sz = function (e, t, n, r) {
     function i(e) {
       return e instanceof n
         ? e
@@ -53225,7 +53271,7 @@ var bz = function (e, t, n, r) {
       c((r = r.apply(e, t || [])).next());
     });
   },
-  xz = class {
+  Cz = class {
     constructor(e, t, n) {
       if (e < 1) throw Error(`max attempts should be greater than or equal to 1`);
       if (
@@ -53237,7 +53283,7 @@ var bz = function (e, t, n, r) {
         throw Error(`min seconds should be less than or equal to max seconds`);
     }
     execute(e, t) {
-      return bz(this, void 0, void 0, function* () {
+      return Sz(this, void 0, void 0, function* () {
         let n = 1;
         for (; n < this.maxAttempts;) {
           try {
@@ -53256,12 +53302,12 @@ var bz = function (e, t, n, r) {
       return Math.floor(Math.random() * (this.maxSeconds - this.minSeconds + 1)) + this.minSeconds;
     }
     sleep(e) {
-      return bz(this, void 0, void 0, function* () {
+      return Sz(this, void 0, void 0, function* () {
         return new Promise((t) => setTimeout(t, e * 1e3));
       });
     }
   },
-  Sz = function (e, t, n, r) {
+  wz = function (e, t, n, r) {
     function i(e) {
       return e instanceof n
         ? e
@@ -53290,35 +53336,35 @@ var bz = function (e, t, n, r) {
       c((r = r.apply(e, t || [])).next());
     });
   },
-  Cz = class extends Error {
+  Tz = class extends Error {
     constructor(e) {
       (super(`Unexpected HTTP response: ${e}`),
         (this.httpStatusCode = e),
         Object.setPrototypeOf(this, new.target.prototype));
     }
   },
-  wz = process.platform === `win32`;
+  Ez = process.platform === `win32`;
 process.platform;
-var Tz = `actions/tool-cache`;
-function Ez(e, t, n, r) {
-  return Sz(this, void 0, void 0, function* () {
+var Dz = `actions/tool-cache`;
+function Oz(e, t, n, r) {
+  return wz(this, void 0, void 0, function* () {
     return (
-      (t ||= d.join(Vz(), i.randomUUID())),
+      (t ||= d.join(Uz(), i.randomUUID())),
       yield Tr(d.dirname(t)),
       P(`Downloading ${e}`),
       P(`Destination ${t}`),
-      yield new xz(
+      yield new Cz(
         3,
-        Hz(`TEST_DOWNLOAD_TOOL_RETRY_MIN_SECONDS`, 10),
-        Hz(`TEST_DOWNLOAD_TOOL_RETRY_MAX_SECONDS`, 20),
+        Wz(`TEST_DOWNLOAD_TOOL_RETRY_MIN_SECONDS`, 10),
+        Wz(`TEST_DOWNLOAD_TOOL_RETRY_MAX_SECONDS`, 20),
       ).execute(
         () =>
-          Sz(this, void 0, void 0, function* () {
-            return yield Dz(e, t || ``, n, r);
+          wz(this, void 0, void 0, function* () {
+            return yield kz(e, t || ``, n, r);
           }),
         (e) =>
           !(
-            e instanceof Cz &&
+            e instanceof Tz &&
             e.httpStatusCode &&
             e.httpStatusCode < 500 &&
             e.httpStatusCode !== 408 &&
@@ -53328,14 +53374,14 @@ function Ez(e, t, n, r) {
     );
   });
 }
-function Dz(e, t, n, r) {
-  return Sz(this, void 0, void 0, function* () {
+function kz(e, t, n, r) {
+  return wz(this, void 0, void 0, function* () {
     if (a.existsSync(t)) throw Error(`Destination file path ${t} already exists`);
-    let i = new qn(Tz, [], { allowRetries: !1 });
+    let i = new qn(Dz, [], { allowRetries: !1 });
     n && (P(`set auth`), r === void 0 && (r = {}), (r.authorization = n));
     let o = yield i.get(e, r);
     if (o.message.statusCode !== 200) {
-      let t = new Cz(o.message.statusCode);
+      let t = new Tz(o.message.statusCode);
       throw (
         P(
           `Failed to download from "${e}". Code(${o.message.statusCode}) Message(${o.message.statusMessage})`,
@@ -53344,7 +53390,7 @@ function Dz(e, t, n, r) {
       );
     }
     let s = v.promisify(le.pipeline),
-      c = Hz(`TEST_DOWNLOAD_TOOL_RESPONSE_MESSAGE_FACTORY`, () => o.message)(),
+      c = Wz(`TEST_DOWNLOAD_TOOL_RESPONSE_MESSAGE_FACTORY`, () => o.message)(),
       l = !1;
     try {
       return (yield s(c, a.createWriteStream(t)), P(`download complete`), (l = !0), t);
@@ -53360,10 +53406,10 @@ function Dz(e, t, n, r) {
     }
   });
 }
-function Oz(e, t) {
-  return Sz(this, arguments, void 0, function* (e, t, n = `xz`) {
+function Az(e, t) {
+  return wz(this, arguments, void 0, function* (e, t, n = `xz`) {
     if (!e) throw Error(`parameter 'file' is required`);
-    ((t = yield Fz(t)), P(`Checking tar --version`));
+    ((t = yield Lz(t)), P(`Checking tar --version`));
     let r = ``;
     (yield Lr(`tar --version`, [], {
       ignoreReturnCode: !0,
@@ -53377,7 +53423,7 @@ function Oz(e, t) {
     let o = t,
       s = e;
     return (
-      wz &&
+      Ez &&
         i &&
         (a.push(`--force-local`), (o = t.replace(/\\/g, `/`)), (s = e.replace(/\\/g, `/`))),
       i && (a.push(`--warning=no-unknown-keyword`), a.push(`--overwrite`)),
@@ -53387,14 +53433,14 @@ function Oz(e, t) {
     );
   });
 }
-function kz(e, t) {
-  return Sz(this, void 0, void 0, function* () {
+function jz(e, t) {
+  return wz(this, void 0, void 0, function* () {
     if (!e) throw Error(`parameter 'file' is required`);
-    return ((t = yield Fz(t)), wz ? yield Az(e, t) : yield jz(e, t), t);
+    return ((t = yield Lz(t)), Ez ? yield Mz(e, t) : yield Nz(e, t), t);
   });
 }
-function Az(e, t) {
-  return Sz(this, void 0, void 0, function* () {
+function Mz(e, t) {
+  return wz(this, void 0, void 0, function* () {
     let n = e.replace(/'/g, `''`).replace(/"|\n|\r/g, ``),
       r = t.replace(/'/g, `''`).replace(/"|\n|\r/g, ``),
       i = yield Er(`pwsh`, !1);
@@ -53435,36 +53481,36 @@ function Az(e, t) {
     }
   });
 }
-function jz(e, t) {
-  return Sz(this, void 0, void 0, function* () {
+function Nz(e, t) {
+  return wz(this, void 0, void 0, function* () {
     let n = yield Er(`unzip`, !0),
       r = [e];
     (Ur() || r.unshift(`-q`), r.unshift(`-o`), yield Lr(`"${n}"`, r, { cwd: t }));
   });
 }
-function Mz(e, n, r, i) {
-  return Sz(this, void 0, void 0, function* () {
+function Pz(e, n, r, i) {
+  return wz(this, void 0, void 0, function* () {
     if (
-      ((r = Kh.clean(r) || r),
+      ((r = Jh.clean(r) || r),
       (i ||= t.arch()),
       P(`Caching tool ${n} ${r} ${i}`),
       P(`source dir: ${e}`),
       !a.statSync(e).isDirectory())
     )
       throw Error(`sourceDir is not a directory`);
-    let o = yield Iz(n, r, i);
+    let o = yield Rz(n, r, i);
     for (let t of a.readdirSync(e)) yield Cr(d.join(e, t), o, { recursive: !0 });
-    return (Lz(n, r, i), o);
+    return (zz(n, r, i), o);
   });
 }
-function Nz(e, n, r) {
+function Fz(e, n, r) {
   if (!e) throw Error(`toolName parameter is required`);
   if (!n) throw Error(`versionSpec parameter is required`);
-  ((r ||= t.arch()), Rz(n) || (n = zz(Pz(e, r), n)));
+  ((r ||= t.arch()), Bz(n) || (n = Vz(Iz(e, r), n)));
   let i = ``;
   if (n) {
-    n = Kh.clean(n) || ``;
-    let t = d.join(Bz(), e, n, r);
+    n = Jh.clean(n) || ``;
+    let t = d.join(Hz(), e, n, r);
     (P(`checking cache: ${t}`),
       a.existsSync(t) && a.existsSync(`${t}.complete`)
         ? (P(`Found tool in cache ${e} ${n} ${r}`), (i = t))
@@ -53472,197 +53518,203 @@ function Nz(e, n, r) {
   }
   return i;
 }
-function Pz(e, n) {
+function Iz(e, n) {
   let r = [];
   n ||= t.arch();
-  let i = d.join(Bz(), e);
+  let i = d.join(Hz(), e);
   if (a.existsSync(i)) {
     let e = a.readdirSync(i);
     for (let t of e)
-      if (Rz(t)) {
+      if (Bz(t)) {
         let e = d.join(i, t, n || ``);
         a.existsSync(e) && a.existsSync(`${e}.complete`) && r.push(t);
       }
   }
   return r;
 }
-function Fz(e) {
-  return Sz(this, void 0, void 0, function* () {
-    return ((e ||= d.join(Vz(), i.randomUUID())), yield Tr(e), e);
+function Lz(e) {
+  return wz(this, void 0, void 0, function* () {
+    return ((e ||= d.join(Uz(), i.randomUUID())), yield Tr(e), e);
   });
 }
-function Iz(e, t, n) {
-  return Sz(this, void 0, void 0, function* () {
-    let r = d.join(Bz(), e, Kh.clean(t) || t, n || ``);
+function Rz(e, t, n) {
+  return wz(this, void 0, void 0, function* () {
+    let r = d.join(Hz(), e, Jh.clean(t) || t, n || ``);
     P(`destination ${r}`);
     let i = `${r}.complete`;
     return (yield wr(r), yield wr(i), yield Tr(r), r);
   });
 }
-function Lz(e, t, n) {
-  let r = `${d.join(Bz(), e, Kh.clean(t) || t, n || ``)}.complete`;
+function zz(e, t, n) {
+  let r = `${d.join(Hz(), e, Jh.clean(t) || t, n || ``)}.complete`;
   (a.writeFileSync(r, ``), P(`finished caching tool`));
 }
-function Rz(e) {
-  let t = Kh.clean(e) || ``;
+function Bz(e) {
+  let t = Jh.clean(e) || ``;
   P(`isExplicit: ${t}`);
-  let n = Kh.valid(t) != null;
+  let n = Jh.valid(t) != null;
   return (P(`explicit? ${n}`), n);
 }
-function zz(e, t) {
+function Vz(e, t) {
   let n = ``;
-  (P(`evaluating ${e.length} versions`), (e = e.sort((e, t) => (Kh.gt(e, t) ? 1 : -1))));
+  (P(`evaluating ${e.length} versions`), (e = e.sort((e, t) => (Jh.gt(e, t) ? 1 : -1))));
   for (let r = e.length - 1; r >= 0; r--) {
     let i = e[r];
-    if (Kh.satisfies(i, t)) {
+    if (Jh.satisfies(i, t)) {
       n = i;
       break;
     }
   }
   return (P(n ? `matched: ${n}` : `match not found`), n);
 }
-function Bz() {
+function Hz() {
   let e = process.env.RUNNER_TOOL_CACHE || ``;
   return (_(e, `Expected RUNNER_TOOL_CACHE to be defined`), e);
 }
-function Vz() {
+function Uz() {
   let e = process.env.RUNNER_TEMP || ``;
   return (_(e, `Expected RUNNER_TEMP to be defined`), e);
 }
-function Hz(e, t) {
+function Wz(e, t) {
   let n = global[e];
   return n === void 0 ? t : n;
 }
-async function Uz(e, t, n = process.platform) {
-  let r = Gz(e),
-    i = Nz(e.cacheName, e.version, e.target);
-  if (i) return (F(`Using cached ${r} ${e.version} for ${e.target}`), Wz(i, e, n));
-  if ((await Kz(e), (i = Nz(e.cacheName, e.version, e.target)), i))
-    return (F(`Using action-cached ${r} ${e.version} for ${e.target}`), Wz(i, e, n));
+async function Gz(e, t, n = process.platform) {
+  let r = qz(e),
+    i = Fz(e.cacheName, e.version, e.target);
+  if (i) return (F(`Using cached ${r} ${e.version} for ${e.target}`), Kz(i, e, n));
+  if ((await Jz(e), (i = Fz(e.cacheName, e.version, e.target)), i))
+    return (F(`Using action-cached ${r} ${e.version} for ${e.target}`), Kz(i, e, n));
   F(`Downloading ${r} ${e.version} for ${e.target}`);
-  let a = await Ez(t),
-    o = e.format === `zip` ? await kz(a) : await Oz(a);
-  Wz(o, e, n);
-  let s = await Mz(o, e.cacheName, e.version, e.target);
-  return (F(`Cached ${r} ${e.version} for ${e.target}`), await qz(e, s), Wz(s, e, n));
+  let a = await Oz(t),
+    o = e.format === `zip` ? await jz(a) : await Az(a);
+  Kz(o, e, n);
+  let s = await Pz(o, e.cacheName, e.version, e.target);
+  return (F(`Cached ${r} ${e.version} for ${e.target}`), await Yz(e, s), Kz(s, e, n));
 }
-function Wz(e, t, n = process.platform) {
-  let r = Qz(e, t.executableNames);
-  if (!r) throw Error(`Downloaded ${Gz(t)} archive did not contain an executable in ${e}`);
+function Kz(e, t, n = process.platform) {
+  let r = eB(e, t.executableNames);
+  if (!r) throw Error(`Downloaded ${qz(t)} archive did not contain an executable in ${e}`);
   return (n !== `win32` && A(r, 493), t.validateExecutable?.(r, n), r);
 }
-function Gz(e) {
+function qz(e) {
   return e.displayName ?? e.cacheName;
 }
-async function Kz(e) {
-  if (!pz()) {
+async function Jz(e) {
+  if (!hz()) {
     P(`Actions cache service is not available; skipping tool archive restore`);
     return;
   }
-  let t = Gz(e),
-    n = Jz(e);
+  let t = qz(e),
+    n = Xz(e);
   try {
     F(`Restoring cached ${t} ${e.version} for ${e.target}`);
-    let r = await mz(Yz(e), n);
+    let r = await gz(Zz(e), n);
     F(r ? `Restored ${t} cache: ${r}` : `No ${t} action cache found for ${e.version} ${e.target}`);
   } catch (e) {
-    Gr(`Failed to restore ${t} action cache: ${Zz(e)}`);
+    Gr(`Failed to restore ${t} action cache: ${$z(e)}`);
   }
 }
-async function qz(e, t) {
-  if (!pz()) {
+async function Yz(e, t) {
+  if (!hz()) {
     P(`Actions cache service is not available; skipping tool archive save`);
     return;
   }
-  let n = Gz(e),
-    r = Jz(e);
+  let n = qz(e),
+    r = Xz(e);
   try {
-    (await _z(Yz(e, t), r)) > 0 && F(`Saved ${n} action cache: ${r}`);
+    (await yz(Zz(e, t), r)) > 0 && F(`Saved ${n} action cache: ${r}`);
   } catch (e) {
-    Gr(`Failed to save ${n} action cache: ${Zz(e)}`);
+    Gr(`Failed to save ${n} action cache: ${$z(e)}`);
   }
 }
-function Jz(e) {
+function Xz(e) {
   return `pi-action-tool-cache-v1-${e.cacheName}-${e.version}-${e.target}`;
 }
-function Yz(e, t) {
-  let n = t ?? ce.join(Xz(), e.cacheName, e.version, e.target);
+function Zz(e, t) {
+  let n = t ?? ce.join(Qz(), e.cacheName, e.version, e.target);
   return [n, `${n}.complete`];
 }
-function Xz() {
+function Qz() {
   let e = process.env.RUNNER_TOOL_CACHE;
   if (!e) throw Error(`Expected RUNNER_TOOL_CACHE to be defined`);
   return e;
 }
-function Zz(e) {
+function $z(e) {
   return e instanceof Error ? e.message : String(e);
 }
-function Qz(e, t) {
+function eB(e, t) {
   for (let n of t) {
-    let t = $z(e, n);
+    let t = tB(e, n);
     if (t) return t;
   }
   return null;
 }
-function $z(e, t) {
+function tB(e, t) {
   for (let n of ae(e, { withFileTypes: !0 })) {
     let r = ce.join(e, n.name);
     if (n.isFile() && n.name === t) return r;
     if (n.isDirectory()) {
-      let e = $z(r, t);
+      let e = tB(r, t);
       if (e) return e;
     }
   }
   return null;
 }
-async function eB(e, t) {
-  let n = await tB(t.mcp),
+async function nB(e, t) {
+  let n = await rB(t.mcp),
     r = t.mcp.createServerConfig(n, $o()),
     i = ce.join(e, `pi-action-mcp.json`);
   return (
     Br(t.token),
-    se(i, `${JSON.stringify(nB(r), null, 2)}\n`, { mode: 384 }),
+    se(i, `${JSON.stringify(iB(r), null, 2)}\n`, { mode: 384 }),
     F(`Configured ${r.name} MCP server for pi`),
     { [Yo]: i, [r.tokenEnvVar]: t.token }
   );
 }
-async function tB(e) {
-  return e.getExecutableOverride() || Uz(e.getReleaseAsset(), e.getReleaseAssetUrl());
+async function rB(e) {
+  return e.getExecutableOverride() || Gz(e.getReleaseAsset(), e.getReleaseAssetUrl());
 }
-function nB(e) {
-  return { name: e.name, command: e.command, args: e.args, env: e.env };
+function iB(e) {
+  return {
+    name: e.name,
+    command: e.command,
+    args: e.args,
+    env: e.env,
+    ...(e.tools ? { tools: e.tools } : {}),
+  };
 }
-function rB(e, t) {
+function aB(e, t) {
   if (!e) {
     F(`No pi auth was provided; using API keys from inputs and environment`);
     return;
   }
-  let n = sB(oB(e));
-  (uB(n), fB(t, n), F(`Loaded pi auth for ${Object.keys(JSON.parse(n)).join(`, `)}`));
+  let n = lB(cB(e));
+  (fB(n), mB(t, n), F(`Loaded pi auth for ${Object.keys(JSON.parse(n)).join(`, `)}`));
 }
-async function iB(e, t, n) {
+async function oB(e, t, n) {
   let r = ce.join(e, `auth.json`);
   if (t && ne(r))
     try {
-      let e = sB(ie(r, `utf8`));
-      if ((uB(e), e === cB(t))) {
+      let e = lB(ie(r, `utf8`));
+      if ((fB(e), e === uB(t))) {
         F(`pi auth did not change; repository secret update skipped`);
         return;
       }
-      (await n(aB(e)), F(`Stored refreshed pi auth in repository secret`));
+      (await n(sB(e)), F(`Stored refreshed pi auth in repository secret`));
     } catch (e) {
       Gr(`Could not persist refreshed pi auth: ${ts(e)}`);
     }
 }
-function aB(e) {
-  return Buffer.from(sB(e), `utf8`).toString(`base64`);
+function sB(e) {
+  return Buffer.from(lB(e), `utf8`).toString(`base64`);
 }
-function oB(e) {
+function cB(e) {
   let t = e.trim();
   if (!t) throw Error(`auth secret is empty`);
   return t.startsWith(`{`) ? t : Buffer.from(t, `base64`).toString(`utf8`);
 }
-function sB(e) {
+function lB(e) {
   let t;
   try {
     t = JSON.parse(e);
@@ -53676,45 +53728,45 @@ function sB(e) {
     if (t !== `api_key` && t !== `oauth`)
       throw Error(`pi auth.json entry ${e} must have type api_key or oauth`);
   }
-  return JSON.stringify(lB(t));
+  return JSON.stringify(dB(t));
 }
-function cB(e) {
+function uB(e) {
   try {
-    return sB(oB(e));
+    return lB(cB(e));
   } catch {
     return;
   }
 }
-function lB(e) {
-  if (Array.isArray(e)) return e.map(lB);
+function dB(e) {
+  if (Array.isArray(e)) return e.map(dB);
   if (typeof e == `object` && e) {
     let t = {};
-    for (let n of Object.keys(e).sort()) t[n] = lB(e[n]);
+    for (let n of Object.keys(e).sort()) t[n] = dB(e[n]);
     return t;
   }
   return e;
 }
-function uB(e) {
-  (Br(e), dB(JSON.parse(e)));
+function fB(e) {
+  (Br(e), pB(JSON.parse(e)));
 }
-function dB(e) {
+function pB(e) {
   if (typeof e == `string`) e.length >= 8 && Br(e);
-  else if (typeof e == `object` && e) for (let t of Object.values(e)) dB(t);
+  else if (typeof e == `object` && e) for (let t of Object.values(e)) pB(t);
 }
-function fB(e, t) {
+function mB(e, t) {
   (j(e, { recursive: !0 }), A(e, 448));
   let n = ce.join(e, `auth.json`);
   (se(n, t, { mode: 384 }), A(n, 384));
 }
-var pB = `0.87.1`;
-async function mB() {
+var hB = `0.87.1`;
+async function gB() {
   if (process.env.PI_PATH) return process.env.PI_PATH;
-  let e = pB,
-    t = hB();
+  let e = hB,
+    t = _B();
   if (!t) throw Error(`Unsupported pi platform: ${process.platform} (${process.arch})`);
-  return Uz(vB(e, t), _B(e, t));
+  return Gz(bB(e, t), yB(e, t));
 }
-function hB(e = process.platform, t = process.arch) {
+function _B(e = process.platform, t = process.arch) {
   return t !== `x64` && t !== `arm64`
     ? null
     : e === `linux` || e === `android`
@@ -53725,7 +53777,7 @@ function hB(e = process.platform, t = process.arch) {
           ? `windows-${t}`
           : null;
 }
-function gB(e) {
+function vB(e) {
   if (
     !new Set([
       `darwin-arm64`,
@@ -53741,64 +53793,64 @@ function gB(e) {
     ? { assetName: `pi-${e}.zip`, format: `zip` }
     : { assetName: `pi-${e}.tar.gz`, format: `tar` };
 }
-function _B(e, t) {
-  let { assetName: n } = gB(t);
+function yB(e, t) {
+  let { assetName: n } = vB(t);
   return `https://github.com/earendil-works/pi/releases/download/v${e}/${n}`;
 }
-function vB(e, t) {
-  return { ...yB(), ...gB(t), version: e, target: t };
+function bB(e, t) {
+  return { ...xB(), ...vB(t), version: e, target: t };
 }
-function yB(e = process.platform) {
+function xB(e = process.platform) {
   return {
     cacheName: `pi`,
     displayName: `pi`,
     executableNames: e === `win32` ? [`pi.exe`] : [`pi`],
   };
 }
-var bB = `PI_ACTION_API_KEY`;
-function xB(e, t, n) {
-  let r = SB(t, t.models ? qo(t.models, n) : void 0);
+var SB = `PI_ACTION_API_KEY`;
+function CB(e, t, n) {
+  let r = wB(t, t.models ? qo(t.models, n) : void 0);
   if (Object.keys(r.providers).length > 0) {
     let t = ce.join(e, `models.json`);
     (se(t, `${JSON.stringify(r, null, 2)}\n`, { mode: 384 }),
       A(t, 384),
       F(`Configured pi providers: ${Object.keys(r.providers).join(`, `)}`));
   }
-  return CB(t);
+  return TB(t);
 }
-function SB(e, t) {
-  let n = TB(t);
+function wB(e, t) {
+  let n = DB(t);
   if (e.baseUrl) {
     if (!e.model) throw Error(`model is required when base-url is provided`);
     let t = e.model,
       r = e.provider ?? `custom`,
       i = n.providers[r] ?? {},
       a = Array.isArray(i.models) ? i.models : [],
-      o = a.some((e) => EB(e, t))
+      o = a.some((e) => OB(e, t))
         ? a
         : [...a, { id: t, reasoning: e.thinking !== void 0 && e.thinking !== `off` }];
     n.providers[r] = {
       ...i,
       baseUrl: e.baseUrl,
       api: e.api ?? i.api ?? `openai-completions`,
-      ...(e.apiKey ? { apiKey: `$${bB}` } : {}),
+      ...(e.apiKey ? { apiKey: `$${SB}` } : {}),
       models: o,
     };
   } else if (e.apiKey) {
     if (!e.provider) throw Error(`provider is required when api-key is provided without base-url`);
-    n.providers[e.provider] = { ...n.providers[e.provider], apiKey: `$${bB}` };
+    n.providers[e.provider] = { ...n.providers[e.provider], apiKey: `$${SB}` };
   }
   return n;
 }
-function CB(e) {
+function TB(e) {
   return e.baseUrl
     ? { provider: e.provider ?? `custom`, model: e.model }
     : { provider: e.provider, model: e.model };
 }
-function wB(e) {
-  return e ? { [bB]: e } : {};
+function EB(e) {
+  return e ? { [SB]: e } : {};
 }
-function TB(e) {
+function DB(e) {
   if (!e?.trim()) return { providers: {} };
   let t;
   try {
@@ -53808,26 +53860,26 @@ function TB(e) {
       `models must be JSON or a path to a JSON file: ${e instanceof Error ? e.message : String(e)}`,
     );
   }
-  if (!DB(t)) throw Error(`models must be a JSON object`);
+  if (!kB(t)) throw Error(`models must be a JSON object`);
   let n = t.providers ?? {};
-  if (!DB(n)) throw Error(`models.providers must be a JSON object`);
+  if (!kB(n)) throw Error(`models.providers must be a JSON object`);
   for (let [e, t] of Object.entries(n))
-    if (!DB(t)) throw Error(`models.providers.${e} must be a JSON object`);
+    if (!kB(t)) throw Error(`models.providers.${e} must be a JSON object`);
   return { ...t, providers: n };
 }
-function EB(e, t) {
-  return DB(e) && e.id === t;
+function OB(e, t) {
+  return kB(e) && e.id === t;
 }
-function DB(e) {
+function kB(e) {
   return typeof e == `object` && !!e && !Array.isArray(e);
 }
-function OB() {
+function AB() {
   let e = process.env.RUNNER_TEMP ?? me();
   j(e, { recursive: !0 });
   let t = re(ce.join(e, `pi-action-`));
   return (A(t, 448), t);
 }
-function kB(e) {
+function jB(e) {
   let t = es()
     ? `If a pull request comment would be useful, set pr_comment to concise Markdown. Otherwise set it to an empty string.`
     : `This event is not a pull request. Set pr_comment to an empty string.`;
@@ -53841,10 +53893,10 @@ pi action instructions:
 - ${t}
 - Platform MCP tools are available for read-only repository, pull request, issue, and workflow context. Use them when helpful, but do not create, update, merge, comment, or otherwise write through MCP.`;
 }
-function AB(e, t) {
-  return `${e.trim()}\n<sub>agent: pi ${pB} | model: <code>${jB(t)}</code></sub>`;
+function MB(e, t) {
+  return `${e.trim()}\n<sub>agent: pi ${hB} | model: <code>${NB(t)}</code></sub>`;
 }
-function jB(e) {
+function NB(e) {
   return e
     .replaceAll(`&`, `&amp;`)
     .replaceAll(`<`, `&lt;`)
@@ -53852,7 +53904,7 @@ function jB(e) {
     .replaceAll(`"`, `&quot;`)
     .replaceAll(`'`, `&#39;`);
 }
-function MB(e, t = {}) {
+function PB(e, t = {}) {
   let n = {};
   for (let [e, t] of Object.entries(process.env))
     t !== void 0 && !e.startsWith(`INPUT_`) && (n[e] = t);
@@ -53866,11 +53918,11 @@ function MB(e, t = {}) {
     n
   );
 }
-function NB(e, t) {
+function FB(e, t) {
   (Kr(e), F(t), qr());
 }
-var PB = `\x1B[0m`,
-  FB = {
+var IB = `\x1B[0m`,
+  LB = {
     agent: `\x1B[2m`,
     turn: `\x1B[2m`,
     retry: `\x1B[33m`,
@@ -53881,13 +53933,14 @@ var PB = `\x1B[0m`,
     "command-output": `\x1B[2m`,
     file: `\x1B[35m`,
     tool: `\x1B[36m`,
+    "tool-error": `\x1B[33m`,
     stderr: `\x1B[2m`,
     error: `\x1B[31m`,
   };
-function IB(e, t) {
-  LB(e, t);
+function RB(e, t) {
+  zB(e, t);
 }
-function LB(e, t) {
+function zB(e, t) {
   let n = t
       .replace(
         /\r\n/g,
@@ -53900,34 +53953,34 @@ function LB(e, t) {
 `,
       )
       .trimEnd(),
-    r = zB(e);
+    r = VB(e);
   if (n.trim())
     for (let e of n.split(`
 `))
       F(`${r} ${e}`);
 }
-function RB(e) {
+function BB(e) {
   let t = e.replace(/\s+/g, ` `).trim();
   return t.length <= 120 ? t : `${t.slice(0, 117)}...`;
 }
-function zB(e) {
+function VB(e) {
   let t = `[pi:${e}]`,
-    n = FB[e];
-  return !n || !BB() ? t : `${n}${t}${PB}`;
+    n = LB[e];
+  return !n || !HB() ? t : `${n}${t}${IB}`;
 }
-function BB() {
+function HB() {
   return process.env.NO_COLOR === void 0 && process.env.FORCE_COLOR !== `0`;
 }
-function VB() {
+function UB() {
   return { lastAssistant: void 0, result: void 0 };
 }
-async function HB(e) {
-  let t = kB(e.prompt);
-  NB(`pi prompt`, t);
-  let n = VB();
-  return KB(n, await tV(UB(e), e, t, (e) => WB(e, n)));
+async function WB(e) {
+  let t = jB(e.prompt);
+  FB(`pi prompt`, t);
+  let n = UB();
+  return JB(n, await rV(GB(e), e, t, (e) => KB(e, n)));
 }
-function UB(e) {
+function GB(e) {
   let t = [`--mode`, `json`, `--no-session`, `-na`, `-ne`, `-e`, e.extensionPath];
   return (
     e.provider && t.push(`--provider`, e.provider),
@@ -53936,54 +53989,54 @@ function UB(e) {
     t
   );
 }
-function WB(e, t) {
+function KB(e, t) {
   if (!e.trim()) return;
   let n;
   try {
     n = JSON.parse(e);
   } catch {
-    IB(`stderr`, e);
+    RB(`stderr`, e);
     return;
   }
-  GB(n, t);
+  qB(n, t);
 }
-function GB(e, t) {
+function qB(e, t) {
   switch (e.type) {
     case `agent_start`:
-      IB(`agent`, `started`);
+      RB(`agent`, `started`);
       break;
     case `agent_end`:
-      IB(`agent`, `completed`);
+      RB(`agent`, `completed`);
       break;
     case `message_update`:
-      JB(e.assistantMessageEvent);
+      XB(e.assistantMessageEvent);
       break;
     case `message_end`:
-      QB(e.message) && (t.lastAssistant = e.message);
+      eV(e.message) && (t.lastAssistant = e.message);
       break;
     case `turn_end`:
-      QB(e.message) && IB(`turn`, `completed; ${XB(e.message)}`);
+      eV(e.message) && RB(`turn`, `completed; ${QB(e.message)}`);
       break;
     case `tool_execution_start`:
-      YB(eV(e.toolName), $B(e.args));
+      ZB(nV(e.toolName), tV(e.args));
       break;
     case `tool_execution_end`:
-      qB(e, t);
+      YB(e, t);
       break;
     case `auto_retry_start`:
-      IB(
+      RB(
         `retry`,
-        `attempt ${String(e.attempt)}/${String(e.maxAttempts)} in ${String(e.delayMs)}ms: ${eV(e.errorMessage)}`,
+        `attempt ${String(e.attempt)}/${String(e.maxAttempts)} in ${String(e.delayMs)}ms: ${nV(e.errorMessage)}`,
       );
       break;
     case `compaction_start`:
-      IB(`compaction`, `started`);
+      RB(`compaction`, `started`);
       break;
     case `compaction_end`:
-      IB(`compaction`, `completed`);
+      RB(`compaction`, `completed`);
   }
 }
-function KB(e, t) {
+function JB(e, t) {
   let n = e.lastAssistant;
   if (n?.stopReason === `error` || n?.stopReason === `aborted`)
     throw Error(`pi run failed: ${n.errorMessage ?? n.stopReason}`);
@@ -53991,81 +54044,81 @@ function KB(e, t) {
   if (!n) throw Error(`pi did not produce a response`);
   let r = n.model ? (n.provider ? `${n.provider}/${n.model}` : n.model) : void 0;
   return (
-    e.result || IB(`error`, `pi finished without calling ${Jo}`),
+    e.result || RB(`error`, `pi finished without calling ${Jo}`),
     { commitMessage: e.result?.commitMessage ?? ``, prComment: e.result?.prComment ?? ``, model: r }
   );
 }
-function qB(e, t) {
-  let n = eV(e.toolName),
-    r = $B(e.result),
-    i = ZB(r.content);
+function YB(e, t) {
+  let n = nV(e.toolName),
+    r = tV(e.result),
+    i = $B(r.content);
   if (e.isError === !0) {
-    LB(`error`, `${n} failed${i ? `: ${i}` : ``}`);
+    zB(`tool-error`, `${n} failed${i ? `: ${i}` : ``}`);
     return;
   }
-  if (n === `bash`) LB(`command-output`, i);
+  if (n === `bash`) zB(`command-output`, i);
   else if (n === `submit_result`) {
-    let e = $B(r.details);
+    let e = tV(r.details);
     ((t.result = {
-      commitMessage: eV(e.commit_message).trim(),
-      prComment: eV(e.pr_comment).trim(),
+      commitMessage: nV(e.commit_message).trim(),
+      prComment: nV(e.pr_comment).trim(),
     }),
-      IB(`agent`, `submitted result`));
+      RB(`agent`, `submitted result`));
   }
 }
-function JB(e) {
-  let t = $B(e);
+function XB(e) {
+  let t = tV(e);
   t.type === `text_end`
-    ? LB(`message`, eV(t.content))
-    : t.type === `thinking_end` && LB(`reasoning`, eV(t.content));
+    ? zB(`message`, nV(t.content))
+    : t.type === `thinking_end` && zB(`reasoning`, nV(t.content));
 }
-function YB(e, t) {
+function ZB(e, t) {
   switch (e) {
     case `bash`:
-      LB(`command`, eV(t.command));
+      zB(`command`, nV(t.command));
       break;
     case `edit`:
     case `write`:
-      IB(`file`, `${e} ${eV(t.path)}`);
+      RB(`file`, `${e} ${nV(t.path)}`);
       break;
     case Jo:
       break;
     default:
-      IB(`tool`, `${e} ${RB(JSON.stringify(t))}`);
+      RB(`tool`, `${e} ${BB(JSON.stringify(t))}`);
   }
 }
-function XB(e) {
+function QB(e) {
   let t = e.usage ?? {},
     n = [`${t.input ?? 0} input`, `${t.cacheRead ?? 0} cached input`, `${t.output ?? 0} output`];
   return (t.cost?.total && n.push(`$${t.cost.total.toFixed(4)}`), n.join(`, `));
 }
-function ZB(e) {
+function $B(e) {
   return Array.isArray(e)
     ? e
-        .map((e) => $B(e))
+        .map((e) => tV(e))
         .filter((e) => e.type === `text`)
-        .map((e) => eV(e.text)).join(`
+        .map((e) => nV(e.text)).join(`
 `)
     : ``;
 }
-function QB(e) {
-  return $B(e).role === `assistant`;
+function eV(e) {
+  return tV(e).role === `assistant`;
 }
-function $B(e) {
+function tV(e) {
   return typeof e == `object` && e && !Array.isArray(e) ? e : {};
 }
-function eV(e) {
+function nV(e) {
   return typeof e == `string` ? e : ``;
 }
-function tV(e, t, n, r) {
+function rV(e, t, n, r) {
   return new Promise((i, a) => {
     let o = ye(t.executable, e, {
       cwd: t.workspace,
-      env: MB(t.agentDir, t.env),
+      env: PB(t.agentDir, t.env),
       stdio: [`pipe`, `pipe`, `pipe`],
     });
-    (nV(o.stdout, r),
-      nV(o.stderr, (e) => IB(`stderr`, e)),
+    (iV(o.stdout, r),
+      iV(o.stderr, (e) => RB(`stderr`, e)),
       o.on(`error`, a),
       o.on(`close`, (e, t) => {
         t ? a(Error(`pi was terminated by ${t}`)) : i(e ?? 1);
@@ -54074,7 +54127,7 @@ function tV(e, t, n, r) {
       o.stdin.end(n));
   });
 }
-function nV(e, t) {
+function iV(e, t) {
   let n = ``;
   (e.setEncoding(`utf8`),
     e.on(`data`, (e) => {
@@ -54091,26 +54144,26 @@ function nV(e, t) {
       n && t(n);
     }));
 }
-async function rV() {
+async function aV() {
   let e = zo(),
     t = process.env.GITHUB_WORKSPACE ?? process.cwd(),
-    n = await Vf({
+    n = await Uf({
       token: e.token,
       githubAppClientId: e.githubAppClientId,
       githubAppPrivateKey: e.githubAppPrivateKey,
     }),
-    r = OB(),
-    i = await mB(),
+    r = AB(),
+    i = await gB(),
     a = (t) => n.updateRepositoryAuthSecret(e.authSecret, t);
   try {
-    rB(e.auth, r);
+    aB(e.auth, r);
     let a = await n.getActionUser();
     await wo(t, a);
     let o = es(),
-      { provider: s, model: c } = xB(r, e, t),
+      { provider: s, model: c } = CB(r, e, t),
       l = Zo(r),
-      u = await eB(r, n),
-      d = await HB({
+      u = await nB(r, n),
+      d = await WB({
         executable: i,
         agentDir: r,
         workspace: t,
@@ -54119,7 +54172,7 @@ async function rV() {
         provider: s,
         model: c,
         thinking: e.thinking,
-        env: { ...u, ...wB(e.apiKey) },
+        env: { ...u, ...EB(e.apiKey) },
       }),
       f = d.prComment.trim();
     if (
@@ -54135,7 +54188,7 @@ async function rV() {
       if (!t) throw Error(`Could not determine the pi model for the pull request comment`);
       e.dryRun
         ? F(`Dry run enabled; skipping pi pull request comment`)
-        : await n.postPullRequestComment(AB(f, t));
+        : await n.postPullRequestComment(MB(f, t));
     }
     o &&
       e.automerge !== void 0 &&
@@ -54143,11 +54196,11 @@ async function rV() {
         ? F(`Dry run enabled; skipping pull request automerge update`)
         : await n.setPullRequestAutomerge(e.automerge));
   } finally {
-    await iB(r, e.auth, a);
+    await oB(r, e.auth, a);
   }
 }
 try {
-  await rV();
+  await aV();
 } catch (e) {
   Hr(e instanceof Error ? e.message : String(e));
 }

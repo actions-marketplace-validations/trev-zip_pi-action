@@ -82,6 +82,7 @@ export type PiMcpServerConfig = {
   command: string;
   args: string[];
   env: Record<string, string>;
+  tools?: string[];
 };
 
 export function buildPiMcpConfig(server: McpServerConfig): PiMcpServerConfig {
@@ -90,5 +91,6 @@ export function buildPiMcpConfig(server: McpServerConfig): PiMcpServerConfig {
     command: server.command,
     args: server.args,
     env: server.env,
+    ...(server.tools ? { tools: server.tools } : {}),
   };
 }

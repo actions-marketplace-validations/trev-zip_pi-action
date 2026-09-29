@@ -13,6 +13,34 @@ import { getPullRequestNumber, getServerUrl } from "./context.ts";
 
 const FORGEJO_MCP_VERSION = "2.30.2";
 
+// forgejo-mcp has no read-only mode and annotates every tool as destructive,
+// so pi only gets these read tools. Exposing all 128 tools would also add
+// tens of thousands of schema characters to every model request.
+const FORGEJO_MCP_TOOLS = [
+  "get_file_content",
+  "get_repo_tree",
+  "list_repo_contents",
+  "list_repo_commits",
+  "list_branches",
+  "list_releases",
+  "get_latest_release",
+  "get_issue_by_index",
+  "get_issue_comment",
+  "list_repo_issues",
+  "list_issue_comments",
+  "list_repo_labels",
+  "list_repo_milestones",
+  "get_pull_request_by_index",
+  "get_pull_request_diff",
+  "list_pull_request_files",
+  "list_repo_pull_requests",
+  "list_pull_reviews",
+  "get_pull_review",
+  "list_pull_review_comments",
+  "list_workflow_runs",
+  "get_workflow_run",
+];
+
 class HttpError extends Error {
   status: number;
 
@@ -33,6 +61,7 @@ export const forgejoMcp: PlatformMcp = {
       env: {
         FORGEJO_USER_AGENT: "pi-action",
       },
+      tools: FORGEJO_MCP_TOOLS,
     };
   },
 

@@ -187,8 +187,10 @@ function handlePiToolEnd(event: PiEvent, state: PiStreamState): void {
   const result = asRecord(event.result);
   const output = formatToolResultText(result.content);
 
+  // Agents recover from most tool failures (such as reading a file that does
+  // not exist yet), so these are logged as warnings rather than run errors.
   if (event.isError === true) {
-    logPiBlock("error", `${toolName} failed${output ? `: ${output}` : ""}`);
+    logPiBlock("tool-error", `${toolName} failed${output ? `: ${output}` : ""}`);
     return;
   }
 

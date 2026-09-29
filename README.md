@@ -170,10 +170,15 @@ The action gives pi read-only access to the matching platform MCP server with
 the same API token used by the action, so pi can inspect pull request comments,
 issues, repository data, and workflow context:
 
-- `github-mcp-server` from `github/github-mcp-server` on GitHub, with the
-  `repos`, `issues`, `pull_requests`, and `actions` toolsets.
-- `gitea-mcp` from `gitea/gitea-mcp` on Gitea.
+- `github-mcp-server` from `github/github-mcp-server` on GitHub, in read-only
+  mode with the `repos`, `issues`, `pull_requests`, and `actions` toolsets.
+- `gitea-mcp` from `gitea/gitea-mcp` on Gitea, in read-only mode.
 - `forgejo-mcp` from `goern/forgejo-mcp` on Forgejo.
+
+On Gitea and Forgejo, pi only sees the read tools for repository contents,
+commits, branches, releases, issues, pull requests, and workflow runs. This keeps
+write tools away from pi and keeps tool definitions from inflating every model
+request.
 
 No container runtime is required. The pi and MCP release binaries are downloaded
 and cached in both the runner tool cache and, when available, the Actions cache

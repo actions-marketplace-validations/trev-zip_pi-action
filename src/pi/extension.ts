@@ -61,7 +61,10 @@ export default function (pi) {
 
     try {
       await client.initialize();
-      const tools = await client.listTools();
+      const listedTools = await client.listTools();
+      const tools = config.tools
+        ? listedTools.filter((tool) => config.tools.includes(tool.name))
+        : listedTools;
 
       for (const tool of tools) {
         pi.registerTool(createMcpTool(client, config.name, tool));

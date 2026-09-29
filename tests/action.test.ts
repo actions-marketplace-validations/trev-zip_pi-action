@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
 import { buildAuthenticatedRemoteUrl, buildCredentialIsolationGitArgs } from "../src/git.ts";
 import {
@@ -420,6 +420,26 @@ describe("pi runner", () => {
     expect(state.result).toBeUndefined();
   });
 
+  test("logs tool failures as tool errors", () => {
+    const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    try {
+      handlePiOutputLine(
+        JSON.stringify({
+          type: "tool_execution_end",
+          toolName: "read",
+          result: { content: [{ type: "text", text: "ENOENT" }] },
+          isError: true,
+        }),
+        createPiStreamState(),
+      );
+
+      expect(write.mock.calls.map(([line]) => String(line)).join("")).toContain("[pi:tool-error]");
+    } finally {
+      write.mockRestore();
+    }
+  });
+
   test("falls back to empty metadata when submit_result is not called", () => {
     const state = createPiStreamState();
     state.lastAssistant = { role: "assistant", model: "claude-sonnet-5", stopReason: "stop" };
@@ -556,6 +576,18 @@ describe("mcp", () => {
     expect(config.env).not.toHaveProperty("FORGEJO_ACCESS_TOKEN");
   });
 
+  test("limits Forgejo MCP to read tools", () => {
+    const { tools } = buildPiMcpConfig(
+      createMcpServerConfig("forgejo", "/tools/forgejo-mcp", "https://codeberg.org"),
+    );
+
+    expect(tools).toContain("get_pull_request_diff");
+    expect(tools).toContain("list_workflow_runs");
+    expect(tools).not.toContain("create_issue_comment");
+    expect(tools).not.toContain("merge_pull_request");
+    expect(PI_ACTION_EXTENSION).toContain("config.tools.includes(tool.name)");
+  });
+
   test("builds Gitea MCP config without embedding the token", () => {
     const server = createMcpServerConfig("gitea", "/tools/gitea-mcp", "https://gitea.com");
     const config = buildPiMcpConfig(server);
@@ -564,6 +596,9 @@ describe("mcp", () => {
     expect(config.args).toContain("-t");
     expect(config.args).toContain("https://gitea.com");
     expect(config.env).not.toHaveProperty("GITEA_ACCESS_TOKEN");
+    expect(config.env.GITEA_READONLY).toBe("true");
+    expect(config.env.GITEA_TOOLS?.split(",")).toContain("pull_request_read");
+    expect(config).not.toHaveProperty("tools");
   });
 
   test("maps platforms to GitHub MCP release assets", () => {

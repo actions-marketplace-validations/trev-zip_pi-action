@@ -15,6 +15,8 @@ export type McpServerConfig = {
   tokenEnvVar: string;
   args: string[];
   env: Record<string, string>;
+  // Tool names to expose to pi; every tool the server lists when omitted.
+  tools?: string[];
 };
 
 export type PlatformMcp = {

@@ -19,6 +19,7 @@ const PI_LOG_LABEL_COLORS: Record<string, string> = {
   "command-output": "\x1b[2m",
   file: "\x1b[35m",
   tool: "\x1b[36m",
+  "tool-error": "\x1b[33m",
   stderr: "\x1b[2m",
   error: "\x1b[31m",
 };
