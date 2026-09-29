@@ -25,6 +25,28 @@ jobs:
 
       - name: Run action
         uses: ./. # zizmor: ignore[unpinned-uses,self-repository]
+        with:
+          token: ${{ secrets.PI_TOKEN }}
+          base-url: ${{ secrets.PI_ACTION_BASE_URL }}
+          api-key: ${{ secrets.PI_ACTION_API_KEY }}
+          model: gpt-5.6-luna
+          dry-run: true
+          prompt: |
+            Create or update .pi-action-check.txt with a single line saying "pi-action dry-run check".
+
+      - name: Verify dry-run change
+        run: |
+          test -f .pi-action-check.txt
+          grep -qxF "pi-action dry-run check" .pi-action-check.txt
+          if git diff --quiet HEAD^ HEAD -- .pi-action-check.txt; then
+            echo ".pi-action-check.txt was not changed by the local dry-run commit"
+            exit 1
+          else
+            status=$?
+            if [ "$status" -ne 1 ]; then
+              exit "$status"
+            fi
+          fi
 
   check:
     # zizmor: ignore[excessive-permissions]
