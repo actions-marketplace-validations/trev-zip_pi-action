@@ -7,7 +7,11 @@
   "platform": "forgejo",
   "endpoint": "https://trev.zip/api/v1",
   "repositories": ["llc/pi-action"],
-  "allowedCommands": ["^npm audit fix --audit-level=none$"],
+  "allowedCommands": [
+    "^npm audit fix --audit-level=none$",
+    "^npm ci --ignore-scripts$",
+    "^npm run build$"
+  ],
 
   // repository
   "extends": ["config:recommended"],
@@ -15,13 +19,56 @@
   "nix": {
     "enabled": true
   },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update pi release version",
+      "managerFilePatterns": ["/^src/pi/binary\\.ts$/"],
+      "matchStrings": ["export const PI_VERSION = \"(?<currentValue>[^\"]+)\";"],
+      "packageNameTemplate": "earendil-works/pi",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^v(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "Update Gitea MCP release version",
+      "managerFilePatterns": ["/^src/platforms/gitea\\.ts$/"],
+      "matchStrings": ["const GITEA_MCP_VERSION = \"(?<currentValue>[^\"]+)\";"],
+      "packageNameTemplate": "gitea/gitea-mcp",
+      "datasourceTemplate": "gitea-releases",
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^v(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "Update GitHub MCP release version",
+      "managerFilePatterns": ["/^src/platforms/github\\.ts$/"],
+      "matchStrings": ["const GITHUB_MCP_VERSION = \"(?<currentValue>[^\"]+)\";"],
+      "packageNameTemplate": "github/github-mcp-server",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^v(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "Update Forgejo MCP release version",
+      "managerFilePatterns": ["/^src/platforms/forgejo\\.ts$/"],
+      "matchStrings": ["const FORGEJO_MCP_VERSION = \"(?<currentValue>[^\"]+)\";"],
+      "packageNameTemplate": "goern/forgejo-mcp",
+      "datasourceTemplate": "forgejo-releases",
+      "registryUrlTemplate": "https://codeberg.org",
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^v(?<version>.+)$"
+    }
+  ],
   "lockFileMaintenance": {
     "enabled": true,
     "automerge": true,
     "schedule": ["* * * * 0"], // sunday
     "skipInstalls": false,
     "postUpgradeTasks": {
-      "commands": ["npm audit fix --audit-level=none"]
+      "commands": ["npm audit fix --audit-level=none", "npm run build"]
     }
   },
   "packageRules": [
@@ -38,10 +85,31 @@
       "addLabels": ["actions"]
     },
     {
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": [
+        "earendil-works/pi",
+        "gitea/gitea-mcp",
+        "github/github-mcp-server",
+        "goern/forgejo-mcp"
+      ],
+      "postUpgradeTasks": {
+        "commands": ["npm ci --ignore-scripts", "npm run build"],
+        "fileFilters": ["build/index.js"]
+      }
+    },
+    {
       "matchManagers": ["npm"],
       "rangeStrategy": "bump",
       "addLabels": ["node"],
       "postUpdateOptions": ["npmInstallTwice"]
+    },
+    {
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["dependencies"],
+      "postUpgradeTasks": {
+        "commands": ["npm run build"],
+        "fileFilters": ["build/index.js"]
+      }
     },
     {
       "matchManagers": ["npm"],
