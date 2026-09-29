@@ -9,6 +9,8 @@ export default defineConfig({
     rolldownOptions: {
       output: {
         banner: "#!/usr/bin/env node",
+        // escape non-ascii characters so renovate doesn't flag hidden unicode in the bundle
+        minify: { codegen: { asciiOnly: true } },
       },
     },
   },
