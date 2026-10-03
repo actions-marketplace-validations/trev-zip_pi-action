@@ -11,7 +11,7 @@ import type {
 import { errorMessage } from "../utils.ts";
 import { getPullRequestNumber, getServerUrl } from "./context.ts";
 
-const GITEA_MCP_VERSION = "1.7.0";
+const GITEA_MCP_VERSION = "1.8.0";
 
 // Read-only mode already drops write tools; the allowlist also drops unrelated
 // read tools (packages, notifications, users, wikis) to keep requests small.
