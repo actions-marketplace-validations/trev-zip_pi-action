@@ -3,6 +3,7 @@ import path from "node:path";
 
 import * as core from "@actions/core";
 
+import { SUBMIT_RESULT_TOOL } from "./pi/extension.ts";
 import type { ActionInputs } from "./types.ts";
 
 const DEFAULT_AUTH_SECRET = "PI_ACTION_AUTH";
@@ -19,13 +20,14 @@ export function readInputs(): ActionInputs {
   const apiKey = parseOptionalString(core.getInput("api-key"));
   const models = parseOptionalString(core.getInput("models"));
   const thinking = parseThinkingLevel(core.getInput("thinking"));
+  const excludeTools = parseExcludeTools(core.getInput("exclude-tools"));
   const token = parseOptionalString(core.getInput("token"));
   const githubAppClientId = parseOptionalString(core.getInput("client-id"));
   const githubAppPrivateKey = parseOptionalString(core.getInput("private-key"));
   const automerge = parseOptionalBoolean(core.getInput("automerge"), "automerge");
   const dryRun = parseOptionalBoolean(core.getInput("dry-run"), "dry-run") ?? false;
-  const push = !dryRun && (parseOptionalBoolean(core.getInput("push"), "push") ?? true);
-  const comment = !dryRun && (parseOptionalBoolean(core.getInput("comment"), "comment") ?? true);
+  const push = parseOptionalBoolean(core.getInput("push"), "push") ?? true;
+  const comment = parseOptionalBoolean(core.getInput("comment"), "comment") ?? true;
 
   validateActionAuthentication(token, githubAppClientId, githubAppPrivateKey);
   validateProviderInputs(provider, model, baseUrl, api, apiKey);
@@ -57,12 +59,13 @@ export function readInputs(): ActionInputs {
     apiKey,
     models,
     thinking,
+    excludeTools,
     token,
     githubAppClientId,
     githubAppPrivateKey,
     automerge,
-    push,
-    comment,
+    push: push && !dryRun,
+    comment: comment && !dryRun,
     dryRun,
   };
 }
@@ -115,6 +118,23 @@ export function parseThinkingLevel(value: string): string | undefined {
   }
 
   return level;
+}
+
+export function parseExcludeTools(value: string): string[] {
+  const tools = value.split(/[\s,]+/).filter(Boolean);
+  // The extension matches excluded tools by exact name, so a pattern such as
+  // "ba*" could disable bash in pi while the extension still registered it.
+  const invalid = tools.find((tool) => !/^[A-Za-z0-9_-]+$/.test(tool));
+
+  if (invalid) {
+    throw new Error(`exclude-tools must list exact tool names; "${invalid}" is not one`);
+  }
+
+  if (tools.includes(SUBMIT_RESULT_TOOL)) {
+    throw new Error(`exclude-tools cannot include ${SUBMIT_RESULT_TOOL}`);
+  }
+
+  return tools;
 }
 
 export function parseOptionalString(value: string): string | undefined {

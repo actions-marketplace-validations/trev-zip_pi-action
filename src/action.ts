@@ -5,7 +5,8 @@ import { readInputs, resolvePromptInput } from "./inputs.ts";
 import { setupPiMcp } from "./mcp.ts";
 import { loadPiAuth, persistPiAuth } from "./pi/auth.ts";
 import { resolvePiExecutable } from "./pi/binary.ts";
-import { createPiProviderEnv, setupPiModels } from "./pi/config.ts";
+import { createPiProviderEnv, setupPiModels, setupPiSettings } from "./pi/config.ts";
+import { createPiToolEnv } from "./pi/env.ts";
 import { writePiActionExtension } from "./pi/extension.ts";
 import { createPiAgentDir } from "./pi/home.ts";
 import { formatPiPullRequestComment } from "./pi/prompt.ts";
@@ -33,8 +34,9 @@ export async function run(): Promise<void> {
 
     const pullRequestEvent = isPullRequestEvent();
     const { provider, model } = setupPiModels(agentDir, inputs, workspace);
+    setupPiSettings(agentDir, inputs.excludeTools);
     const extensionPath = writePiActionExtension(agentDir);
-    const mcpEnv = await setupPiMcp(agentDir, platformClient);
+    const mcp = await setupPiMcp(agentDir, platformClient);
     const prompt = resolvePromptInput(inputs.prompt, workspace);
     const metadata = await runPiPrompt({
       executable: piExecutable,
@@ -45,7 +47,14 @@ export async function run(): Promise<void> {
       provider,
       model,
       thinking: inputs.thinking,
-      env: { ...mcpEnv, ...createPiProviderEnv(inputs.apiKey) },
+      excludeTools: inputs.excludeTools,
+      env: {
+        ...mcp.env,
+        ...createPiToolEnv(workspace, inputs.excludeTools, {
+          ...mcp.secretEnv,
+          ...createPiProviderEnv(inputs.apiKey),
+        }),
+      },
     });
 
     const failure = metadata.failReason && `pi failed the run: ${metadata.failReason}`;
@@ -84,6 +93,8 @@ export async function run(): Promise<void> {
     if (pullRequestEvent && inputs.automerge !== undefined) {
       if (inputs.dryRun) {
         core.info("Dry run enabled; skipping pull request automerge update");
+      } else if (failure && inputs.automerge) {
+        core.info("pi failed the run; skipping enabling automerge");
       } else {
         await platformClient.setPullRequestAutomerge(inputs.automerge);
       }

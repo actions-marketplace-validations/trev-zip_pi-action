@@ -9,6 +9,7 @@ import type { ActionInputs } from "../types.ts";
 export const PI_API_KEY_ENV = "PI_ACTION_API_KEY";
 export const DEFAULT_CUSTOM_PROVIDER = "custom";
 export const DEFAULT_CUSTOM_API = "openai-completions";
+export const SEARCH_TOOLS = ["grep", "find", "ls"];
 
 type ProviderInputs = Pick<
   ActionInputs,
@@ -40,6 +41,23 @@ export function setupPiModels(
   }
 
   return getPiModelSelection(inputs);
+}
+
+// Without bash, pi has no way to search the workspace, so turn on its
+// read-only search tools; the action's extension confines them to the
+// workspace. If another shell such as powershell is still active, the
+// extension skips confinement, which costs nothing: that shell can already
+// read any file.
+export function setupPiSettings(agentDir: string, excludeTools: string[]): void {
+  if (!excludeTools.includes("bash")) {
+    return;
+  }
+
+  const settings = { defaultTools: SEARCH_TOOLS.map((tool) => `+${tool}`) };
+  writeFileSync(path.join(agentDir, "settings.json"), `${JSON.stringify(settings, null, 2)}\n`, {
+    mode: 0o600,
+  });
+  core.info(`Enabled pi search tools without bash: ${SEARCH_TOOLS.join(", ")}`);
 }
 
 export function buildPiModelsConfig(inputs: ProviderInputs, models?: string): ModelsConfig {

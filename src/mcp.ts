@@ -18,7 +18,7 @@ import type {
 export async function setupPiMcp(
   agentDir: string,
   platformClient: PlatformClient,
-): Promise<Record<string, string>> {
+): Promise<{ env: Record<string, string>; secretEnv: Record<string, string> }> {
   const executable = await resolveMcpExecutable(platformClient.mcp);
   const server = platformClient.mcp.createServerConfig(executable, getServerUrl());
 
@@ -33,8 +33,8 @@ export async function setupPiMcp(
   // The MCP server inherits the token from pi's environment, which keeps it
   // out of the config file.
   return {
-    [MCP_CONFIG_ENV]: configPath,
-    [server.tokenEnvVar]: platformClient.token,
+    env: { [MCP_CONFIG_ENV]: configPath },
+    secretEnv: { [server.tokenEnvVar]: platformClient.token },
   };
 }
 
