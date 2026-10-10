@@ -74,7 +74,7 @@ export function getPlatformMcp(platform: Platform): PlatformMcp {
   return forgejoMcp;
 }
 
-export { isPullRequestEvent } from "./context.ts";
+export { getRunContext, isPullRequestEvent } from "./context.ts";
 export { ForgejoPlatformClient } from "./forgejo.ts";
 export { GiteaPlatformClient } from "./gitea.ts";
 export {
