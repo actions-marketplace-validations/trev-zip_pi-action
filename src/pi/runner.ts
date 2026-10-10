@@ -41,7 +41,7 @@ type PiEvent = {
 
 export type PiStreamState = {
   lastAssistant: PiAssistantMessage | undefined;
-  result: { commitMessage: string; prComment: string } | undefined;
+  result: { commitMessage: string; prComment: string; failReason: string } | undefined;
 };
 
 export function createPiStreamState(): PiStreamState {
@@ -172,14 +172,10 @@ export function getPiRunMetadata(state: PiStreamState, exitCode: number): PiRunM
     : undefined;
 
   if (!state.result) {
-    logPiLine("error", `pi finished without calling ${SUBMIT_RESULT_TOOL}`);
+    throw new Error(`pi finished without calling ${SUBMIT_RESULT_TOOL}`);
   }
 
-  return {
-    commitMessage: state.result?.commitMessage ?? "",
-    prComment: state.result?.prComment ?? "",
-    model,
-  };
+  return { ...state.result, model };
 }
 
 function handlePiToolEnd(event: PiEvent, state: PiStreamState): void {
@@ -201,6 +197,7 @@ function handlePiToolEnd(event: PiEvent, state: PiStreamState): void {
     state.result = {
       commitMessage: asString(details.commit_message).trim(),
       prComment: asString(details.pr_comment).trim(),
+      failReason: asString(details.fail_reason).trim(),
     };
     logPiLine("agent", "submitted result");
   }

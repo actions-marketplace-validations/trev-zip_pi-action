@@ -41,6 +41,8 @@ export type ActionInputs = {
   githubAppClientId: string | undefined;
   githubAppPrivateKey: string | undefined;
   automerge: boolean | undefined;
+  push: boolean;
+  comment: boolean;
   dryRun: boolean;
 };
 
@@ -63,6 +65,7 @@ export type PlatformClient = {
 export type PiRunMetadata = {
   commitMessage: string;
   prComment: string;
+  failReason: string;
   model: string | undefined;
 };
 

@@ -24,6 +24,8 @@ export function readInputs(): ActionInputs {
   const githubAppPrivateKey = parseOptionalString(core.getInput("private-key"));
   const automerge = parseOptionalBoolean(core.getInput("automerge"), "automerge");
   const dryRun = parseOptionalBoolean(core.getInput("dry-run"), "dry-run") ?? false;
+  const push = !dryRun && (parseOptionalBoolean(core.getInput("push"), "push") ?? true);
+  const comment = !dryRun && (parseOptionalBoolean(core.getInput("comment"), "comment") ?? true);
 
   validateActionAuthentication(token, githubAppClientId, githubAppPrivateKey);
   validateProviderInputs(provider, model, baseUrl, api, apiKey);
@@ -59,6 +61,8 @@ export function readInputs(): ActionInputs {
     githubAppClientId,
     githubAppPrivateKey,
     automerge,
+    push,
+    comment,
     dryRun,
   };
 }
