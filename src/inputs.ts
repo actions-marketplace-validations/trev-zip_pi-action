@@ -101,6 +101,11 @@ export function validateProviderInputs(
     throw new Error("model is required when base-url is provided");
   }
 
+  // pi 1.x rejects --provider without --model instead of picking a default.
+  if (provider && !model) {
+    throw new Error("model is required when provider is set");
+  }
+
   if (api && !baseUrl) {
     throw new Error("api requires base-url");
   }

@@ -60,6 +60,25 @@
       "registryUrlTemplate": "https://codeberg.org",
       "versioningTemplate": "semver",
       "extractVersionTemplate": "^v(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "Update ripgrep release version",
+      "managerFilePatterns": ["/^src/pi/search-tools\\.ts$/"],
+      "matchStrings": ["export const RIPGREP_VERSION = \"(?<currentValue>[^\"]+)\";"],
+      "packageNameTemplate": "BurntSushi/ripgrep",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Update fd release version",
+      "managerFilePatterns": ["/^src/pi/search-tools\\.ts$/"],
+      "matchStrings": ["export const FD_VERSION = \"(?<currentValue>[^\"]+)\";"],
+      "packageNameTemplate": "sharkdp/fd",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^v(?<version>.+)$"
     }
   ],
   "lockFileMaintenance": {
@@ -90,7 +109,9 @@
         "earendil-works/pi",
         "gitea/gitea-mcp",
         "github/github-mcp-server",
-        "goern/forgejo-mcp"
+        "goern/forgejo-mcp",
+        "BurntSushi/ripgrep",
+        "sharkdp/fd"
       ],
       "postUpgradeTasks": {
         "commands": ["npm ci --ignore-scripts", "npm run build"],

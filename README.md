@@ -50,9 +50,9 @@ references it as `$PI_ACTION_API_KEY` so the key is never written to disk.
 
 ### Built-in Providers
 
-For providers pi already knows, set `provider` and either `api-key` or the
-provider's usual environment variable. Omit `model` to use pi's default model
-for the provider.
+For providers pi already knows, set `provider`, `model`, and either `api-key`
+or the provider's usual environment variable. pi requires `model` whenever
+`provider` is set.
 
 ```yaml
 - uses: trev-zip/pi-action@main
@@ -264,7 +264,8 @@ checkout and call the platform MCP tools, which are limited to read operations
 (see [MCP Context](#mcp-context)). Those tools can still read anything the
 `token` can, so give review jobs a token scoped to the repository. When `bash`
 is excluded, the action also turns on pi's `grep`, `find`, and `ls` tools so pi
-can still search the checkout.
+can still search the checkout, and provides the pinned ripgrep and fd releases
+those tools run, cached like the pi and MCP binaries.
 
 ```yaml
 - uses: trev-zip/pi-action@main
@@ -284,7 +285,7 @@ can still search the checkout.
 | --------------- | ------------------------------------------------------------------------------- |
 | `prompt`        | Prompt text, or a path to a prompt file (required)                              |
 | `provider`      | pi provider name, or the name for the `base-url` provider (default `custom`)    |
-| `model`         | Model ID; required with `base-url`                                              |
+| `model`         | Model ID; required with `base-url` or `provider`                                |
 | `base-url`      | OpenAI-, Anthropic-, or Google-compatible endpoint, such as a CLIProxyAPI `/v1` |
 | `api`           | API type for `base-url` (default `openai-completions`)                          |
 | `api-key`       | API key for `base-url` or `provider`                                            |

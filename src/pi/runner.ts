@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 
 import type { PiRunMetadata } from "../types.ts";
+import { DEFAULT_CUSTOM_PROVIDER } from "./config.ts";
 import { createPiEnv } from "./env.ts";
 import { SUBMIT_RESULT_TOOL } from "./extension.ts";
 import { formatInlineLogText, logPiBlock, logPiLine, logPiText } from "./logging.ts";
@@ -170,8 +171,9 @@ export function getPiRunMetadata(state: PiStreamState, exitCode: number): PiRunM
     throw new Error("pi did not produce a response");
   }
 
+  // The default provider name for base-url models says nothing about the model, so leave it out.
   const model = assistant.model
-    ? assistant.provider
+    ? assistant.provider && assistant.provider !== DEFAULT_CUSTOM_PROVIDER
       ? `${assistant.provider}/${assistant.model}`
       : assistant.model
     : undefined;

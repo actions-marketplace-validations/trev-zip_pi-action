@@ -13,7 +13,7 @@ inputs:
     description: pi provider name, such as anthropic or openai, or the name for a custom base-url provider (default custom)
     required: false
   model:
-    description: Model ID to use; required with base-url
+    description: Model ID to use; required with base-url or provider
     required: false
   base-url:
     description: OpenAI- or Anthropic-compatible endpoint, such as a CLIProxyAPI server's /v1 URL

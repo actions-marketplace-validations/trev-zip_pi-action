@@ -11,6 +11,7 @@ import { writePiActionExtension } from "./pi/extension.ts";
 import { createPiAgentDir } from "./pi/home.ts";
 import { formatPiPullRequestComment } from "./pi/prompt.ts";
 import { runPiPrompt } from "./pi/runner.ts";
+import { setupPiSearchTools } from "./pi/search-tools.ts";
 import { createPlatformClient, isPullRequestEvent } from "./platforms/index.ts";
 
 export async function run(): Promise<void> {
@@ -34,7 +35,9 @@ export async function run(): Promise<void> {
 
     const pullRequestEvent = isPullRequestEvent();
     const { provider, model } = setupPiModels(agentDir, inputs, workspace);
-    setupPiSettings(agentDir, inputs.excludeTools);
+    if (setupPiSettings(agentDir, inputs.excludeTools)) {
+      await setupPiSearchTools(agentDir);
+    }
     const extensionPath = writePiActionExtension(agentDir);
     const mcp = await setupPiMcp(agentDir, platformClient);
     const prompt = resolvePromptInput(inputs.prompt, workspace);

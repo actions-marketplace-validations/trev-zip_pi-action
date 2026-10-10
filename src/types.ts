@@ -77,11 +77,30 @@ export type PullRequestPayload = {
     node_id?: string;
     head?: {
       ref?: string;
+      sha?: string;
       repo?: {
         full_name?: string;
       };
     };
+    base?: {
+      ref?: string;
+    };
   };
+};
+
+export type RunContext = {
+  repository: string | undefined;
+  serverUrl: string;
+  eventName: string;
+  ref: string;
+  sha: string;
+  pullRequest:
+    | {
+        number: number;
+        headSha: string | undefined;
+        baseRef: string | undefined;
+      }
+    | undefined;
 };
 
 export type GiteaUserResponse = {
