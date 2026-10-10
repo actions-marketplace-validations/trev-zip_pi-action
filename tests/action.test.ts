@@ -124,7 +124,13 @@ describe("inputs", () => {
   test("parses excluded tools", () => {
     expect(parseExcludeTools("")).toEqual([]);
     expect(parseExcludeTools(" bash, edit\nwrite ")).toEqual(["bash", "edit", "write"]);
+    expect(parseExcludeTools("forgejo_get_issue_by_index,ls")).toEqual([
+      "forgejo_get_issue_by_index",
+      "ls",
+    ]);
     expect(() => parseExcludeTools("bash,submit_result")).toThrow(/submit_result/);
+    expect(() => parseExcludeTools("ba*")).toThrow(/exact tool names; "ba\*"/);
+    expect(() => parseExcludeTools("read,*")).toThrow(/exact tool names/);
   });
 
   test("parses optional string inputs", () => {

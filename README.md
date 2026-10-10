@@ -288,7 +288,7 @@ checkout and call the platform MCP tools, which are limited to read operations
 | `api-key`       | API key for `base-url` or `provider`                                            |
 | `models`        | pi `models.json` content, or a path to one                                      |
 | `thinking`      | Thinking level                                                                  |
-| `exclude-tools` | Comma-separated pi tools to disable; without a shell, file tools are confined   |
+| `exclude-tools` | Exact pi tool names to disable; without a shell, file tools are confined        |
 | `auth`          | pi `auth.json` content, or its base64 encoding                                  |
 | `auth-secret`   | Secret to update with refreshed auth (default `PI_ACTION_AUTH`)                 |
 | `token`         | GitHub, Gitea, or Forgejo token                                                 |

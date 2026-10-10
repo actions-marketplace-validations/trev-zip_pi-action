@@ -122,6 +122,13 @@ export function parseThinkingLevel(value: string): string | undefined {
 
 export function parseExcludeTools(value: string): string[] {
   const tools = value.split(/[\s,]+/).filter(Boolean);
+  // The extension matches excluded tools by exact name, so a pattern such as
+  // "ba*" could disable bash in pi while the extension still registered it.
+  const invalid = tools.find((tool) => !/^[A-Za-z0-9_-]+$/.test(tool));
+
+  if (invalid) {
+    throw new Error(`exclude-tools must list exact tool names; "${invalid}" is not one`);
+  }
 
   if (tools.includes(SUBMIT_RESULT_TOOL)) {
     throw new Error(`exclude-tools cannot include ${SUBMIT_RESULT_TOOL}`);
