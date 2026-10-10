@@ -50,9 +50,9 @@ references it as `$PI_ACTION_API_KEY` so the key is never written to disk.
 
 ### Built-in Providers
 
-For providers pi already knows, set `provider` and either `api-key` or the
-provider's usual environment variable. Omit `model` to use pi's default model
-for the provider.
+For providers pi already knows, set `provider`, `model`, and either `api-key`
+or the provider's usual environment variable. pi requires `model` whenever
+`provider` is set.
 
 ```yaml
 - uses: trev-zip/pi-action@main
@@ -285,7 +285,7 @@ those tools run, cached like the pi and MCP binaries.
 | --------------- | ------------------------------------------------------------------------------- |
 | `prompt`        | Prompt text, or a path to a prompt file (required)                              |
 | `provider`      | pi provider name, or the name for the `base-url` provider (default `custom`)    |
-| `model`         | Model ID; required with `base-url`                                              |
+| `model`         | Model ID; required with `base-url` or `provider`                                |
 | `base-url`      | OpenAI-, Anthropic-, or Google-compatible endpoint, such as a CLIProxyAPI `/v1` |
 | `api`           | API type for `base-url` (default `openai-completions`)                          |
 | `api-key`       | API key for `base-url` or `provider`                                            |

@@ -161,8 +161,11 @@ describe("inputs", () => {
       validateProviderInputs(undefined, "gpt-5", "http://localhost:8317/v1", undefined, "key"),
     ).not.toThrow();
     expect(() =>
-      validateProviderInputs("anthropic", undefined, undefined, undefined, "key"),
+      validateProviderInputs("anthropic", "claude-opus-5-5", undefined, undefined, "key"),
     ).not.toThrow();
+    expect(() =>
+      validateProviderInputs("anthropic", undefined, undefined, undefined, "key"),
+    ).toThrow(/model is required when provider is set/);
     expect(() =>
       validateProviderInputs(undefined, undefined, "http://localhost/v1", undefined, undefined),
     ).toThrow(/model is required/);
