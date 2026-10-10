@@ -51,7 +51,7 @@ export function formatRunContext(context: RunContext): string {
 }
 
 export function formatPiPullRequestComment(comment: string, model: string): string {
-  return `${comment.trim()}\n<sub>agent: pi ${PI_VERSION} | model: <code>${escapeHtml(model)}</code></sub>`;
+  return `${comment.trim()}\n\n---\n\n<sub>agent: pi ${PI_VERSION} | model: <code>${escapeHtml(model)}</code></sub>`;
 }
 
 function escapeHtml(value: string): string {

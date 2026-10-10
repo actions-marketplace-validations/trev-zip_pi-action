@@ -490,7 +490,7 @@ describe("pi runner", () => {
       commitMessage: "Update docs",
       prComment: "Looks good",
       failReason: "Found 2 issues",
-      model: "custom/gpt-6-luna",
+      model: "gpt-6-luna",
     });
   });
 
@@ -677,8 +677,8 @@ describe("pi prompt", () => {
   });
 
   test("formats pull request comments with the agent and model", () => {
-    expect(formatPiPullRequestComment(" Done. \n", "custom/<model>")).toBe(
-      `Done.\n<sub>agent: pi ${PI_VERSION} | model: <code>custom/&lt;model&gt;</code></sub>`,
+    expect(formatPiPullRequestComment(" Done. \n", "openai/<model>")).toBe(
+      `Done.\n\n---\n\n<sub>agent: pi ${PI_VERSION} | model: <code>openai/&lt;model&gt;</code></sub>`,
     );
   });
 
