@@ -44,6 +44,7 @@ import {
   getPiModelSelection,
   PI_API_KEY_ENV,
   setupPiModels,
+  setupPiSettings,
 } from "../src/pi/config.ts";
 import { createPiEnv, createPiToolEnv } from "../src/pi/env.ts";
 import {
@@ -261,6 +262,22 @@ describe("pi auth", () => {
 });
 
 describe("pi models", () => {
+  test("enables search tools only when bash is excluded", () => {
+    const agentDir = mkdtempSync(path.join(tmpdir(), "pi-action-settings-"));
+
+    try {
+      setupPiSettings(agentDir, ["edit"]);
+      expect(() => readFileSync(path.join(agentDir, "settings.json"))).toThrow(/ENOENT/);
+
+      setupPiSettings(agentDir, ["bash", "edit", "write"]);
+      expect(JSON.parse(readFileSync(path.join(agentDir, "settings.json"), "utf8"))).toEqual({
+        defaultTools: ["+grep", "+find", "+ls"],
+      });
+    } finally {
+      rmSync(agentDir, { recursive: true, force: true });
+    }
+  });
+
   const baseInputs = {
     provider: undefined,
     model: undefined,

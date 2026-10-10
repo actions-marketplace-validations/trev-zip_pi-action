@@ -262,7 +262,9 @@ For reviews of content you don't trust, disable the shell with
 the action confines pi's file tools to the workspace, so pi can only read the
 checkout and call the platform MCP tools, which are limited to read operations
 (see [MCP Context](#mcp-context)). Those tools can still read anything the
-`token` can, so give review jobs a token scoped to the repository.
+`token` can, so give review jobs a token scoped to the repository. When `bash`
+is excluded, the action also turns on pi's `grep`, `find`, and `ls` tools so pi
+can still search the checkout.
 
 ```yaml
 - uses: trev-zip/pi-action@main
