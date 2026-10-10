@@ -37,6 +37,7 @@ export type ActionInputs = {
   apiKey: string | undefined;
   models: string | undefined;
   thinking: string | undefined;
+  excludeTools: string[];
   token: string | undefined;
   githubAppClientId: string | undefined;
   githubAppPrivateKey: string | undefined;

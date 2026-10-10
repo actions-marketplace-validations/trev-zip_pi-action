@@ -15,6 +15,7 @@ export type PiRunOptions = {
   provider: string | undefined;
   model: string | undefined;
   thinking: string | undefined;
+  excludeTools?: string[];
   env?: Record<string, string>;
 };
 
@@ -61,7 +62,7 @@ export async function runPiPrompt(options: PiRunOptions): Promise<PiRunMetadata>
 }
 
 export function buildPiArgs(
-  options: Pick<PiRunOptions, "extensionPath" | "provider" | "model" | "thinking">,
+  options: Pick<PiRunOptions, "extensionPath" | "provider" | "model" | "thinking" | "excludeTools">,
 ): string[] {
   const args = [
     "--mode",
@@ -86,6 +87,10 @@ export function buildPiArgs(
 
   if (options.thinking) {
     args.push("--thinking", options.thinking);
+  }
+
+  if (options.excludeTools?.length) {
+    args.push("--exclude-tools", options.excludeTools.join(","));
   }
 
   return args;

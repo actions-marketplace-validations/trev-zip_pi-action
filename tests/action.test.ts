@@ -1,5 +1,5 @@
 import { generateKeyPairSync, verify as verifySignature } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -7,6 +7,7 @@ import { describe, expect, test, vi } from "vitest";
 
 import { buildAuthenticatedRemoteUrl, buildCredentialIsolationGitArgs } from "../src/git.ts";
 import {
+  parseExcludeTools,
   parseOptionalBoolean,
   parseOptionalString,
   parseThinkingLevel,
@@ -44,8 +45,14 @@ import {
   PI_API_KEY_ENV,
   setupPiModels,
 } from "../src/pi/config.ts";
-import { createPiEnv } from "../src/pi/env.ts";
-import { PI_ACTION_EXTENSION, SUBMIT_RESULT_TOOL } from "../src/pi/extension.ts";
+import { createPiEnv, createPiToolEnv } from "../src/pi/env.ts";
+import {
+  EXCLUDE_TOOLS_ENV,
+  FILE_ROOT_ENV,
+  PI_ACTION_EXTENSION,
+  SECRET_ENV_ENV,
+  SUBMIT_RESULT_TOOL,
+} from "../src/pi/extension.ts";
 import { buildPrompt, formatPiPullRequestComment } from "../src/pi/prompt.ts";
 import {
   buildPiArgs,
@@ -111,6 +118,13 @@ describe("inputs", () => {
       dryRun: true,
     });
     expect(() => read({ INPUT_PUSH: "maybe" })).toThrow(/push/);
+    expect(() => read({ INPUT_COMMENT: "maybe", "INPUT_DRY-RUN": "true" })).toThrow(/comment/);
+  });
+
+  test("parses excluded tools", () => {
+    expect(parseExcludeTools("")).toEqual([]);
+    expect(parseExcludeTools(" bash, edit\nwrite ")).toEqual(["bash", "edit", "write"]);
+    expect(() => parseExcludeTools("bash,submit_result")).toThrow(/submit_result/);
   });
 
   test("parses optional string inputs", () => {
@@ -399,6 +413,15 @@ describe("pi runner", () => {
         thinking: undefined,
       }),
     ).not.toContain("--model");
+    expect(
+      buildPiArgs({
+        extensionPath: "/tmp/ext.ts",
+        provider: undefined,
+        model: undefined,
+        thinking: undefined,
+        excludeTools: ["bash", "edit"],
+      }).slice(-2),
+    ).toEqual(["--exclude-tools", "bash,edit"]);
   });
 
   test("reads the submitted result from JSON events", () => {
@@ -502,18 +525,21 @@ describe("pi runner", () => {
     expect(() => getPiRunMetadata(state, 0)).toThrow(/aborted/);
   });
 
-  test("creates the pi environment without action inputs", () => {
+  test("creates the pi environment without action inputs or runner credentials", () => {
     process.env.INPUT_API_KEY = "secret";
+    process.env.ACTIONS_RUNTIME_TOKEN = "runtime";
 
     try {
       const env = createPiEnv("/tmp/agent", { EXTRA: "1" });
 
       expect(env.INPUT_API_KEY).toBeUndefined();
+      expect(env.ACTIONS_RUNTIME_TOKEN).toBeUndefined();
       expect(env.PI_CODING_AGENT_DIR).toBe("/tmp/agent");
       expect(env.PI_SKIP_VERSION_CHECK).toBe("1");
       expect(env.EXTRA).toBe("1");
     } finally {
       delete process.env.INPUT_API_KEY;
+      delete process.env.ACTIONS_RUNTIME_TOKEN;
     }
   });
 });
@@ -532,6 +558,95 @@ describe("pi prompt", () => {
     expect(formatPiPullRequestComment(" Done. \n", "custom/<model>")).toBe(
       `Done.\n<sub>agent: pi ${PI_VERSION} | model: <code>custom/&lt;model&gt;</code></sub>`,
     );
+  });
+
+  test("lists secret environment variables for the extension", () => {
+    expect(createPiToolEnv("/work", ["bash", "edit"], { TOKEN: "t", KEY: "k" })).toEqual({
+      TOKEN: "t",
+      KEY: "k",
+      [SECRET_ENV_ENV]: "TOKEN,KEY",
+      [FILE_ROOT_ENV]: "/work",
+      [EXCLUDE_TOOLS_ENV]: "bash,edit",
+    });
+  });
+
+  test("strips secrets from bash and confines file tools without a shell", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "pi-action-extension-"));
+    const workspace = path.join(dir, "work");
+    const env = { [SECRET_ENV_ENV]: "SECRET", [FILE_ROOT_ENV]: workspace };
+    const cwd = vi.spyOn(process, "cwd").mockReturnValue(workspace);
+
+    mkdirSync(workspace);
+    writeFileSync(path.join(workspace, "README.md"), "");
+    symlinkSync(dir, path.join(workspace, "escape"));
+    symlinkSync(dir, path.join(workspace, "spaced escape"));
+    writeFileSync(path.join(dir, "extension.mjs"), PI_ACTION_EXTENSION);
+    // Stand-ins for the modules pi provides to extensions at runtime.
+    writeStubModule(
+      dir,
+      "@earendil-works/pi-coding-agent",
+      'export const createBashToolDefinition = (cwd, options) => ({ name: "bash", options });',
+    );
+    writeStubModule(dir, "typebox", "export const Type = { Object: (v) => v, String: (v) => v };");
+    Object.assign(process.env, env);
+
+    try {
+      const tools: { name: string; options?: { spawnHook: (context: object) => object } }[] = [];
+      const handlers: Record<string, (event: object) => unknown> = {};
+      let activeTools = ["read", "submit_result"];
+      const extension = await import(path.join(dir, "extension.mjs"));
+      const load = () =>
+        extension.default({
+          registerTool: (tool: (typeof tools)[number]) => tools.push(tool),
+          on: (event: string, handler: (event: object) => unknown) => (handlers[event] = handler),
+          getActiveTools: () => activeTools,
+        });
+
+      process.env[EXCLUDE_TOOLS_ENV] = "bash,edit";
+      load();
+      expect(tools.map((tool) => tool.name)).toEqual(["submit_result"]);
+
+      delete process.env[EXCLUDE_TOOLS_ENV];
+      load();
+
+      const bash = tools.find((tool) => tool.name === "bash");
+      expect(
+        bash?.options?.spawnHook({
+          command: "env",
+          cwd: workspace,
+          env: { SECRET: "s", KEEP: "k", [SECRET_ENV_ENV]: "SECRET" },
+        }),
+      ).toEqual({ command: "env", cwd: workspace, env: { KEEP: "k" } });
+
+      const read = (filePath: string) =>
+        handlers.tool_call?.({ toolName: "read", input: { path: filePath } });
+      expect(read("README.md")).toBeUndefined();
+      expect(read("@README.md")).toBeUndefined();
+      expect(read("missing/file")).toBeUndefined();
+
+      for (const filePath of [
+        "~/.bashrc",
+        path.join(dir, "extension.mjs"),
+        "@../extension.mjs",
+        "escape/extension.mjs",
+        // pi turns non-breaking spaces into spaces, reaching the symlink above.
+        "spaced\u00A0escape/extension.mjs",
+        `file://${dir}/extension.mjs`,
+      ]) {
+        expect(read(filePath)).toMatchObject({ block: true });
+      }
+
+      expect(handlers.tool_call?.({ toolName: "submit_result", input: {} })).toBeUndefined();
+
+      activeTools = ["read", "bash"];
+      expect(read("~/.bashrc")).toBeUndefined();
+    } finally {
+      cwd.mockRestore();
+      for (const name of [...Object.keys(env), EXCLUDE_TOOLS_ENV]) {
+        delete process.env[name];
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test("registers the submit_result tool in the extension", () => {
@@ -836,4 +951,14 @@ function createActionUser(login: string) {
     id: 1,
     email: `${login}@example.com`,
   };
+}
+
+function writeStubModule(dir: string, name: string, source: string): void {
+  const moduleDir = path.join(dir, "node_modules", name);
+  mkdirSync(moduleDir, { recursive: true });
+  writeFileSync(
+    path.join(moduleDir, "package.json"),
+    JSON.stringify({ name, type: "module", main: "index.js" }),
+  );
+  writeFileSync(path.join(moduleDir, "index.js"), source);
 }

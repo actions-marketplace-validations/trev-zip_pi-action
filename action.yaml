@@ -30,6 +30,9 @@ inputs:
   thinking:
     description: Thinking level (off, minimal, low, medium, high, xhigh, max)
     required: false
+  exclude-tools:
+    description: Comma-separated pi tools to disable, such as bash,edit,write; without a shell tool, file tools are confined to the workspace
+    required: false
   auth:
     description: pi auth.json content, or its base64 encoding, from a repository secret
     required: false
