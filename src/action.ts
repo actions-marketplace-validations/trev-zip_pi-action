@@ -48,15 +48,18 @@ export async function run(): Promise<void> {
       env: { ...mcpEnv, ...createPiProviderEnv(inputs.apiKey) },
     });
 
-    const prComment = metadata.prComment.trim();
+    const failure = metadata.failReason && `pi failed the run: ${metadata.failReason}`;
+    // A failed run always explains itself on the pull request, even when pi
+    // left no comment of its own.
+    const prComment = metadata.prComment.trim() || failure;
 
     if (await hasGitChanges(workspace)) {
       await commitChanges(workspace, metadata.commitMessage);
 
-      if (inputs.dryRun) {
-        core.info("Dry run enabled; skipping push of pi changes");
-      } else {
+      if (inputs.push) {
         await pushChanges(workspace, platformClient.type, user, platformClient.token);
+      } else {
+        core.info(`${skipReason(inputs.dryRun, "push")}; skipping push of pi changes`);
       }
     } else {
       core.info("pi did not leave repository changes to commit");
@@ -69,12 +72,12 @@ export async function run(): Promise<void> {
         throw new Error("Could not determine the pi model for the pull request comment");
       }
 
-      if (inputs.dryRun) {
-        core.info("Dry run enabled; skipping pi pull request comment");
-      } else {
+      if (inputs.comment) {
         await platformClient.postPullRequestComment(
           formatPiPullRequestComment(prComment, commentModel),
         );
+      } else {
+        core.info(`${skipReason(inputs.dryRun, "comment")}; skipping pi pull request comment`);
       }
     }
 
@@ -85,7 +88,15 @@ export async function run(): Promise<void> {
         await platformClient.setPullRequestAutomerge(inputs.automerge);
       }
     }
+
+    if (failure) {
+      throw new Error(failure);
+    }
   } finally {
     await persistPiAuth(agentDir, inputs.auth, updateAuthSecret);
   }
+}
+
+function skipReason(dryRun: boolean, input: string): string {
+  return dryRun ? "Dry run enabled" : `${input} is false`;
 }

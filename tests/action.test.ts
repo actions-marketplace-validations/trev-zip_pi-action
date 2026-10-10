@@ -10,6 +10,7 @@ import {
   parseOptionalBoolean,
   parseOptionalString,
   parseThinkingLevel,
+  readInputs,
   resolvePromptInput,
   validateActionAuthentication,
   validateProviderInputs,
@@ -78,6 +79,38 @@ describe("inputs", () => {
     expect(parseOptionalBoolean("yes", "dry-run")).toBe(true);
     expect(parseOptionalBoolean("OFF", "automerge")).toBe(false);
     expect(() => parseOptionalBoolean("maybe", "dry-run")).toThrow(/dry-run/);
+  });
+
+  test("resolves push and comment toggles", () => {
+    const env = {
+      INPUT_PROMPT: "Fix the tests.",
+      INPUT_TOKEN: "token",
+      INPUT_PUSH: "",
+      INPUT_COMMENT: "",
+      "INPUT_DRY-RUN": "",
+    };
+    const read = (overrides: Partial<typeof env>) => {
+      Object.assign(process.env, env, overrides);
+
+      try {
+        const { push, comment, dryRun } = readInputs();
+        return { push, comment, dryRun };
+      } finally {
+        for (const name of Object.keys(env)) {
+          delete process.env[name];
+        }
+      }
+    };
+
+    expect(read({})).toEqual({ push: true, comment: true, dryRun: false });
+    expect(read({ INPUT_PUSH: "false" })).toEqual({ push: false, comment: true, dryRun: false });
+    expect(read({ INPUT_COMMENT: "false" })).toEqual({ push: true, comment: false, dryRun: false });
+    expect(read({ INPUT_PUSH: "true", "INPUT_DRY-RUN": "true" })).toEqual({
+      push: false,
+      comment: false,
+      dryRun: true,
+    });
+    expect(() => read({ INPUT_PUSH: "maybe" })).toThrow(/push/);
   });
 
   test("parses optional string inputs", () => {
@@ -378,7 +411,11 @@ describe("pi runner", () => {
         toolName: SUBMIT_RESULT_TOOL,
         result: {
           content: [{ type: "text", text: "Result submitted." }],
-          details: { commit_message: " Update docs \n", pr_comment: "Looks good" },
+          details: {
+            commit_message: " Update docs \n",
+            pr_comment: "Looks good",
+            fail_reason: " Found 2 issues \n",
+          },
         },
         isError: false,
       }),
@@ -400,6 +437,7 @@ describe("pi runner", () => {
     expect(getPiRunMetadata(state, 0)).toEqual({
       commitMessage: "Update docs",
       prComment: "Looks good",
+      failReason: "Found 2 issues",
       model: "custom/gpt-6-luna",
     });
   });
@@ -440,15 +478,11 @@ describe("pi runner", () => {
     }
   });
 
-  test("falls back to empty metadata when submit_result is not called", () => {
+  test("fails when submit_result is not called", () => {
     const state = createPiStreamState();
     state.lastAssistant = { role: "assistant", model: "claude-sonnet-5", stopReason: "stop" };
 
-    expect(getPiRunMetadata(state, 0)).toEqual({
-      commitMessage: "",
-      prComment: "",
-      model: "claude-sonnet-5",
-    });
+    expect(() => getPiRunMetadata(state, 0)).toThrow(/without calling submit_result/);
   });
 
   test("fails on pi errors", () => {
@@ -491,6 +525,7 @@ describe("pi prompt", () => {
     expect(prompt.startsWith("Fix the tests.\n\npi action instructions:")).toBe(true);
     expect(prompt).toContain(SUBMIT_RESULT_TOOL);
     expect(prompt).toContain("not a pull request");
+    expect(prompt).toContain("fail_reason");
   });
 
   test("formats pull request comments with the agent and model", () => {

@@ -15,6 +15,7 @@ pi action instructions:
 - When finished, call the ${SUBMIT_RESULT_TOOL} tool exactly once as your final action.
 - If you made repository changes, set commit_message to a concise imperative commit message. If not, set it to an empty string.
 - ${prInstructions}
+- If the task asks you to fail the run under some condition and that condition is met, set fail_reason to a short explanation. Otherwise set it to an empty string.
 - Platform MCP tools are available for read-only repository, pull request, issue, and workflow context. Use them when helpful, but do not create, update, merge, comment, or otherwise write through MCP.`;
 }
 

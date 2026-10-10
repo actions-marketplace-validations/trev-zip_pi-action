@@ -202,19 +202,28 @@ Do not ask pi to commit, push, or post comments. When pi finishes, it submits a
 commit message and optional pull request comment, and the action handles
 commits, pushes, pull request comments, and automerge.
 
+To make the step fail, tell pi when the run should fail, such as "fail the run
+if you find any problems". pi then submits a failure reason, and the action
+fails the step after committing, pushing, and commenting as usual. On pull
+requests, the failure reason is posted as the comment when pi leaves none. The
+step also fails if pi finishes without submitting a result.
+
 pi runs with project trust declined, so `.pi` settings, extensions, skills, and
 MCP servers from the repository are ignored. `AGENTS.md` and `CLAUDE.md` context
 files are still loaded.
 
-Set `dry-run: true` to let pi run and create a local commit while skipping
-pushes, pull request comments, and automerge updates. Refreshed auth is still
-saved to the configured repository secret.
+Set `push: false` to keep pi's changes as a local commit instead of pushing
+them, or `comment: false` to skip posting pi's pull request comment. Set
+`dry-run: true` to do both and also skip automerge updates; it overrides `push`
+and `comment`. Refreshed auth is still saved to the configured repository
+secret.
 
 ### Pull Requests
 
 On pull request events, pi can leave a PR comment and optionally toggle
 automerge. Non-empty comments include a footer identifying pi and the model used
-for the run.
+for the run. For a review-only run, set `push: false` so pi can comment without
+pushing changes to the pull request branch.
 
 ```yaml
 name: pi-pr
@@ -258,6 +267,8 @@ jobs:
 | `client-id`   | GitHub App client ID, used with `private-key` instead of `token`                |
 | `private-key` | GitHub App private key                                                          |
 | `automerge`   | `true` to enable automerge, `false` to disable it, or omit for no change        |
+| `push`        | `false` to commit locally without pushing (default `true`)                      |
+| `comment`     | `false` to skip posting the pull request comment (default `true`)               |
 | `dry-run`     | Commit locally but skip pushes, comments, and automerge (default `false`)       |
 
 ## contributing

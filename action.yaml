@@ -49,8 +49,16 @@ inputs:
   automerge:
     description: Set true to enable automerge, false to disable automerge, or omit for no-op
     required: false
+  push:
+    description: Set false to commit local changes without pushing them
+    required: false
+    default: "true"
+  comment:
+    description: Set false to skip posting pi's pull request comment
+    required: false
+    default: "true"
   dry-run:
-    description: Commit local changes but skip pushing, pull request comments, and automerge
+    description: Commit local changes but skip pushing, pull request comments, and automerge; overrides push and comment
     required: false
     default: "false"
 

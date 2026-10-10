@@ -29,10 +29,9 @@ jobs:
           token: ${{ secrets.PI_TOKEN }}
           base-url: ${{ secrets.PI_ACTION_BASE_URL }}
           api-key: ${{ secrets.PI_ACTION_API_KEY }}
-          model: gpt-6-luna
+          model: claude-haiku-5-5
           dry-run: true
-          prompt: |
-            Create or update .pi-action-check.txt with a single line saying "pi-action dry-run check".
+          prompt: .forgejo/prompts/check.md
 
       - name: Verify dry-run change
         run: |
@@ -47,6 +46,27 @@ jobs:
               exit "$status"
             fi
           fi
+
+  review:
+    # zizmor: ignore[excessive-permissions]
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Review pull request
+        uses: ./. # zizmor: ignore[unpinned-uses,self-repository]
+        with:
+          token: ${{ secrets.PI_TOKEN }}
+          base-url: ${{ secrets.PI_ACTION_BASE_URL }}
+          api-key: ${{ secrets.PI_ACTION_API_KEY }}
+          model: claude-haiku-5-5
+          push: false
+          prompt: .forgejo/prompts/review.md
 
   check:
     # zizmor: ignore[excessive-permissions]

@@ -37,6 +37,10 @@ export default function (pi) {
         description:
           "Pull request comment body in Markdown, or an empty string when no comment should be posted.",
       }),
+      fail_reason: Type.String({
+        description:
+          "Short reason to fail the workflow run when the task asks for it, or an empty string otherwise.",
+      }),
     }),
     async execute(_toolCallId, params) {
       return {
