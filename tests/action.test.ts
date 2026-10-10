@@ -62,6 +62,7 @@ import {
   getPiRunMetadata,
   handlePiOutputLine,
 } from "../src/pi/runner.ts";
+import { FD_VERSION, getSearchToolAsset, RIPGREP_VERSION } from "../src/pi/search-tools.ts";
 import {
   buildGitHubNoreplyEmail,
   createGitHubAppJwt,
@@ -810,6 +811,35 @@ describe("pi binary", () => {
     writeFileSync(executable, "#!/bin/sh\n");
 
     expect(findPiExecutable(directory, "linux")).toBe(executable);
+  });
+});
+
+describe("pi search tools", () => {
+  test("maps pi targets to ripgrep and fd release assets", () => {
+    const releases = "https://github.com";
+
+    expect(getSearchToolAsset("rg", "linux-x64", "linux")).toEqual({
+      asset: {
+        cacheName: "rg",
+        displayName: "ripgrep",
+        executableNames: ["rg"],
+        version: RIPGREP_VERSION,
+        target: "linux-x64",
+        format: "tar",
+      },
+      url: `${releases}/BurntSushi/ripgrep/releases/download/${RIPGREP_VERSION}/ripgrep-${RIPGREP_VERSION}-x86_64-unknown-linux-musl.tar.gz`,
+    });
+    expect(getSearchToolAsset("fd", "darwin-arm64", "darwin").url).toBe(
+      `${releases}/sharkdp/fd/releases/download/v${FD_VERSION}/fd-v${FD_VERSION}-aarch64-apple-darwin.tar.gz`,
+    );
+    expect(getSearchToolAsset("fd", "windows-x64", "win32")).toMatchObject({
+      asset: { executableNames: ["fd.exe"], format: "zip" },
+      url: `${releases}/sharkdp/fd/releases/download/v${FD_VERSION}/fd-v${FD_VERSION}-x86_64-pc-windows-msvc.zip`,
+    });
+    expect(getSearchToolAsset("rg", "linux-arm64", "linux").url).toContain(
+      "aarch64-unknown-linux-musl.tar.gz",
+    );
+    expect(() => getSearchToolAsset("rg", "freebsd-x64", "freebsd")).toThrow(/Unsupported rg/);
   });
 });
 

@@ -48,9 +48,9 @@ export function setupPiModels(
 // workspace. If another shell such as powershell is still active, the
 // extension skips confinement, which costs nothing: that shell can already
 // read any file.
-export function setupPiSettings(agentDir: string, excludeTools: string[]): void {
+export function setupPiSettings(agentDir: string, excludeTools: string[]): boolean {
   if (!excludeTools.includes("bash")) {
-    return;
+    return false;
   }
 
   const settings = { defaultTools: SEARCH_TOOLS.map((tool) => `+${tool}`) };
@@ -58,6 +58,7 @@ export function setupPiSettings(agentDir: string, excludeTools: string[]): void 
     mode: 0o600,
   });
   core.info(`Enabled pi search tools without bash: ${SEARCH_TOOLS.join(", ")}`);
+  return true;
 }
 
 export function buildPiModelsConfig(inputs: ProviderInputs, models?: string): ModelsConfig {
