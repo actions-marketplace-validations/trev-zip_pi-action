@@ -273,6 +273,8 @@ the diff, the action posts it again with every inline comment listed in the
 body. If that is also rejected, for example because the token's user opened the
 pull request and cannot approve or request changes on it, the action posts a
 comment review instead. `comment: false` and `dry-run: true` skip the review.
+With `review` set, `push` defaults to `false` on pull request events; set
+`push: true` to also push changes pi makes.
 
 The action does not dismiss earlier reviews, so a run on every push adds a
 review each time. If branch protection blocks merging on rejected reviews, an
@@ -308,7 +310,6 @@ jobs:
           model: claude-sonnet-5
           token: ${{ secrets.PI_BOT_TOKEN }}
           exclude-tools: bash,edit,write
-          push: false
           review: request-changes
           prompt: Review this pull request. Request changes if you find any problems.
 ```
@@ -368,27 +369,27 @@ those tools run, cached like the pi and MCP binaries.
 
 ## Inputs
 
-| Input           | Description                                                                     |
-| --------------- | ------------------------------------------------------------------------------- |
-| `prompt`        | Prompt text, or a path to a prompt file (required)                              |
-| `provider`      | pi provider name, or the name for the `base-url` provider (default `custom`)    |
-| `model`         | Model ID; required with `base-url` or `provider`                                |
-| `base-url`      | OpenAI-, Anthropic-, or Google-compatible endpoint, such as a CLIProxyAPI `/v1` |
-| `api`           | API type for `base-url` (default `openai-completions`)                          |
-| `api-key`       | API key for `base-url` or `provider`                                            |
-| `models`        | pi `models.json` content, or a path to one                                      |
-| `thinking`      | Thinking level                                                                  |
-| `exclude-tools` | Exact pi tool names to disable; without a shell, file tools are confined        |
-| `auth`          | pi `auth.json` content, or its base64 encoding                                  |
-| `auth-secret`   | Secret to update with refreshed auth (default `PI_ACTION_AUTH`)                 |
-| `token`         | GitHub, Gitea, or Forgejo token                                                 |
-| `client-id`     | GitHub App client ID, used with `private-key` instead of `token`                |
-| `private-key`   | GitHub App private key                                                          |
-| `automerge`     | `true` to enable automerge, `false` to disable it, or omit for no change        |
-| `review`        | Post a review instead of a comment: `comment`, `request-changes`, or `approve`  |
-| `push`          | `false` to commit locally without pushing (default `true`)                      |
-| `comment`       | `false` to skip posting the pull request comment (default `true`)               |
-| `dry-run`       | Commit locally but skip pushes, comments, and automerge (default `false`)       |
+| Input           | Description                                                                                           |
+| --------------- | ----------------------------------------------------------------------------------------------------- |
+| `prompt`        | Prompt text, or a path to a prompt file (required)                                                    |
+| `provider`      | pi provider name, or the name for the `base-url` provider (default `custom`)                          |
+| `model`         | Model ID; required with `base-url` or `provider`                                                      |
+| `base-url`      | OpenAI-, Anthropic-, or Google-compatible endpoint, such as a CLIProxyAPI `/v1`                       |
+| `api`           | API type for `base-url` (default `openai-completions`)                                                |
+| `api-key`       | API key for `base-url` or `provider`                                                                  |
+| `models`        | pi `models.json` content, or a path to one                                                            |
+| `thinking`      | Thinking level                                                                                        |
+| `exclude-tools` | Exact pi tool names to disable; without a shell, file tools are confined                              |
+| `auth`          | pi `auth.json` content, or its base64 encoding                                                        |
+| `auth-secret`   | Secret to update with refreshed auth (default `PI_ACTION_AUTH`)                                       |
+| `token`         | GitHub, Gitea, or Forgejo token                                                                       |
+| `client-id`     | GitHub App client ID, used with `private-key` instead of `token`                                      |
+| `private-key`   | GitHub App private key                                                                                |
+| `automerge`     | `true` to enable automerge, `false` to disable it, or omit for no change                              |
+| `review`        | Post a review instead of a comment: `comment`, `request-changes`, or `approve`                        |
+| `push`          | `false` to commit locally without pushing (default `true`, or `false` with `review` on pull requests) |
+| `comment`       | `false` to skip posting the pull request comment (default `true`)                                     |
+| `dry-run`       | Commit locally but skip pushes, comments, and automerge (default `false`)                             |
 
 ## contributing
 

@@ -25,6 +25,5 @@ jobs:
           api-key: ${{ secrets.PI_ACTION_API_KEY }}
           model: claude-haiku-5-5
           exclude-tools: bash,edit,write
-          push: false
           review: approve
           prompt: .forgejo/prompts/review.md
