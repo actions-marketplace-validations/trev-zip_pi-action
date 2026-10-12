@@ -678,7 +678,7 @@ describe("pi prompt", () => {
 
   test("formats pull request comments with the agent and model", () => {
     expect(formatPiPullRequestComment(" Done. \n", "openai/<model>")).toBe(
-      `Done.\n\n---\n\n<sub>agent: pi ${PI_VERSION} | model: <code>openai/&lt;model&gt;</code></sub>`,
+      `Done.\n\n---\n\nagent: pi ${PI_VERSION} | model: <code>openai/&lt;model&gt;</code>`,
     );
   });
 
