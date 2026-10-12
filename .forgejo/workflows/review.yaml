@@ -1,0 +1,29 @@
+name: review
+
+on:
+  pull_request:
+    # CODEOWNERS requests pi's review when a pull request opens, and pushes
+    # make pi's approval stale.
+    types: [review_requested, synchronize]
+
+jobs:
+  review:
+    # zizmor: ignore[excessive-permissions]
+    if: github.event.action != 'review_requested' || github.event.requested_reviewer.login == 'pi'
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Review pull request
+        uses: ./. # zizmor: ignore[unpinned-uses,self-repository]
+        with:
+          token: ${{ secrets.PI_TOKEN }}
+          base-url: ${{ secrets.PI_ACTION_BASE_URL }}
+          api-key: ${{ secrets.PI_ACTION_API_KEY }}
+          model: claude-haiku-5-5
+          exclude-tools: bash,edit,write
+          review: approve
+          prompt: .forgejo/prompts/review.md

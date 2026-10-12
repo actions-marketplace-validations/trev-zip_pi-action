@@ -114,6 +114,7 @@ describe("inputs", () => {
       INPUT_PUSH: "",
       INPUT_COMMENT: "",
       "INPUT_DRY-RUN": "",
+      INPUT_REVIEW: "",
     };
     const read = (overrides: Partial<typeof env>) => {
       Object.assign(process.env, env, overrides);
@@ -136,6 +137,27 @@ describe("inputs", () => {
       comment: false,
       dryRun: true,
     });
+    // review only changes the default on pull request events, where it posts a review.
+    expect(read({ INPUT_REVIEW: "approve" })).toEqual({ push: true, comment: true, dryRun: false });
+
+    const payload = github.context.payload;
+    github.context.payload = { pull_request: { number: 36 } };
+
+    try {
+      expect(read({ INPUT_REVIEW: "approve" })).toEqual({
+        push: false,
+        comment: true,
+        dryRun: false,
+      });
+      expect(read({ INPUT_REVIEW: "comment", INPUT_PUSH: "true" })).toEqual({
+        push: true,
+        comment: true,
+        dryRun: false,
+      });
+      expect(read({})).toEqual({ push: true, comment: true, dryRun: false });
+    } finally {
+      github.context.payload = payload;
+    }
     expect(() => read({ INPUT_PUSH: "maybe" })).toThrow(/push/);
     expect(() => read({ INPUT_COMMENT: "maybe", "INPUT_DRY-RUN": "true" })).toThrow(/comment/);
   });

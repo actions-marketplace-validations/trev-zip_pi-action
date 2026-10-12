@@ -4,6 +4,7 @@ import path from "node:path";
 import * as core from "@actions/core";
 
 import { SUBMIT_RESULT_TOOL } from "./pi/extension.ts";
+import { isPullRequestEvent } from "./platforms/context.ts";
 import type { ActionInputs, ReviewLevel } from "./types.ts";
 
 const DEFAULT_AUTH_SECRET = "PI_ACTION_AUTH";
@@ -28,7 +29,10 @@ export function readInputs(): ActionInputs {
   const automerge = parseOptionalBoolean(core.getInput("automerge"), "automerge");
   const review = parseReviewLevel(core.getInput("review"));
   const dryRun = parseOptionalBoolean(core.getInput("dry-run"), "dry-run") ?? false;
-  const push = parseOptionalBoolean(core.getInput("push"), "push") ?? true;
+  // A review has nothing to push, so reviews only push when asked to. Other
+  // events post no review, so they push as usual.
+  const push =
+    parseOptionalBoolean(core.getInput("push"), "push") ?? !(review && isPullRequestEvent());
   const comment = parseOptionalBoolean(core.getInput("comment"), "comment") ?? true;
 
   validateActionAuthentication(token, githubAppClientId, githubAppPrivateKey);
