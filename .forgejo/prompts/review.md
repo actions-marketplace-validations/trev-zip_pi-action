@@ -2,6 +2,7 @@ Review this pull request.
 
 ## Gathering context
 
+- The pull request's version of the repository is checked out at the workspace root. `base/` holds the base branch; use it only to compare against, and never report paths under `base/`.
 - Use the platform MCP tools to read the pull request title, description, existing comments, and diff.
 - Use `grep`, `find`, and `ls` to locate code, and `read` to read the changed files and the code around them.
 - Follow the requirements in `AGENTS.md` and `CONTRIBUTING.md`.
@@ -29,8 +30,7 @@ When the pull request updates a dependency, such as a Renovate pull request that
 
 - Do not modify any files; this is a review only.
 - Your result is posted as a pull request review. Put each finding about a line the pull request adds or changes in `review_comments`, with a short explanation and suggested fix. Put the review body in the pull request comment as concise Markdown: a one-sentence summary, then findings that are not about such a line, ordered by severity, each referencing `path:line` where one applies.
-- Set `review_event` to `request_changes` if you report any findings, and to `comment` otherwise.
+- Set `review_event` to `request_changes` if you report any findings, and to `approve` otherwise. Unverified notes alone do not prevent approval.
 - Only report a finding when you have confirmed it from the pull request, the MCP tools, or the code you read.
 - Resolve every question you can answer with these tools before writing the review. List under a separate "Unverified" heading only what cannot be answered without running code or fetching something outside the repository and the pull request, and say what would confirm it. Questions about code in this repository, or about notes in the pull request description, do not belong there.
 - If you find nothing worth raising, say so in one sentence.
-- Fail the run if you report any findings, with a one-line summary such as "2 issues found in src/git.ts" as the reason. Do not fail the run for unverified notes alone.
