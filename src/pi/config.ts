@@ -10,6 +10,7 @@ export const PI_API_KEY_ENV = "PI_ACTION_API_KEY";
 export const DEFAULT_CUSTOM_PROVIDER = "custom";
 export const DEFAULT_CUSTOM_API = "openai-completions";
 export const SEARCH_TOOLS = ["grep", "find", "ls"];
+const MODEL_LIST_TIMEOUT_MS = 10000;
 
 type ProviderInputs = Pick<
   ActionInputs,
@@ -25,13 +26,19 @@ export type PiModelSelection = {
   model: string | undefined;
 };
 
-export function setupPiModels(
+export type PiModelLimits = {
+  contextWindow?: number;
+  maxTokens?: number;
+};
+
+export async function setupPiModels(
   agentDir: string,
   inputs: ProviderInputs,
   workspace: string,
-): PiModelSelection {
+): Promise<PiModelSelection> {
   const models = inputs.models ? resolveFileInput(inputs.models, workspace) : undefined;
   const config = buildPiModelsConfig(inputs, models);
+  await discoverPiModelLimits(config, inputs);
 
   if (Object.keys(config.providers).length > 0) {
     const modelsPath = path.join(agentDir, "models.json");
@@ -103,6 +110,109 @@ export function buildPiModelsConfig(inputs: ProviderInputs, models?: string): Mo
   return config;
 }
 
+// pi gives a model without limits a 128000-token context window and a
+// 16384-token output limit, which cuts off long turns of models that support
+// more. Fill in the limits the models input leaves unset from the endpoint's
+// model list. CLIProxyAPI only includes limits in the Anthropic format of that
+// list, so the request asks for it.
+export async function discoverPiModelLimits(
+  config: ModelsConfig,
+  inputs: ProviderInputs,
+): Promise<void> {
+  if (!inputs.baseUrl || !inputs.model) {
+    return;
+  }
+
+  const modelId = inputs.model;
+  const provider = config.providers[inputs.provider ?? DEFAULT_CUSTOM_PROVIDER];
+  const definition = Array.isArray(provider?.models)
+    ? (provider.models as unknown[]).find((model) => isModelWithId(model, modelId))
+    : undefined;
+
+  if (!isRecord(definition) || (definition.contextWindow && definition.maxTokens)) {
+    return;
+  }
+
+  const url = getModelListUrl(inputs.baseUrl, asString(provider?.api));
+  let limits: PiModelLimits;
+
+  try {
+    limits = await fetchModelLimits(url, modelId, inputs.apiKey);
+  } catch (error) {
+    core.info(
+      `Could not read limits for ${modelId} from ${url}; pi will use its defaults: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return;
+  }
+
+  const discovered: PiModelLimits = {};
+
+  if (!definition.contextWindow && limits.contextWindow) {
+    discovered.contextWindow = limits.contextWindow;
+  }
+
+  if (!definition.maxTokens && limits.maxTokens) {
+    discovered.maxTokens = limits.maxTokens;
+  }
+
+  if (Object.keys(discovered).length === 0) {
+    core.info(`${url} has no limits for ${modelId}; pi will use its defaults`);
+    return;
+  }
+
+  Object.assign(definition, discovered);
+  core.info(
+    `Discovered limits for ${modelId}: ${Object.entries(discovered)
+      .map(([name, value]) => `${name} ${value}`)
+      .join(", ")}`,
+  );
+}
+
+export function getModelListUrl(baseUrl: string, api: string): string {
+  const base = baseUrl.replace(/\/+$/, "");
+  // Anthropic clients add /v1 to the base URL themselves; OpenAI clients
+  // expect it to be part of the base URL already.
+  return api === "anthropic-messages" ? `${base}/v1/models` : `${base}/models`;
+}
+
+export async function fetchModelLimits(
+  url: string,
+  modelId: string,
+  apiKey: string | undefined,
+): Promise<PiModelLimits> {
+  const response = await fetch(url, {
+    headers: {
+      "anthropic-version": "2023-06-01",
+      ...(apiKey ? { authorization: `Bearer ${apiKey}`, "x-api-key": apiKey } : {}),
+    },
+    // fetch drops authorization on a cross-origin redirect, but not x-api-key.
+    redirect: "error",
+    signal: AbortSignal.timeout(MODEL_LIST_TIMEOUT_MS),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  return parseModelLimits(await response.json(), modelId);
+}
+
+// Reads the Anthropic (max_input_tokens, max_tokens) and OpenRouter-style
+// (context_length, max_completion_tokens) fields of a model list.
+export function parseModelLimits(body: unknown, modelId: string): PiModelLimits {
+  const list = isRecord(body) && Array.isArray(body.data) ? (body.data as unknown[]) : [];
+  const model = list.find((entry) => isModelWithId(entry, modelId));
+
+  if (!isRecord(model)) {
+    return {};
+  }
+
+  return {
+    contextWindow: asPositiveInteger(model.max_input_tokens ?? model.context_length),
+    maxTokens: asPositiveInteger(model.max_tokens ?? model.max_completion_tokens),
+  };
+}
+
 export function getPiModelSelection(inputs: ProviderInputs): PiModelSelection {
   if (inputs.baseUrl) {
     return { provider: inputs.provider ?? DEFAULT_CUSTOM_PROVIDER, model: inputs.model };
@@ -147,6 +257,14 @@ function parseModelsConfig(models: string | undefined): ModelsConfig {
   }
 
   return { ...parsed, providers: providers as Record<string, Record<string, unknown>> };
+}
+
+function asPositiveInteger(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : undefined;
+}
+
+function asString(value: unknown): string {
+  return typeof value === "string" ? value : "";
 }
 
 function isModelWithId(model: unknown, id: string): boolean {
