@@ -48,6 +48,11 @@ jobs:
 The API key only reaches pi through an environment variable; `models.json`
 references it as `$PI_ACTION_API_KEY` so the key is never written to disk.
 
+The action reads the model's context window and output limit from the
+endpoint's model list, which CLIProxyAPI provides, and passes them to pi.
+Without them, pi assumes a 128000-token context window and cuts each response
+off at 16384 tokens. Limits set for the model in `models` take precedence.
+
 ### Built-in Providers
 
 For providers pi already knows, set `provider`, `model`, and either `api-key`

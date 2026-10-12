@@ -34,7 +34,7 @@ export async function run(): Promise<void> {
     await configureGitUser(workspace, user);
 
     const pullRequestEvent = isPullRequestEvent();
-    const { provider, model } = setupPiModels(agentDir, inputs, workspace);
+    const { provider, model } = await setupPiModels(agentDir, inputs, workspace);
     if (setupPiSettings(agentDir, inputs.excludeTools)) {
       await setupPiSearchTools(agentDir);
     }
