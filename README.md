@@ -276,8 +276,7 @@ comment review instead. `comment: false` and `dry-run: true` skip the review.
 With `review` set, `push` defaults to `false` on pull request events; set
 `push: true` to also push changes pi makes.
 
-The action does not dismiss earlier reviews, so a run on every push adds a
-review each time. If branch protection blocks merging on rejected reviews, an
+The action does not dismiss earlier reviews, so each run adds a new review. If branch protection blocks merging on rejected reviews, an
 old request for changes keeps blocking the pull request after the problems are
 fixed until someone dismisses it.
 
@@ -317,19 +316,10 @@ jobs:
 To request pi's review on every pull request, add a `CODEOWNERS` file that
 names the token's user, such as `.* @pi-bot` in `.forgejo/CODEOWNERS` (Forgejo
 and Gitea patterns are regular expressions). Forgejo only requests code owner
-reviews when a pull request opens or leaves WIP, so also trigger on
-`synchronize` to review later pushes. Forgejo reports those pushes as
-`synchronized`, so compare only `review_requested` by name:
-
-```yaml
-on:
-  pull_request:
-    types: [review_requested, synchronize]
-
-jobs:
-  review:
-    if: github.event.action != 'review_requested' || github.event.requested_reviewer.login == 'pi-bot'
-```
+reviews when a pull request opens or leaves WIP, so re-request the review after
+later pushes once the pull request is ready. Triggering on `synchronize`
+instead would review every push, including pushes made before replying to the
+previous review's comments.
 
 Allow `approve` only when an approval from pi should carry weight. A prompt
 injection in the pull request could talk pi into approving it, and the approval

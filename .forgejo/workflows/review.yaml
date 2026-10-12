@@ -2,14 +2,15 @@ name: review
 
 on:
   pull_request:
-    # CODEOWNERS requests pi's review when a pull request opens, and pushes
-    # make pi's approval stale.
-    types: [review_requested, synchronize]
+    # CODEOWNERS requests pi's review when a pull request opens. Pushes make
+    # pi's approval stale; re-request pi's review when the pull request is
+    # ready again.
+    types: [review_requested]
 
 jobs:
   review:
     # zizmor: ignore[excessive-permissions]
-    if: github.event.action != 'review_requested' || github.event.requested_reviewer.login == 'pi'
+    if: github.event.requested_reviewer.login == 'pi'
     runs-on: ubuntu-26.04
     steps:
       - name: Checkout
