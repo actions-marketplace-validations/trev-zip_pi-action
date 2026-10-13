@@ -26,6 +26,7 @@ jobs:
           api: anthropic-messages
           api-key: ${{ secrets.PI_ACTION_API_KEY }}
           model: claude-haiku-5-5
+          thinking: low
           exclude-tools: bash,edit,write
           review: approve
           reapprove-unchanged: true
