@@ -23,8 +23,10 @@ jobs:
         with:
           token: ${{ secrets.PI_TOKEN }}
           base-url: ${{ secrets.PI_ACTION_BASE_URL }}
+          api: anthropic-messages
           api-key: ${{ secrets.PI_ACTION_API_KEY }}
           model: claude-haiku-5-5
           exclude-tools: bash,edit,write
           review: approve
+          reapprove-unchanged: true
           prompt: .forgejo/prompts/review.md

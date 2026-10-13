@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 
-import type { PiRunMetadata, ReviewComment, ReviewEvent } from "../types.ts";
+import type { PiRunMetadata, PreviousReview, ReviewComment, ReviewEvent } from "../types.ts";
 import { DEFAULT_CUSTOM_PROVIDER } from "./config.ts";
 import { createPiEnv } from "./env.ts";
 import { REVIEW_EVENTS_ENV, SUBMIT_RESULT_TOOL } from "./extension.ts";
@@ -19,6 +19,8 @@ export type PiRunOptions = {
   excludeTools?: string[];
   // Review states pi may submit; pi submits no review when empty.
   reviewEvents?: ReviewEvent[];
+  // pi's last review of the pull request, when the run reviews it again.
+  previousReview?: PreviousReview;
   env?: Record<string, string>;
 };
 
@@ -56,7 +58,7 @@ export function createPiStreamState(): PiStreamState {
 
 export async function runPiPrompt(options: PiRunOptions): Promise<PiRunMetadata> {
   const reviewEvents = options.reviewEvents ?? [];
-  const piPrompt = buildPrompt(options.prompt, undefined, reviewEvents);
+  const piPrompt = buildPrompt(options.prompt, undefined, reviewEvents, options.previousReview);
   logPiText("pi prompt", piPrompt);
 
   const state = createPiStreamState();

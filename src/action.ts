@@ -13,7 +13,10 @@ import { formatPiPullRequestComment } from "./pi/prompt.ts";
 import { runPiPrompt } from "./pi/runner.ts";
 import { setupPiSearchTools } from "./pi/search-tools.ts";
 import { createPlatformClient, isPullRequestEvent } from "./platforms/index.ts";
+import { getReapproval, loadPreviousReview } from "./previous-review.ts";
 import { getReviewEvents, postPullRequestReview, resolvePullRequestReview } from "./review.ts";
+import type { ActionUser, PlatformClient, PreviousReview } from "./types.ts";
+import { errorMessage } from "./utils.ts";
 
 export async function run(): Promise<void> {
   const inputs = readInputs();
@@ -35,32 +38,50 @@ export async function run(): Promise<void> {
     await configureGitUser(workspace, user);
 
     const pullRequestEvent = isPullRequestEvent();
-    const { provider, model } = await setupPiModels(agentDir, inputs, workspace);
-    if (setupPiSettings(agentDir, inputs.excludeTools)) {
-      await setupPiSearchTools(agentDir);
+    const previousReview =
+      pullRequestEvent && inputs.review
+        ? await findPreviousReview(platformClient, user, workspace)
+        : undefined;
+    const reapproval =
+      inputs.review && inputs.reapproveUnchanged
+        ? getReapproval(previousReview, inputs.review)
+        : undefined;
+    let model: string | undefined;
+    let metadata;
+
+    if (reapproval) {
+      core.info("Nothing changed since pi approved the pull request; approving again without pi");
+      metadata = reapproval;
+    } else {
+      const selection = await setupPiModels(agentDir, inputs, workspace);
+      model = selection.model;
+      if (setupPiSettings(agentDir, inputs.excludeTools)) {
+        await setupPiSearchTools(agentDir);
+      }
+      const extensionPath = writePiActionExtension(agentDir);
+      const mcp = await setupPiMcp(agentDir, platformClient);
+      const prompt = resolvePromptInput(inputs.prompt, workspace);
+      metadata = await runPiPrompt({
+        executable: piExecutable,
+        agentDir,
+        workspace,
+        prompt,
+        extensionPath,
+        provider: selection.provider,
+        model,
+        thinking: inputs.thinking,
+        excludeTools: inputs.excludeTools,
+        reviewEvents: pullRequestEvent && inputs.review ? getReviewEvents(inputs.review) : [],
+        previousReview,
+        env: {
+          ...mcp.env,
+          ...createPiToolEnv(workspace, inputs.excludeTools, {
+            ...mcp.secretEnv,
+            ...createPiProviderEnv(inputs.apiKey),
+          }),
+        },
+      });
     }
-    const extensionPath = writePiActionExtension(agentDir);
-    const mcp = await setupPiMcp(agentDir, platformClient);
-    const prompt = resolvePromptInput(inputs.prompt, workspace);
-    const metadata = await runPiPrompt({
-      executable: piExecutable,
-      agentDir,
-      workspace,
-      prompt,
-      extensionPath,
-      provider,
-      model,
-      thinking: inputs.thinking,
-      excludeTools: inputs.excludeTools,
-      reviewEvents: pullRequestEvent && inputs.review ? getReviewEvents(inputs.review) : [],
-      env: {
-        ...mcp.env,
-        ...createPiToolEnv(workspace, inputs.excludeTools, {
-          ...mcp.secretEnv,
-          ...createPiProviderEnv(inputs.apiKey),
-        }),
-      },
-    });
 
     const failure = metadata.failReason && `pi failed the run: ${metadata.failReason}`;
     // A failed run always explains itself on the pull request, even when pi
@@ -89,11 +110,13 @@ export async function run(): Promise<void> {
     if (pullRequestEvent && (review || prComment)) {
       const commentModel = metadata.model ?? model;
 
-      if (!commentModel) {
+      if (!reapproval && !commentModel) {
         throw new Error("Could not determine the pi model for the pull request comment");
       }
 
-      const formatBody = (body: string) => formatPiPullRequestComment(body, commentModel);
+      // pi did not run for a re-approval, so there is no model to name.
+      const formatBody = (body: string) =>
+        commentModel && !reapproval ? formatPiPullRequestComment(body, commentModel) : body;
 
       if (!inputs.comment) {
         core.info(
@@ -121,6 +144,21 @@ export async function run(): Promise<void> {
     }
   } finally {
     await persistPiAuth(agentDir, inputs.auth, updateAuthSecret);
+  }
+}
+
+// A review that cannot see the previous one still reviews the whole pull
+// request, so failing to find it only warns.
+async function findPreviousReview(
+  platformClient: PlatformClient,
+  user: ActionUser,
+  workspace: string,
+): Promise<PreviousReview | undefined> {
+  try {
+    return await loadPreviousReview(platformClient, user, workspace);
+  } catch (error) {
+    core.warning(`Could not read the previous pi review: ${errorMessage(error)}`);
+    return undefined;
   }
 }
 

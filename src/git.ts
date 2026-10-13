@@ -29,15 +29,7 @@ export async function pushChanges(
   user: ActionUser,
   token: string,
 ): Promise<void> {
-  const { stdout } = await runGit(["remote", "get-url", "origin"], workspace);
-  const authenticatedUrl = buildAuthenticatedRemoteUrl(stdout.trim(), platform, user, token);
-
-  if (!authenticatedUrl) {
-    throw new Error("origin remote must be HTTP(S) or SSH-style to push with the action token");
-  }
-
-  core.setSecret(authenticatedUrl);
-
+  const authenticatedUrl = await getAuthenticatedOriginUrl(workspace, platform, user, token);
   const pushRef = await resolvePushRef(workspace);
   await runGit(
     [
@@ -50,6 +42,122 @@ export async function pushChanges(
     { env: createNonInteractiveGitEnv() },
   );
   core.info("Pushed pi changes");
+}
+
+export type DiffSinceCommitOptions = {
+  platform: Platform;
+  user: ActionUser;
+  token: string;
+  // The commit an earlier review saw, the pull request's head, and its base
+  // branch.
+  since: string;
+  head: string;
+  baseRef: string;
+};
+
+const FULL_SHA = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
+const BRANCH_NAME = /^[A-Za-z0-9._/-]{1,200}$/;
+const BASE_REF = "refs/pi-action/base";
+
+// Returns what changed in a pull request between two of its heads, leaving out
+// changes that came from rebasing onto or merging the base branch. The older
+// head's changes are replayed onto the newer head's merge base, and the diff
+// runs from there to the newer head. Where the replay conflicts, the diff shows
+// how the newer head resolved the conflict markers.
+export async function diffSinceCommit(
+  workspace: string,
+  options: DiffSinceCommitOptions,
+): Promise<string> {
+  const { since, head, baseRef } = options;
+
+  if (!FULL_SHA.test(since) || !FULL_SHA.test(head)) {
+    throw new Error("commits must be full SHAs");
+  }
+
+  if (!BRANCH_NAME.test(baseRef)) {
+    throw new Error(`unsupported base branch name: ${baseRef}`);
+  }
+
+  // Checkouts are usually shallow, and the merge bases need the history.
+  const { stdout: shallow } = await runGit(["rev-parse", "--is-shallow-repository"], workspace);
+  const authenticatedUrl = await getAuthenticatedOriginUrl(
+    workspace,
+    options.platform,
+    options.user,
+    options.token,
+  );
+  await runGit(
+    [
+      ...buildCredentialIsolationGitArgs(authenticatedUrl),
+      "fetch",
+      "--no-tags",
+      ...(shallow.trim() === "true" ? ["--unshallow"] : []),
+      authenticatedUrl,
+      since,
+      head,
+      `+refs/heads/${baseRef}:${BASE_REF}`,
+    ],
+    workspace,
+    { env: createNonInteractiveGitEnv() },
+  );
+
+  return diffReplayed(workspace, since, head, BASE_REF);
+}
+
+// The part of diffSinceCommit that runs on commits already in the repository.
+export async function diffReplayed(
+  workspace: string,
+  since: string,
+  head: string,
+  base: string,
+): Promise<string> {
+  const sinceBase = await gitOutput(["merge-base", since, base], workspace);
+  const headBase = await gitOutput(["merge-base", head, base], workspace);
+  let from = since;
+
+  if (sinceBase !== headBase) {
+    // merge-tree exits with 1 when the replay conflicts, and still writes the
+    // tree, with conflict markers, on the first line.
+    const replay = await runGit(
+      ["merge-tree", "--write-tree", `--merge-base=${sinceBase}`, headBase, since],
+      workspace,
+      { ignoreReturnCode: true },
+    );
+
+    if (replay.exitCode > 1) {
+      throw new Error(`git merge-tree failed: ${replay.stderr.trim()}`);
+    }
+
+    from = replay.stdout.split("\n")[0]?.trim() ?? "";
+  }
+
+  const { stdout } = await runGit(
+    ["diff", "--no-color", "--no-ext-diff", "--no-textconv", from, head],
+    workspace,
+  );
+  return stdout;
+}
+
+async function getAuthenticatedOriginUrl(
+  workspace: string,
+  platform: Platform,
+  user: ActionUser,
+  token: string,
+): Promise<string> {
+  const { stdout } = await runGit(["remote", "get-url", "origin"], workspace);
+  const authenticatedUrl = buildAuthenticatedRemoteUrl(stdout.trim(), platform, user, token);
+
+  if (!authenticatedUrl) {
+    throw new Error("origin remote must be HTTP(S) or SSH-style to use the action token");
+  }
+
+  core.setSecret(authenticatedUrl);
+  return authenticatedUrl;
+}
+
+async function gitOutput(args: string[], workspace: string): Promise<string> {
+  const { stdout } = await runGit(args, workspace);
+  return stdout.trim();
 }
 
 async function resolvePushRef(workspace: string): Promise<string> {
