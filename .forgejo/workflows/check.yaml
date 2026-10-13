@@ -30,6 +30,7 @@ jobs:
           base-url: ${{ secrets.PI_ACTION_BASE_URL }}
           api-key: ${{ secrets.PI_ACTION_API_KEY }}
           model: claude-haiku-5-5
+          thinking: low
           exclude-tools: bash
           dry-run: true
           prompt: .forgejo/prompts/check.md
