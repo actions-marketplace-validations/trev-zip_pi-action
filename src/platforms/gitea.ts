@@ -3,14 +3,20 @@ import * as github from "@actions/github";
 
 import type {
   ActionUser,
+  GiteaCommentResponse,
+  GiteaReviewCommentResponse,
+  GiteaReviewResponse,
   GiteaUserResponse,
   McpReleaseAsset,
   PlatformClient,
   PlatformMcp,
+  PullRequestNote,
   PullRequestReview,
+  SubmittedReview,
 } from "../types.ts";
 import { errorMessage } from "../utils.ts";
 import { getPullRequestHeadSha, getPullRequestNumber, getServerUrl } from "./context.ts";
+import { parseGiteaComment, parseGiteaReview, parseGiteaReviewComment } from "./reviews.ts";
 
 const GITEA_MCP_VERSION = "1.8.1";
 
@@ -35,7 +41,7 @@ const GITEA_MCP_TOOLS = [
   "actions_run_read",
 ];
 
-const PULL_REQUEST_FILE_PAGES = 100;
+const MAX_PAGES = 100;
 
 const REVIEW_EVENTS = {
   comment: "COMMENT",
@@ -119,26 +125,11 @@ export class GiteaPlatformClient implements PlatformClient {
   }
 
   async listPullRequestFiles(): Promise<string[]> {
-    const { owner, repo } = github.context.repo;
-    const route = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${getPullRequestNumber()}/files`;
-    const files: string[] = [];
-
-    // The server caps the page size, so read pages until one comes back empty.
-    for (let page = 1; page <= PULL_REQUEST_FILE_PAGES; page++) {
-      const response = await giteaRequest<{ filename?: string }[]>(
-        "GET",
-        `${route}?page=${page}&limit=50`,
-        this.token,
-      );
-
-      if (response.length === 0) {
-        break;
-      }
-
-      files.push(...response.flatMap((file) => (file.filename ? [file.filename] : [])));
-    }
-
-    return files;
+    const files = await giteaPages<{ filename?: string }>(
+      `${pullRequestRoute()}/files`,
+      this.token,
+    );
+    return files.flatMap((file) => (file.filename ? [file.filename] : []));
   }
 
   async createPullRequestReview(review: PullRequestReview): Promise<void> {
@@ -161,6 +152,32 @@ export class GiteaPlatformClient implements PlatformClient {
     );
 
     core.info("Posted pi pull request review");
+  }
+
+  async listPullRequestReviews(): Promise<SubmittedReview[]> {
+    const reviews = await giteaPages<GiteaReviewResponse>(
+      `${pullRequestRoute()}/reviews`,
+      this.token,
+    );
+    return reviews.flatMap(parseGiteaReview);
+  }
+
+  async listPullRequestReviewComments(reviewId: number): Promise<PullRequestNote[]> {
+    const comments = await giteaRequest<GiteaReviewCommentResponse[]>(
+      "GET",
+      `${pullRequestRoute()}/reviews/${reviewId}/comments`,
+      this.token,
+    );
+    return comments.flatMap(parseGiteaReviewComment);
+  }
+
+  async listPullRequestComments(since: string): Promise<PullRequestNote[]> {
+    const { owner, repo } = github.context.repo;
+    const comments = await giteaPages<GiteaCommentResponse>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${getPullRequestNumber()}/comments?since=${encodeURIComponent(since)}`,
+      this.token,
+    );
+    return comments.flatMap(parseGiteaComment);
   }
 
   async setPullRequestAutomerge(enabled: boolean): Promise<void> {
@@ -248,6 +265,33 @@ function getGiteaMcpArch(arch: string): string | null {
   }
 
   return null;
+}
+
+function pullRequestRoute(): string {
+  const { owner, repo } = github.context.repo;
+  return `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${getPullRequestNumber()}`;
+}
+
+// The server caps the page size, so read pages until one comes back empty.
+async function giteaPages<T>(route: string, token: string): Promise<T[]> {
+  const items: T[] = [];
+  const separator = route.includes("?") ? "&" : "?";
+
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const response = await giteaRequest<T[]>(
+      "GET",
+      `${route}${separator}page=${page}&limit=50`,
+      token,
+    );
+
+    if (response.length === 0) {
+      break;
+    }
+
+    items.push(...response);
+  }
+
+  return items;
 }
 
 async function giteaRequest<T = unknown>(

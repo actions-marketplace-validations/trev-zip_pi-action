@@ -48,6 +48,12 @@ jobs:
 The API key only reaches pi through an environment variable; `models.json`
 references it as `$PI_ACTION_API_KEY` so the key is never written to disk.
 
+With `api: anthropic-messages`, the action drops a trailing `/v1` from
+`base-url`, since Anthropic clients add it themselves, so the same CLIProxyAPI
+URL works with either API. For Claude models, prefer `anthropic-messages`: pi
+marks requests for prompt caching there, but not over `openai-completions` by
+default.
+
 The action reads the model's context window and output limit from the
 endpoint's model list, which CLIProxyAPI provides, and passes them to pi.
 Without them, pi assumes a 128000-token context window and cuts each response
@@ -280,6 +286,23 @@ The action does not dismiss earlier reviews, so each run adds a new review. If b
 old request for changes keeps blocking the pull request after the problems are
 fixed until someone dismisses it.
 
+When the token's user reviewed the pull request before, the action gives pi
+that review, its inline comments, the comments and reviews others posted since,
+and the diff since the reviewed commit. The diff leaves out changes from
+rebasing onto or merging the base branch, and shows how conflicts were
+resolved. pi then checks whether the changes and replies settle its earlier
+findings and reviews only what changed, instead of the whole pull request. To
+work out the diff, the action fetches the reviewed commit, the base branch, and
+the history behind them, unshallowing the checkout. If that fails, pi reviews
+the whole pull request.
+
+Set `reapprove-unchanged: true` with `review: approve` to skip pi when its last
+review approved the pull request and nothing changed since apart from rebasing
+onto or merging the base branch, which makes the platform mark an approval
+stale. The action then approves again without running pi, whatever comments were
+posted since. It does not re-approve after a dismissed approval, or when the
+rebase needed conflicts resolved.
+
 To review when someone requests a review from the token's user, trigger on
 `review_requested` and check the requested reviewer. Re-requesting the review
 runs it again. Reviews can only be requested from users with access to the
@@ -359,27 +382,28 @@ those tools run, cached like the pi and MCP binaries.
 
 ## Inputs
 
-| Input           | Description                                                                                           |
-| --------------- | ----------------------------------------------------------------------------------------------------- |
-| `prompt`        | Prompt text, or a path to a prompt file (required)                                                    |
-| `provider`      | pi provider name, or the name for the `base-url` provider (default `custom`)                          |
-| `model`         | Model ID; required with `base-url` or `provider`                                                      |
-| `base-url`      | OpenAI-, Anthropic-, or Google-compatible endpoint, such as a CLIProxyAPI `/v1`                       |
-| `api`           | API type for `base-url` (default `openai-completions`)                                                |
-| `api-key`       | API key for `base-url` or `provider`                                                                  |
-| `models`        | pi `models.json` content, or a path to one                                                            |
-| `thinking`      | Thinking level                                                                                        |
-| `exclude-tools` | Exact pi tool names to disable; without a shell, file tools are confined                              |
-| `auth`          | pi `auth.json` content, or its base64 encoding                                                        |
-| `auth-secret`   | Secret to update with refreshed auth (default `PI_ACTION_AUTH`)                                       |
-| `token`         | GitHub, Gitea, or Forgejo token                                                                       |
-| `client-id`     | GitHub App client ID, used with `private-key` instead of `token`                                      |
-| `private-key`   | GitHub App private key                                                                                |
-| `automerge`     | `true` to enable automerge, `false` to disable it, or omit for no change                              |
-| `review`        | Post a review instead of a comment: `comment`, `request-changes`, or `approve`                        |
-| `push`          | `false` to commit locally without pushing (default `true`, or `false` with `review` on pull requests) |
-| `comment`       | `false` to skip posting the pull request comment (default `true`)                                     |
-| `dry-run`       | Commit locally but skip pushes, comments, and automerge (default `false`)                             |
+| Input                 | Description                                                                                                           |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `prompt`              | Prompt text, or a path to a prompt file (required)                                                                    |
+| `provider`            | pi provider name, or the name for the `base-url` provider (default `custom`)                                          |
+| `model`               | Model ID; required with `base-url` or `provider`                                                                      |
+| `base-url`            | OpenAI-, Anthropic-, or Google-compatible endpoint, such as a CLIProxyAPI `/v1`; `anthropic-messages` drops the `/v1` |
+| `api`                 | API type for `base-url` (default `openai-completions`)                                                                |
+| `api-key`             | API key for `base-url` or `provider`                                                                                  |
+| `models`              | pi `models.json` content, or a path to one                                                                            |
+| `thinking`            | Thinking level                                                                                                        |
+| `exclude-tools`       | Exact pi tool names to disable; without a shell, file tools are confined                                              |
+| `auth`                | pi `auth.json` content, or its base64 encoding                                                                        |
+| `auth-secret`         | Secret to update with refreshed auth (default `PI_ACTION_AUTH`)                                                       |
+| `token`               | GitHub, Gitea, or Forgejo token                                                                                       |
+| `client-id`           | GitHub App client ID, used with `private-key` instead of `token`                                                      |
+| `private-key`         | GitHub App private key                                                                                                |
+| `automerge`           | `true` to enable automerge, `false` to disable it, or omit for no change                                              |
+| `review`              | Post a review instead of a comment: `comment`, `request-changes`, or `approve`                                        |
+| `reapprove-unchanged` | `true` to approve again without pi when nothing but a rebase changed since pi approved (default `false`)              |
+| `push`                | `false` to commit locally without pushing (default `true`, or `false` with `review` on pull requests)                 |
+| `comment`             | `false` to skip posting the pull request comment (default `true`)                                                     |
+| `dry-run`             | Commit locally but skip pushes, comments, and automerge (default `false`)                                             |
 
 ## contributing
 

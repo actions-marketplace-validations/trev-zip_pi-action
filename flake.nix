@@ -113,6 +113,7 @@
               };
 
               nativeCheckInputs = with pkgs; [
+                git
                 oxlint
               ];
               checkPhase = ''

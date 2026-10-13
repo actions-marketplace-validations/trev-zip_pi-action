@@ -28,6 +28,8 @@ export function readInputs(): ActionInputs {
   const githubAppPrivateKey = parseOptionalString(core.getInput("private-key"));
   const automerge = parseOptionalBoolean(core.getInput("automerge"), "automerge");
   const review = parseReviewLevel(core.getInput("review"));
+  const reapproveUnchanged =
+    parseOptionalBoolean(core.getInput("reapprove-unchanged"), "reapprove-unchanged") ?? false;
   const dryRun = parseOptionalBoolean(core.getInput("dry-run"), "dry-run") ?? false;
   // A review has nothing to push, so reviews only push when asked to. Other
   // events post no review, so they push as usual.
@@ -71,6 +73,7 @@ export function readInputs(): ActionInputs {
     githubAppPrivateKey,
     automerge,
     review,
+    reapproveUnchanged,
     push: push && !dryRun,
     comment: comment && !dryRun,
     dryRun,

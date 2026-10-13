@@ -89,10 +89,12 @@ export function buildPiModelsConfig(inputs: ProviderInputs, models?: string): Mo
           { id: modelId, reasoning: inputs.thinking !== undefined && inputs.thinking !== "off" },
         ];
 
+    const api = inputs.api ?? (asString(existing.api) || DEFAULT_CUSTOM_API);
+
     config.providers[providerName] = {
       ...existing,
-      baseUrl: inputs.baseUrl,
-      api: inputs.api ?? existing.api ?? DEFAULT_CUSTOM_API,
+      baseUrl: getProviderBaseUrl(inputs.baseUrl, api),
+      api,
       ...(inputs.apiKey ? { apiKey: `$${PI_API_KEY_ENV}` } : {}),
       models,
     };
@@ -133,7 +135,7 @@ export async function discoverPiModelLimits(
     return;
   }
 
-  const url = getModelListUrl(inputs.baseUrl, asString(provider?.api));
+  const url = getModelListUrl(asString(provider?.baseUrl), asString(provider?.api));
   let limits: PiModelLimits;
 
   try {
@@ -166,6 +168,13 @@ export async function discoverPiModelLimits(
       .map(([name, value]) => `${name} ${value}`)
       .join(", ")}`,
   );
+}
+
+// Anthropic clients add /v1 to the base URL themselves, so an OpenAI-style
+// base URL that ends in /v1, such as CLIProxyAPI's, would request
+// /v1/v1/messages. Dropping it lets the same URL serve either API.
+export function getProviderBaseUrl(baseUrl: string, api: string): string {
+  return api === "anthropic-messages" ? baseUrl.replace(/\/v1\/*$/, "") : baseUrl;
 }
 
 export function getModelListUrl(baseUrl: string, api: string): string {

@@ -55,6 +55,10 @@ inputs:
   review:
     description: Post pi's pull request result as a review instead of a comment, allowing at most this review state (comment, request-changes, or approve)
     required: false
+  reapprove-unchanged:
+    description: Set true to approve again without running pi when pi approved the pull request before and nothing changed since apart from rebasing onto or merging the base branch (needs review set to approve)
+    required: false
+    default: "false"
   push:
     description: Set false to commit local changes without pushing them (default true, or false when review is set on a pull request event)
     required: false

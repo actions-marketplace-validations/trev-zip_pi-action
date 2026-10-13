@@ -9,8 +9,10 @@ import type {
   McpReleaseAsset,
   PlatformClient,
   PlatformMcp,
+  PullRequestNote,
   PullRequestPayload,
   PullRequestReview,
+  SubmittedReview,
 } from "../types.ts";
 import { errorMessage } from "../utils.ts";
 import { getPullRequestHeadSha, getPullRequestNumber } from "./context.ts";
@@ -28,6 +30,14 @@ const REVIEW_EVENTS = {
   request_changes: "REQUEST_CHANGES",
   approve: "APPROVE",
 } as const;
+
+// Pending reviews are left out, since they are not submitted.
+const GITHUB_REVIEW_STATES: Record<string, SubmittedReview["state"]> = {
+  APPROVED: "approved",
+  CHANGES_REQUESTED: "changes_requested",
+  COMMENTED: "commented",
+  DISMISSED: "dismissed",
+};
 
 const GITHUB_MCP_VERSION = "2.0.2";
 const GITHUB_MCP_TOOLSETS = "repos,issues,pull_requests,actions";
@@ -148,6 +158,78 @@ export class GitHubPlatformClient implements PlatformClient {
     });
 
     core.info("Posted pi pull request review");
+  }
+
+  async listPullRequestReviews(): Promise<SubmittedReview[]> {
+    const reviews = await this.octokit.paginate(this.octokit.rest.pulls.listReviews, {
+      ...github.context.repo,
+      pull_number: getPullRequestNumber(),
+      per_page: 100,
+    });
+
+    return reviews.flatMap((review) => {
+      const state = GITHUB_REVIEW_STATES[review.state];
+      const login = review.user?.login;
+
+      if (!state || !login || !review.submitted_at) {
+        return [];
+      }
+
+      return [
+        {
+          id: review.id,
+          login,
+          state,
+          dismissed: state === "dismissed",
+          commitId: review.commit_id || undefined,
+          body: review.body ?? "",
+          submittedAt: review.submitted_at,
+        },
+      ];
+    });
+  }
+
+  async listPullRequestReviewComments(reviewId: number): Promise<PullRequestNote[]> {
+    const comments = await this.octokit.paginate(this.octokit.rest.pulls.listCommentsForReview, {
+      ...github.context.repo,
+      pull_number: getPullRequestNumber(),
+      review_id: reviewId,
+      per_page: 100,
+    });
+
+    return comments.flatMap((comment) => {
+      const login = comment.user?.login;
+      const line = comment.line ?? comment.original_line;
+
+      if (!login || !comment.body) {
+        return [];
+      }
+
+      return [
+        {
+          login,
+          body: comment.body,
+          createdAt: comment.created_at,
+          path: comment.path,
+          ...(line ? { line } : {}),
+        },
+      ];
+    });
+  }
+
+  async listPullRequestComments(since: string): Promise<PullRequestNote[]> {
+    const comments = await this.octokit.paginate(this.octokit.rest.issues.listComments, {
+      ...github.context.repo,
+      issue_number: getPullRequestNumber(),
+      since,
+      per_page: 100,
+    });
+
+    return comments.flatMap((comment) =>
+      comment.user?.login && comment.body
+        ? [{ login: comment.user.login, body: comment.body, createdAt: comment.created_at }]
+        : [],
+    );
   }
 
   async setPullRequestAutomerge(enabled: boolean): Promise<void> {
