@@ -88,7 +88,7 @@
           default = pkgs.buildNpmPackage (
             final: with pkgs.lib; {
               pname = "pi-action";
-              version = "0.4.0";
+              version = "0.5.0";
 
               src = fileset.toSource {
                 root = ./.;
