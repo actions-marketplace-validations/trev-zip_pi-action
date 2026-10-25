@@ -11,9 +11,9 @@
   },
   "type": "module",
   "scripts": {
-    "build": "vite build",
-    "dev": "vite build && node build/index.js",
-    "prepare": "vite build && chmod +x build/index.js",
+    "build": "vite build --configLoader runner",
+    "dev": "vite build --configLoader runner && node build/index.js",
+    "prepare": "vite build --configLoader runner && chmod +x build/index.js",
     "test": "vitest run"
   },
   "dependencies": {
