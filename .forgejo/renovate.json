@@ -126,9 +126,9 @@
     },
     {
       "matchManagers": ["npm"],
-      "matchDepTypes": ["dependencies"],
+      "matchDepTypes": ["dependencies", "devDependencies"], // vite shapes the bundle too
       "postUpgradeTasks": {
-        "commands": ["npm run build"],
+        "commands": ["npm ci --ignore-scripts", "npm run build"],
         "fileFilters": ["build/index.js"]
       }
     },

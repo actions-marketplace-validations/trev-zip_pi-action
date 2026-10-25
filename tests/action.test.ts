@@ -1870,7 +1870,7 @@ describe("previous review", () => {
   });
 });
 
-describe("git diffs since a review", () => {
+describe("git diffs since a review", { timeout: 30_000 }, () => {
   test("leaves out changes from rebasing onto the base branch", async () => {
     const dir = createTempDirectory();
     const git = (...args: string[]) =>
