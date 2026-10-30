@@ -62,8 +62,7 @@
 
           release = pkgs.mkShell {
             packages = with pkgs; [
-              flake-release # github
-              nodejs_24 # npm publish
+              flake-release
             ];
           };
 
@@ -114,11 +113,9 @@
 
               nativeCheckInputs = with pkgs; [
                 git
-                oxlint
               ];
               checkPhase = ''
                 runHook preCheck
-                oxlint --deny-warnings
                 npm test
                 runHook postCheck
               '';
@@ -164,24 +161,15 @@
         checks = pkgs.mkChecks {
           inherit (self.packages.${system}) default;
 
-          oxfmt = {
-            root = ./.;
-            filter =
-              file:
-              file.hasExt "js"
-              || file.hasExt "jsx"
-              || file.hasExt "ts"
-              || file.hasExt "tsx"
-              || file.hasExt "json"
-              || file.hasExt "yaml"
-              || file.hasExt "toml"
-              || file.hasExt "md";
-            include = [ ./.oxfmtrc.json ];
+          node-lint = {
+            src = self.packages.${system}.default;
             packages = with pkgs; [
               oxfmt
+              oxlint
             ];
             script = ''
               oxfmt --check
+              oxlint --deny-warnings
             '';
           };
 
@@ -243,6 +231,18 @@
             ];
             script = ''
               renovate-config-validator renovate.json
+            '';
+          };
+
+          config = {
+            root = ./.;
+            filter = file: file.hasExt "json" || file.hasExt "yaml" || file.hasExt "toml" || file.hasExt "md";
+            include = [ ./.oxfmtrc.json ];
+            packages = with pkgs; [
+              oxfmt
+            ];
+            script = ''
+              oxfmt --check
             '';
           };
         };
